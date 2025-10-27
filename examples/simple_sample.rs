@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::{metadata::MetadataValue, Request, transport::{Channel, ClientTlsConfig}};
+use tonic::{metadata::MetadataValue, Request, transport::Channel};
 use grok_grpc::xai_api::sample_client::SampleClient;
 use grok_grpc::xai_api::{SampleTextRequest, SampleTextResponse};
 
@@ -10,13 +10,8 @@ async fn main() -> Result<()> {
     let api_key = env::var("XAI_API_KEY")
         .context("XAI_API_KEY environment variable must be set")?;
 
-    // Create TLS configuration
-    let tls_config = ClientTlsConfig::new();
-
-    // Create the gRPC channel with TLS
+    // Create the gRPC channel - try different endpoint
     let channel = Channel::from_static("https://api.x.ai:443")
-        .tls_config(tls_config)
-        .context("Failed to create TLS configuration")?
         .connect()
         .await
         .context("Failed to connect to xAI API")?;
@@ -27,8 +22,8 @@ async fn main() -> Result<()> {
     // Create the request
     let mut request = Request::new(SampleTextRequest {
         prompt: vec!["Write a haiku about programming.".to_string()],
-        model: "grok-2-latest".to_string(),
-        max_tokens: Some(100),
+        model: "grok-3-latest".to_string(),
+        max_tokens: None,
         temperature: Some(0.7),
         top_p: Some(0.9),
         n: Some(1),

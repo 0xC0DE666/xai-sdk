@@ -11,6 +11,7 @@ A Rust client library for the xAI (Grok) API using gRPC protocol.
 - Embedding generation
 - Model management and information
 - Authentication and error handling
+- Hyper TLS integration for secure connections
 
 ## Quick Start
 
@@ -117,6 +118,14 @@ The client supports various configuration options:
 - **Max tokens**: Maximum tokens to generate
 - **Log probabilities**: Enable detailed token probability logging
 - **Multiple completions**: Generate multiple responses per request
+
+### TLS Configuration
+
+The client uses Hyper's built-in TLS implementation for secure connections to `https://api.x.ai`. This provides:
+- Automatic certificate validation
+- Modern TLS protocols
+- Secure connection establishment
+- No manual TLS configuration required
 
 ## Error Handling
 

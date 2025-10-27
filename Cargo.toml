@@ -21,5 +21,9 @@ path = "examples/raw_text_sample.rs"
 name = "simple_sample"
 path = "examples/simple_sample.rs"
 
+[[bin]]
+name = "test_connection"
+path = "test_connection.rs"
+
 [build-dependencies]
 tonic-build = "0.11"
