@@ -1,4 +1,4 @@
-mod xai_api;
+pub mod xai_api;
 
 fn main() {
     println!("Hello, world!");

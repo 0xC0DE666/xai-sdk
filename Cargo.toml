@@ -4,13 +4,22 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tonic = "0.11"
+tonic = { version = "0.11", features = ["tls"] }
 prost = "0.12"
 prost-types = "0.12"
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.4"
 anyhow = "1.0"  # For error handling
 futures = "0.3"  # For streaming
+env_logger = "0.10"  # For logging
+
+[[example]]
+name = "raw_text_sample"
+path = "examples/raw_text_sample.rs"
+
+[[example]]
+name = "simple_sample"
+path = "examples/simple_sample.rs"
 
 [build-dependencies]
 tonic-build = "0.11"
