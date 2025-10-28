@@ -8,6 +8,7 @@ use xai_sdk::chat_client::ChatClient;
 use xai_sdk::{
     Content, GetChatCompletionChunk, GetCompletionsRequest, Message, MessageRole, content,
 };
+use xai_sdk::chat;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -52,41 +53,10 @@ async fn main() -> Result<()> {
     // Make the API call
     match client.get_completion_chunk(request).await {
         Ok(response) => {
-            let mut stream: Streaming<GetChatCompletionChunk> = response.into_inner();
+            let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
+            let consumer = chat::StreamConsumer::with_stdout();
+            let _ = chat::process_stream(stream, consumer).await;
 
-            // Process each chunk as it arrives
-            loop {
-                let result = stream.message().await;
-                match result {
-                    Ok(chunk) => {
-                        // Handle the chunk
-                        if chunk.is_none() {
-                            break;
-                        }
-
-                        if let Some(choice) = chunk.unwrap().choices.first() {
-                            if let Some(delta) = &choice.delta {
-                                if delta.reasoning_content.len() > 0 {
-                                    print!("{}", delta.reasoning_content); // Stream tokens in real-time
-                                    let _ = std::io::Write::flush(&mut std::io::stdout());
-                                }
-
-                                if delta.content.len() > 0 {
-                                    print!("{}", delta.content); // Stream tokens in real-time
-                                    let _ = std::io::Write::flush(&mut std::io::stdout());
-                                }
-                            }
-                            if choice.finish_reason > 0 {
-                                println!("\n[Finished: {:?}]", choice.finish_reason);
-                            }
-                        }
-                    }
-                    Err(status) => {
-                        eprintln!("Stream error: {}", status);
-                        break;
-                    }
-                }
-            }
         }
         Err(e) => {
             eprintln!("❌ Error calling xAI API: {}", e);
