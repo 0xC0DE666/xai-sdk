@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::io::Write;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Status, Streaming};
+use tonic::metadata::MetadataValue;
+use tonic::Request;
 
 /// Creates a new ChatClient connected to the xAI API.
 ///
@@ -23,6 +25,26 @@ pub async fn create_client() -> Result<ChatClient<Channel>, tonic::transport::Er
         .await?;
 
     Ok(ChatClient::new(channel))
+}
+
+/// Adds authentication header to a request.
+///
+/// # Arguments
+/// * `request` - The request to add authentication to
+/// * `api_key` - The xAI API key for authentication
+///
+/// # Returns
+/// * `Result<Request<T>, Box<dyn std::error::Error + Send + Sync>>` - The authenticated request or error
+///
+/// # Example
+/// ```rust
+/// let mut request = Request::new(GetCompletionsRequest::default());
+/// let authenticated_request = chat::add_auth(request, "your-api-key-here")?;
+/// ```
+pub fn add_auth<T>(mut request: Request<T>, api_key: &str) -> Result<Request<T>, Box<dyn std::error::Error + Send + Sync>> {
+    let token = MetadataValue::try_from(format!("Bearer {}", api_key))?;
+    request.metadata_mut().insert("authorization", token);
+    Ok(request)
 }
 
 /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.

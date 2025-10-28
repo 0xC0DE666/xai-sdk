@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Client Modules**: Organized SDK into focused modules (`auth`, `chat`, `documents`, `embed`, `image`, `models`, `sample`, `tokenize`)
+- **Easy Client Creation**: Each module provides a simple `create_client()` function
+- **Authentication Helpers**: Each module provides an `add_auth()` function for request authentication
+- **Centralized Configuration**: `XAI_API_URL` constant for consistent endpoint management
 - `assemble_response` function to convert streaming chunks into complete `GetChatCompletionResponse`
 - `process_stream` function with comprehensive documentation
 - Example demonstrating stream processing and response assembly (`examples/assemble_response.rs`)
@@ -15,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiple choice handling in stream assembly
 
 ### Changed
+- **Authentication Pattern**: Requests now require explicit authentication using `add_auth()` helper
+- **Module Structure**: All client creation functions moved to top of respective modules
+- **Import Organization**: Consistent import ordering across all modules
+- **Documentation**: Updated README with new module-based examples and authentication patterns
 - Improved documentation for streaming functions
 - Enhanced error handling in stream processing
 

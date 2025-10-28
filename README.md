@@ -68,10 +68,10 @@ anyhow = "1.0"
 ### Text Generation
 
 ```rust
-use xai_sdk::{SampleClient, SampleTextRequest};
+use xai_sdk::{sample, SampleTextRequest};
 use tonic::Request;
 
-let mut client = SampleClient::connect("https://api.x.ai:443").await?;
+let mut client = sample::create_client().await?;
 
 let request = Request::new(SampleTextRequest {
     prompt: vec!["Write a haiku about Rust programming".to_string()],
@@ -81,17 +81,20 @@ let request = Request::new(SampleTextRequest {
     ..Default::default()
 });
 
-let response = client.sample_text(request).await?;
+// Add authentication to the request
+let authenticated_request = sample::add_auth(request, "your-api-key-here")?;
+
+let response = client.sample_text(authenticated_request).await?;
 println!("Generated: {}", response.into_inner().choices[0].text);
 ```
 
 ### Chat Completion
 
 ```rust
-use xai_sdk::{ChatClient, GetCompletionsRequest, Message, MessageRole, Content};
+use xai_sdk::{chat, GetCompletionsRequest, Message, MessageRole, Content};
 use tonic::Request;
 
-let mut client = ChatClient::connect("https://api.x.ai:443").await?;
+let mut client = chat::create_client().await?;
 
 let message = Message {
     role: MessageRole::RoleUser.into(),
@@ -107,17 +110,20 @@ let request = Request::new(GetCompletionsRequest {
     ..Default::default()
 });
 
-let response = client.get_completion(request).await?;
+// Add authentication to the request
+let authenticated_request = chat::add_auth(request, "your-api-key-here")?;
+
+let response = client.get_completion(authenticated_request).await?;
 println!("Response: {}", response.into_inner().choices[0].message.unwrap().content);
 ```
 
 ### Streaming Chat Completion
 
 ```rust
-use xai_sdk::{ChatClient, GetCompletionsRequest, Message, MessageRole, Content, chat};
+use xai_sdk::{chat, GetCompletionsRequest, Message, MessageRole, Content};
 use tonic::Request;
 
-let mut client = ChatClient::connect("https://api.x.ai:443").await?;
+let mut client = chat::create_client().await?;
 
 let message = Message {
     role: MessageRole::RoleUser.into(),
@@ -133,8 +139,11 @@ let request = Request::new(GetCompletionsRequest {
     ..Default::default()
 });
 
+// Add authentication to the request
+let authenticated_request = chat::add_auth(request, "your-api-key-here")?;
+
 // Process streaming response
-let stream = client.get_completion_chunk(request).await?.into_inner();
+let stream = client.get_completion_chunk(authenticated_request).await?.into_inner();
 let consumer = chat::StreamConsumer::with_stdout();
 let chunks = chat::process_stream(stream, consumer).await?;
 
@@ -172,6 +181,75 @@ The SDK provides clients for all xAI services:
 
 ### Auth Service
 - **`get_api_key_info`** - Get API key information
+
+## Client Modules
+
+The SDK is organized into focused modules, each providing easy client creation:
+
+### Available Modules
+- **`auth`** - Authentication services
+- **`chat`** - Chat completions and streaming
+- **`documents`** - Document processing
+- **`embed`** - Text and image embeddings
+- **`image`** - Image generation
+- **`models`** - Model listing and information
+- **`sample`** - Text sampling and generation
+- **`tokenize`** - Text tokenization
+
+### Client Creation
+Each module provides a simple `create_client()` function and an `add_auth()` helper:
+
+```rust
+use xai_sdk::{chat, sample, models, embed};
+use tonic::Request;
+
+// Create clients for different services
+let chat_client = chat::create_client().await?;
+let sample_client = sample::create_client().await?;
+let models_client = models::create_client().await?;
+let embed_client = embed::create_client().await?;
+
+// Add authentication to requests
+let request = Request::new(GetCompletionsRequest::default());
+let authenticated_request = chat::add_auth(request, "your-api-key-here")?;
+```
+
+### Complete Example
+Here's a complete example showing multiple services:
+
+```rust
+use xai_sdk::{chat, models, sample};
+use tonic::Request;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = "your-api-key-here";
+    
+    // List available models
+    let models_client = models::create_client().await?;
+    let models_request = Request::new(());
+    let authenticated_models_request = models::add_auth(models_request, api_key)?;
+    let models_response = models_client.list_language_models(authenticated_models_request).await?;
+    println!("Available models: {:?}", models_response.into_inner().models);
+
+    // Generate text
+    let sample_client = sample::create_client().await?;
+    let sample_request = Request::new(sample::SampleTextRequest {
+        prompt: vec!["Hello, world!".to_string()],
+        model: "grok-2-latest".to_string(),
+        ..Default::default()
+    });
+    let authenticated_sample_request = sample::add_auth(sample_request, api_key)?;
+    let sample_response = sample_client.sample_text(authenticated_sample_request).await?;
+    println!("Generated: {}", sample_response.into_inner().choices[0].text);
+
+    // Chat completion
+    let chat_client = chat::create_client().await?;
+    // ... use chat_client for chat completions with authentication
+
+    Ok(())
+}
+```
 
 ## Streaming Utilities
 
