@@ -1,9 +1,9 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_client(true)
         .build_server(false)
         .out_dir(&"src/")
-        .compile(
+        .compile_protos(
             &[
                 "proto/xai/api/v1/auth.proto",
                 "proto/xai/api/v1/chat.proto",

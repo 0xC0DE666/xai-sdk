@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::{metadata::MetadataValue, Request, transport::Channel};
+use tonic::{metadata::MetadataValue, Request};
+use tonic::transport::{Channel, Certificate, Channel, ClientTlsConfig};
+
 use grok_grpc::xai_api::chat_client::ChatClient;
 use grok_grpc::xai_api::{GetCompletionsRequest, GetChatCompletionResponse, Message, MessageRole, Content, content};
 

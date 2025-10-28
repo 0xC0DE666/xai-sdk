@@ -5,9 +5,10 @@ edition = "2024"
 
 [dependencies]
 # MAIN
-tonic = { version = "0.11", features = ["tls", "tls-roots"] }  # TLS support with native roots
-prost = "0.12"  # Matches Tonic 0.11
-prost-types = "0.12"
+prost = "0.14"
+prost-types = "0.14"
+tonic = { version = "0.14", features = ["channel", "tls-native-roots"] }  # TLS support with native roots
+tonic-prost = "0.14"
 # derive_builder = "0.20.2"
 # tower = "0.4"  # For middleware and retries
 
@@ -19,7 +20,7 @@ anyhow = "1.0"  # Simplified error handling
 # futures = "0.3"  # For streaming support
 
 [build-dependencies]
-tonic-build = { version = "0.11", features = ["prost"] }  # Matches Tonic 0.11
+tonic-prost-build = { version = "0.14" }  # Matches Tonic 0.11
 # prost-build = "0.12"  # Matches Prost version
 
 [[example]]
