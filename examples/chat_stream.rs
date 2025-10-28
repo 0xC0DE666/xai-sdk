@@ -4,8 +4,8 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, Streaming};
 
-use grok_grpc::chat_client::ChatClient;
-use grok_grpc::{
+use xai_sdk::chat_client::ChatClient;
+use xai_sdk::{
     Content, GetChatCompletionChunk, GetCompletionsRequest, Message, MessageRole, content,
 };
 
@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
             let mut stream: Streaming<GetChatCompletionChunk> = response.into_inner();
 
             // Process each chunk as it arrives
-            while true {
+            loop {
                 let result = stream.message().await;
                 match result {
                     Ok(chunk) => {

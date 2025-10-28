@@ -3,8 +3,8 @@ use std::env;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, metadata::MetadataValue};
 
-use xai_grpc::chat_client::ChatClient;
-use grok_grpc::{
+use xai_sdk::chat_client::ChatClient;
+use xai_sdk::{
     Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };
 

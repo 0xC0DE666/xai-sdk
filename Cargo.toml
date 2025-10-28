@@ -1,10 +1,10 @@
 [package]
-name = "grok-grpc"
+name = "xai-sdk"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-name = "grok_grpc"
+name = "xai_sdk"
 path = "src/lib.rs"
 
 [dependencies]

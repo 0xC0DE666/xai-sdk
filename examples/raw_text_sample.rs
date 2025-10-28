@@ -5,8 +5,8 @@ use tonic::{
     Request,
     transport::Channel,
 };
-use grok_grpc::sample_client::SampleClient;
-use grok_grpc::{SampleTextRequest, SampleTextResponse};
+use xai_sdk::sample_client::SampleClient;
+use xai_sdk::{SampleTextRequest, SampleTextResponse};
 
 /// Creates a gRPC client
 async fn create_client() -> Result<SampleClient<Channel>> {
@@ -144,9 +144,6 @@ async fn call_sample_api(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
-    env_logger::init();
-
     // Run the demonstration
     demonstrate_text_sampling().await?;
 

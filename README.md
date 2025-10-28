@@ -1,6 +1,6 @@
-# xAI gRPC Rust Client
+# xAI SDK
 
-A Rust client library for the xAI (Grok) API using gRPC protocol.
+A Rust SDK for the xAI (Grok) API using gRPC protocol.
 
 ## Features
 
@@ -32,9 +32,9 @@ A Rust client library for the xAI (Grok) API using gRPC protocol.
    cargo run --example raw_text_sample
    ```
 
-3. Or run the simple example:
+3. Or run the chat example:
    ```bash
-   cargo run --example simple_sample
+   cargo run --example chat_post
    ```
 
 4. Or use the convenience script:
@@ -51,8 +51,8 @@ A Rust client library for the xAI (Grok) API using gRPC protocol.
 - Proper error handling and logging
 - Detailed output formatting
 
-**Simple Example (`simple_sample`):**
-- Basic text generation
+**Chat Example (`chat_post`):**
+- Basic chat completion
 - Minimal configuration
 - Easy to understand code structure
 - Perfect for getting started
