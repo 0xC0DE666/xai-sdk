@@ -31,4 +31,4 @@ path = "examples/chat_stream.rs"
 
 [[bin]]
 name = "test_connection"
-path = "test_connection.rs"
+path = "examples/test_connection.rs"
