@@ -17,7 +17,9 @@ async fn main() -> Result<()> {
         .context("Failed to connect to xAI API")?;
 
     // Create the client
-    let mut client = ChatClient::new(channel);
+    let mut client = ChatClient::connect("https://api.x.ai:443")
+        .await
+        .context("Failed to connect to xAI API")?;
 
     // Create the request
     let mut cntnt = Content::default();
