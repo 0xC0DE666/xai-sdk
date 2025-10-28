@@ -22,8 +22,12 @@ name = "raw_text_sample"
 path = "examples/raw_text_sample.rs"
 
 [[example]]
-name = "simple_sample"
-path = "examples/simple_sample.rs"
+name = "chat_post"
+path = "examples/chat_post.rs"
+
+[[example]]
+name = "chat_stream"
+path = "examples/chat_stream.rs"
 
 [[bin]]
 name = "test_connection"
