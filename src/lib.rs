@@ -1,2 +1,3 @@
-pub mod xai_api;
+mod xai_api;
 
+pub use xai_api::*;

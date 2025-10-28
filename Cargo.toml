@@ -3,6 +3,10 @@ name = "grok-grpc"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "grok_grpc"
+path = "src/lib.rs"
+
 [dependencies]
 # MAIN
 prost = "0.14"

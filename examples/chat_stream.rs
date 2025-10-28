@@ -4,8 +4,8 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, Streaming};
 
-use grok_grpc::xai_api::chat_client::ChatClient;
-use grok_grpc::xai_api::{
+use grok_grpc::chat_client::ChatClient;
+use grok_grpc::{
     Content, GetChatCompletionChunk, GetCompletionsRequest, Message, MessageRole, content,
 };
 

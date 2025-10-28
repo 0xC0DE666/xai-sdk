@@ -1,16 +1,18 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::{metadata::MetadataValue, Request};
 use tonic::transport::{Channel, ClientTlsConfig};
+use tonic::{Request, metadata::MetadataValue};
 
-use grok_grpc::xai_api::chat_client::ChatClient;
-use grok_grpc::xai_api::{GetCompletionsRequest, GetChatCompletionResponse, Message, MessageRole, Content, content};
+use xai_grpc::chat_client::ChatClient;
+use grok_grpc::{
+    Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load API key from environment variable
-    let api_key = env::var("XAI_API_KEY")
-        .context("XAI_API_KEY environment variable must be set")?;
+    let api_key =
+        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
     // Create the gRPC channel - try different endpoint
     let channel = Channel::from_static("https://api.x.ai:443")
@@ -37,8 +39,8 @@ async fn main() -> Result<()> {
     });
 
     // Add authentication header
-    let token = MetadataValue::try_from(format!("Bearer {}", api_key))
-        .context("Invalid API key format")?;
+    let token =
+        MetadataValue::try_from(format!("Bearer {}", api_key)).context("Invalid API key format")?;
     request.metadata_mut().insert("authorization", token);
 
     println!("🚀 Sending request to xAI API...");
@@ -50,7 +52,7 @@ async fn main() -> Result<()> {
     match client.get_completion(request).await {
         Ok(response) => {
             let sample_response: GetChatCompletionResponse = response.into_inner();
-            
+
             println!("✅ Response received!");
             println!("🆔 Request ID: {}", sample_response.id);
             println!("🤖 Model used: {}", sample_response.model);

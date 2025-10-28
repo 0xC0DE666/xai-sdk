@@ -5,8 +5,8 @@ use tonic::{
     Request,
     transport::Channel,
 };
-use grok_grpc::xai_api::sample_client::SampleClient;
-use grok_grpc::xai_api::{SampleTextRequest, SampleTextResponse};
+use grok_grpc::sample_client::SampleClient;
+use grok_grpc::{SampleTextRequest, SampleTextResponse};
 
 /// Creates a gRPC client
 async fn create_client() -> Result<SampleClient<Channel>> {
