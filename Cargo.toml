@@ -40,6 +40,10 @@ path = "examples/chat_post.rs"
 name = "chat_stream"
 path = "examples/chat_stream.rs"
 
+[[example]]
+name = "assemble_response"
+path = "examples/assemble_response.rs"
+
 [[bin]]
 name = "test_connection"
 path = "examples/test_connection.rs"

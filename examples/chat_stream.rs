@@ -54,12 +54,7 @@ async fn main() -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            let mut consumer =
-                chat::StreamConsumer::with_stdout().on_chunk(|c: &GetChatCompletionChunk| {
-                    println!("{c:?}");
-                });
-            consumer.on_content_token = None;
-            consumer.on_reason_token = None;
+            let consumer = chat::StreamConsumer::with_stdout();
             let _ = chat::process_stream(stream, consumer).await;
         }
         Err(e) => {
