@@ -20,7 +20,7 @@ anyhow = "1.0"  # Simplified error handling
 
 [build-dependencies]
 tonic-build = { version = "0.11", features = ["prost"] }  # Matches Tonic 0.11
-prost-build = "0.12"  # Matches Prost version
+# prost-build = "0.12"  # Matches Prost version
 
 [[example]]
 name = "raw_text_sample"
