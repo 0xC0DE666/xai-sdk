@@ -1,7 +1,29 @@
-use crate::{Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse};
+use crate::{
+    Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse, XAI_API_URL,
+    chat_client::ChatClient,
+};
 use std::collections::HashMap;
 use std::io::Write;
+use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Status, Streaming};
+
+/// Creates a new ChatClient connected to the xAI API.
+///
+/// # Returns
+/// * `Result<ChatClient<Channel>, tonic::transport::Error>` - The connected client or connection error
+///
+/// # Example
+/// ```rust
+/// let client = chat::create_client().await?;
+/// ```
+pub async fn create_client() -> Result<ChatClient<Channel>, tonic::transport::Error> {
+    let channel = Channel::from_static(XAI_API_URL)
+        .tls_config(ClientTlsConfig::new().with_native_roots())?
+        .connect()
+        .await?;
+
+    Ok(ChatClient::new(channel))
+}
 
 /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.
 ///
