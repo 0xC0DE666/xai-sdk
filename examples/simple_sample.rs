@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::env;
 use tonic::{metadata::MetadataValue, Request};
-use tonic::transport::{Channel, Certificate, Channel, ClientTlsConfig};
+use tonic::transport::{Channel, ClientTlsConfig};
 
 use grok_grpc::xai_api::chat_client::ChatClient;
 use grok_grpc::xai_api::{GetCompletionsRequest, GetChatCompletionResponse, Message, MessageRole, Content, content};
@@ -14,14 +14,13 @@ async fn main() -> Result<()> {
 
     // Create the gRPC channel - try different endpoint
     let channel = Channel::from_static("https://api.x.ai:443")
+        .tls_config(ClientTlsConfig::new().with_native_roots())?
         .connect()
         .await
         .context("Failed to connect to xAI API")?;
 
     // Create the client
-    let mut client = ChatClient::connect("https://api.x.ai:443")
-        .await
-        .context("Failed to connect to xAI API")?;
+    let mut client = ChatClient::new(channel);
 
     // Create the request
     let mut cntnt = Content::default();
