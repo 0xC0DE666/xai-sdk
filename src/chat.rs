@@ -1,21 +1,15 @@
-use crate::{Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse};
+use crate::GetChatCompletionChunk;
 use std::io::Write;
 use tonic::{Status, Streaming};
 
 pub async fn process_stream(
     mut stream: Streaming<GetChatCompletionChunk>,
     mut consumer: StreamConsumer,
-    // TODO: add proper error handling
-) -> Result<GetChatCompletionResponse, Status> {
-    let mut buf_reasoning_content = String::new();
-    let mut buf_content = String::new();
-    let mut complete_res = GetChatCompletionResponse::default();
-    let mut init = true;
-    let mut role: i32 = 0;
-    let mut finish_reason: i32 = 0;
+) -> Result<Vec<GetChatCompletionChunk>, Status> {
+    let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
 
-    // Process each chunk as it arrives
     loop {
+        // Process each chunk as it arrives
         match stream.message().await {
             Ok(chunk) => {
                 if chunk.is_none() {
@@ -30,37 +24,12 @@ pub async fn process_stream(
                     on_chunk(&chunk);
                 }
 
-                if init {
-                    init = false;
-                    complete_res.id = chunk.id;
-                    complete_res.created = chunk.created;
-                    complete_res.model = chunk.model;
-                    complete_res.system_fingerprint = chunk.system_fingerprint;
-                }
-
-                if let Some(choice) = chunk.choices.last()
-                    && role == 0
-                {
-                    if let Some(delta) = &choice.delta {
-                        role = delta.role;
-                    }
-                }
-
-                if chunk.usage.is_some() {
-                    complete_res.usage = chunk.usage;
-                }
-
-                if chunk.citations.len() > 0 {
-                    complete_res.citations = chunk.citations;
-                }
-
-                if let Some(choice) = chunk.choices.get(0) {
+                for choice in &chunk.choices {
                     if let (Some(ref mut on_reason_token), Some(delta)) =
                         (consumer.on_reason_token.as_mut(), &choice.delta)
                     {
                         let reason_token = &delta.reasoning_content;
                         on_reason_token(reason_token);
-                        buf_reasoning_content.push_str(reason_token);
                     }
 
                     if let (Some(ref mut on_content_token), Some(delta)) =
@@ -68,13 +37,9 @@ pub async fn process_stream(
                     {
                         let content_token = &delta.content;
                         on_content_token(content_token);
-                        buf_content.push_str(content_token);
-                    }
-
-                    if choice.finish_reason > 0 {
-                        finish_reason = choice.finish_reason;
                     }
                 }
+                chunks.push(chunk);
             }
             Err(status) => {
                 return Err(status);
@@ -82,19 +47,7 @@ pub async fn process_stream(
         }
     }
 
-    complete_res.choices.push(Choice {
-        index: 0,
-        message: Some(CompletionMessage {
-            content: buf_content,
-            reasoning_content: buf_reasoning_content,
-            role: role,
-            ..CompletionMessage::default()
-        }),
-        finish_reason: finish_reason,
-        ..Choice::default()
-    });
-
-    Ok(complete_res)
+    Ok(chunks)
 }
 
 // ####################
