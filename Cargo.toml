@@ -4,16 +4,19 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# MAIN
 tonic = { version = "0.11", features = ["tls", "tls-roots"] }  # TLS support with native roots
 prost = "0.12"  # Matches Tonic 0.11
 prost-types = "0.12"
+# derive_builder = "0.20.2"
+# tower = "0.4"  # For middleware and retries
+
+# EXAMPLE
+# http = "0.2"  # For HTTP-related types
+# env_logger = "0.10"  # For logging
 tokio = { version = "1.0", features = ["full"] }  # Async runtime
 anyhow = "1.0"  # Simplified error handling
-futures = "0.3"  # For streaming support
-tower = "0.4"  # For middleware and retries
-# http = "0.2"  # For HTTP-related types
-env_logger = "0.10"  # For logging
-derive_builder = "0.20.2"
+# futures = "0.3"  # For streaming support
 
 [build-dependencies]
 tonic-build = { version = "0.11", features = ["prost"] }  # Matches Tonic 0.11
