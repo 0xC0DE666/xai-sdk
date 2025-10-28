@@ -44,6 +44,10 @@ path = "examples/chat_stream.rs"
 name = "assemble_response"
 path = "examples/assemble_response.rs"
 
+[[example]]
+name = "unified_client"
+path = "examples/unified_client.rs"
+
 [[bin]]
 name = "test_connection"
 path = "examples/test_connection.rs"

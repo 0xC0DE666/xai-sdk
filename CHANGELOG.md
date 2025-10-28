@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unified Client**: `XaiClient` provides a single interface for all xAI services with automatic authentication
 - **Client Modules**: Organized SDK into focused modules (`auth`, `chat`, `documents`, `embed`, `image`, `models`, `sample`, `tokenize`)
 - **Easy Client Creation**: Each module provides a simple `create_client()` function
 - **Authentication Helpers**: Each module provides an `add_auth()` function for request authentication
@@ -22,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Authentication Pattern**: Requests now require explicit authentication using `add_auth()` helper
 - **Module Structure**: All client creation functions moved to top of respective modules
 - **Import Organization**: Consistent import ordering across all modules
-- **Documentation**: Updated README with new module-based examples and authentication patterns
+- **Documentation**: Updated README with unified client examples and authentication patterns
 - Improved documentation for streaming functions
 - Enhanced error handling in stream processing
 

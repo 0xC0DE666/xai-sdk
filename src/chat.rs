@@ -4,10 +4,10 @@ use crate::{
 };
 use std::collections::HashMap;
 use std::io::Write;
+use tonic::Request;
+use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Status, Streaming};
-use tonic::metadata::MetadataValue;
-use tonic::Request;
 
 /// Creates a new ChatClient connected to the xAI API.
 ///
@@ -41,7 +41,10 @@ pub async fn create_client() -> Result<ChatClient<Channel>, tonic::transport::Er
 /// let mut request = Request::new(GetCompletionsRequest::default());
 /// let authenticated_request = chat::add_auth(request, "your-api-key-here")?;
 /// ```
-pub fn add_auth<T>(mut request: Request<T>, api_key: &str) -> Result<Request<T>, Box<dyn std::error::Error + Send + Sync>> {
+pub fn add_auth<T>(
+    mut request: Request<T>,
+    api_key: &str,
+) -> Result<Request<T>, Box<dyn std::error::Error + Send + Sync>> {
     let token = MetadataValue::try_from(format!("Bearer {}", api_key))?;
     request.metadata_mut().insert("authorization", token);
     Ok(request)
