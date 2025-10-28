@@ -4,11 +4,11 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, Streaming};
 
+use xai_sdk::chat;
 use xai_sdk::chat_client::ChatClient;
 use xai_sdk::{
     Content, GetChatCompletionChunk, GetCompletionsRequest, Message, MessageRole, content,
 };
-use xai_sdk::chat;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -54,9 +54,13 @@ async fn main() -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            let consumer = chat::StreamConsumer::with_stdout();
+            let mut consumer =
+                chat::StreamConsumer::with_stdout().on_chunk(|c: &GetChatCompletionChunk| {
+                    println!("{c:?}");
+                });
+            consumer.on_content_token = None;
+            consumer.on_reason_token = None;
             let _ = chat::process_stream(stream, consumer).await;
-
         }
         Err(e) => {
             eprintln!("❌ Error calling xAI API: {}", e);
