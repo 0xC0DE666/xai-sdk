@@ -9,6 +9,7 @@ A comprehensive Rust SDK for xAI's API, providing type-safe gRPC clients for all
 - **Async/Await**: Built on Tokio for high-performance async operations
 - **Multiple Models**: Support for all xAI language models (Grok-2, Grok-3, etc.)
 - **Streaming Support**: Real-time streaming for chat completions and text generation
+- **Response Assembly**: Convert streaming chunks into complete responses
 - **Secure**: TLS encryption with automatic certificate validation
 - **Production Ready**: Comprehensive error handling and connection management
 
@@ -52,7 +53,12 @@ anyhow = "1.0"
    cargo run --example chat_stream
    ```
 
-5. Test your connection:
+5. Run the response assembly example:
+   ```bash
+   cargo run --example assemble_response
+   ```
+
+6. Test your connection:
    ```bash
    cargo run --bin test_connection
    ```
@@ -105,6 +111,40 @@ let response = client.get_completion(request).await?;
 println!("Response: {}", response.into_inner().choices[0].message.unwrap().content);
 ```
 
+### Streaming Chat Completion
+
+```rust
+use xai_sdk::{ChatClient, GetCompletionsRequest, Message, MessageRole, Content, chat};
+use tonic::Request;
+
+let mut client = ChatClient::connect("https://api.x.ai:443").await?;
+
+let message = Message {
+    role: MessageRole::RoleUser.into(),
+    content: vec![Content {
+        content: Some(content::Content::Text("Write a poem about Rust".to_string())),
+    }],
+    ..Default::default()
+};
+
+let request = Request::new(GetCompletionsRequest {
+    model: "grok-3-latest".to_string(),
+    messages: vec![message],
+    ..Default::default()
+});
+
+// Process streaming response
+let stream = client.get_completion_chunk(request).await?.into_inner();
+let consumer = chat::StreamConsumer::with_stdout();
+let chunks = chat::process_stream(stream, consumer).await?;
+
+// Assemble complete response
+if let Some(response) = chat::assemble_response(chunks) {
+    println!("Complete response: {}", 
+        response.choices[0].message.as_ref().unwrap().content);
+}
+```
+
 ## API Services
 
 The SDK provides clients for all xAI services:
@@ -132,6 +172,21 @@ The SDK provides clients for all xAI services:
 
 ### Auth Service
 - **`get_api_key_info`** - Get API key information
+
+## Streaming Utilities
+
+The SDK provides powerful utilities for working with streaming responses:
+
+### StreamConsumer
+A flexible callback system for processing streaming data:
+- **`on_content_token`** - Called for each piece of response content
+- **`on_reason_token`** - Called for each piece of reasoning content  
+- **`on_chunk`** - Called for each complete chunk received
+
+### Stream Processing Functions
+- **`process_stream`** - Process streaming responses with custom callbacks
+- **`assemble_response`** - Convert collected chunks into complete responses
+- **`StreamConsumer::with_stdout`** - Pre-configured consumer for real-time output
 
 ## Configuration
 
@@ -170,6 +225,10 @@ This SDK is built using:
 - **Tokio**: Async runtime for Rust
 
 The code is generated from xAI's official Protocol Buffer definitions, ensuring compatibility and type safety.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes and new features.
 
 ## License
 
