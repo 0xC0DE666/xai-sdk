@@ -1,6 +1,6 @@
 pub mod auth;
 pub mod chat;
-pub mod client;
+pub mod common;
 pub mod documents;
 pub mod embed;
 pub mod image;

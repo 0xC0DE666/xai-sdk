@@ -1,13 +1,9 @@
 use anyhow::{Context, Result};
 use std::env;
 use tonic::metadata::MetadataValue;
-use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, Streaming};
-
-use xai_sdk::chat;
-use xai_sdk::chat_client::ChatClient;
 use xai_sdk::{
-    Content, GetChatCompletionChunk, GetCompletionsRequest, Message, MessageRole, content,
+    Content, GetChatCompletionChunk, GetCompletionsRequest, Message, MessageRole, chat, content,
 };
 
 #[tokio::main]
@@ -16,15 +12,8 @@ async fn main() -> Result<()> {
     let api_key =
         env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
-    // Create the gRPC channel - try different endpoint
-    let channel = Channel::from_static("https://api.x.ai:443")
-        .tls_config(ClientTlsConfig::new().with_native_roots())?
-        .connect()
-        .await
-        .context("Failed to connect to xAI API")?;
-
     // Create the client
-    let mut client = ChatClient::new(channel);
+    let mut client = chat::client::new(&api_key).await?;
 
     // Create the request
     let mut cntnt = Content::default();
@@ -54,8 +43,8 @@ async fn main() -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            let consumer = chat::StreamConsumer::with_stdout();
-            let _ = chat::process_stream(stream, consumer).await;
+            let consumer = chat::stream::Consumer::with_stdout();
+            let _ = chat::stream::process(stream, consumer).await;
         }
         Err(e) => {
             eprintln!("❌ Error calling xAI API: {}", e);
