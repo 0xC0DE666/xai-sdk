@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::transport::{Channel, ClientTlsConfig};
-use tonic::{Request, metadata::MetadataValue};
+use tonic::Request;
 
-use xai_sdk::chat_client::ChatClient;
 use xai_sdk::{
-    Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
+    chat, Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };
 
 #[tokio::main]
@@ -14,15 +12,8 @@ async fn main() -> Result<()> {
     let api_key =
         env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
-    // Create the gRPC channel - try different endpoint
-    let channel = Channel::from_static("https://api.x.ai:443")
-        .tls_config(ClientTlsConfig::new().with_native_roots())?
-        .connect()
-        .await
-        .context("Failed to connect to xAI API")?;
-
-    // Create the client
-    let mut client = ChatClient::new(channel);
+    // Create authenticated chat client
+    let mut client = chat::client::new(&api_key).await?;
 
     // Create the request
     let mut cntnt = Content::default();
@@ -31,24 +22,19 @@ async fn main() -> Result<()> {
     msg.role = MessageRole::RoleUser.into();
     msg.content = vec![cntnt];
     let messages = vec![msg];
-    let mut request = Request::new(GetCompletionsRequest {
+    let request = Request::new(GetCompletionsRequest {
         model: "grok-3-latest".to_string(),
         messages,
         n: Some(1),
         ..Default::default()
     });
 
-    // Add authentication header
-    let token =
-        MetadataValue::try_from(format!("Bearer {}", api_key)).context("Invalid API key format")?;
-    request.metadata_mut().insert("authorization", token);
-
     println!("🚀 Sending request to xAI API...");
-    println!("📝 Prompt: Quote Tyler Durden.");
+    println!("📝 Prompt: Quote Hannibal Lectre.");
     println!("🤖 Model: grok-3-latest");
     println!();
 
-    // Make the API call
+    // Make the API call - authentication is automatic!
     match client.get_completion(request).await {
         Ok(response) => {
             let sample_response: GetChatCompletionResponse = response.into_inner();

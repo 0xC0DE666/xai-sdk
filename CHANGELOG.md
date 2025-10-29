@@ -8,24 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Unified Client**: `XaiClient` provides a single interface for all xAI services with automatic authentication
-- **Client Modules**: Organized SDK into focused modules (`auth`, `chat`, `documents`, `embed`, `image`, `models`, `sample`, `tokenize`)
-- **Easy Client Creation**: Each module provides a simple `create_client()` function
-- **Authentication Helpers**: Each module provides an `add_auth()` function for request authentication
-- **Centralized Configuration**: `XAI_API_URL` constant for consistent endpoint management
-- `assemble_response` function to convert streaming chunks into complete `GetChatCompletionResponse`
-- `process_stream` function with comprehensive documentation
-- Example demonstrating stream processing and response assembly (`examples/assemble_response.rs`)
+- **Modular Client Architecture**: Each service now has a dedicated `client` submodule with automatic authentication
+- **Automatic Authentication**: Clients created with `module::client::new(api_key)` handle authentication automatically via interceptors
+- **Common Utilities**: `common::channel::new()` for centralized channel creation and `common::interceptor::auth()` for authentication
+- **Stream Processing**: `chat::stream::process()` and `chat::stream::assemble_response()` for handling streaming responses
+- **StreamConsumer**: Flexible callback system for processing streaming data with `chat::stream::Consumer`
+- **Channel Reuse**: `with_channel()` methods for creating clients with existing channels
+- **Comprehensive Examples**: Updated all examples to use the new modular architecture
 - Support for accumulating encrypted content from streaming deltas
 - Multiple choice handling in stream assembly
 
 ### Changed
-- **Authentication Pattern**: Requests now require explicit authentication using `add_auth()` helper
-- **Module Structure**: All client creation functions moved to top of respective modules
+- **BREAKING**: Removed `XaiClient` unified client in favor of modular architecture
+- **BREAKING**: All modules now use `module::client::new(api_key)` instead of `module::create_client()`
+- **BREAKING**: Removed manual `add_auth()` functions - authentication is now automatic
+- **BREAKING**: Streaming functions moved to `chat::stream::` namespace
+- **Module Structure**: Each module now has a `client` submodule with `new()` and `with_channel()` methods
+- **Documentation**: Completely updated README and examples to reflect new architecture
 - **Import Organization**: Consistent import ordering across all modules
-- **Documentation**: Updated README with unified client examples and authentication patterns
-- Improved documentation for streaming functions
-- Enhanced error handling in stream processing
+- **Error Handling**: Enhanced error handling in stream processing and client creation
+
+### Removed
+- `XaiClient` unified client struct
+- Manual authentication helper functions (`add_auth()`)
+- Old `create_client()` functions
+- `client.rs` module (functionality moved to individual service modules)
 
 ## [0.1.0] - 2025-10-28
 

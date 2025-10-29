@@ -1,3 +1,15 @@
+pub mod channel {
+    use crate::XAI_API_URL;
+    use tonic::transport::{Channel, ClientTlsConfig};
+
+    pub async fn new() -> Result<Channel, tonic::transport::Error> {
+        Channel::from_static(XAI_API_URL)
+            .tls_config(ClientTlsConfig::new().with_native_roots())?
+            .connect()
+            .await
+    }
+}
+
 pub mod interceptor {
     use tonic::Request;
     use tonic::Status;

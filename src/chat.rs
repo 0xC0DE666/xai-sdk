@@ -1,9 +1,9 @@
 pub mod client {
+    use crate::chat_client::ChatClient;
     use crate::common;
-    use crate::{XAI_API_URL, chat_client::ChatClient};
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
-    use tonic::transport::{Channel, ClientTlsConfig};
+    use tonic::transport::Channel;
 
     /// Creates a new ChatClient connected to the xAI API.
     ///
@@ -18,11 +18,7 @@ pub mod client {
         api_key: &str,
     ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
     {
-        let channel = Channel::from_static(XAI_API_URL)
-            .tls_config(ClientTlsConfig::new().with_native_roots())?
-            .connect()
-            .await?;
-
+        let channel = common::channel::new().await?;
         let auth_intercept = common::interceptor::auth(api_key);
         let client = ChatClient::with_interceptor(channel, auth_intercept);
 

@@ -1,4 +1,5 @@
-use xai_sdk::{client::XaiClient, SampleTextRequest, GetCompletionsRequest, Message, MessageRole, Content, content};
+use xai_sdk::{chat, sample, models, SampleTextRequest, GetCompletionsRequest, Message, MessageRole, Content, content};
+use tonic::Request;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -6,29 +7,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = std::env::var("XAI_API_KEY")
         .unwrap_or_else(|_| "your-api-key-here".to_string());
 
-    // Create unified client with authentication
-    let mut client = XaiClient::with_auth(&api_key).await?;
-    
-    println!("🚀 xAI SDK Unified Client Example");
-    println!("================================\n");
+    println!("🚀 xAI SDK Modular Client Example");
+    println!("=================================\n");
+
+    // Create authenticated clients for different services
+    let mut models_client = models::client::new(&api_key).await?;
+    let mut sample_client = sample::client::new(&api_key).await?;
+    let mut chat_client = chat::client::new(&api_key).await?;
 
     // List available models
     println!("📋 Listing available models...");
-    let models_request = client.models_request().await?;
-    let models_response = client.models.list_language_models(models_request).await?;
+    let models_request = Request::new(());
+    let models_response = models_client.list_language_models(models_request).await?;
     println!("Available models: {:?}\n", models_response.into_inner().models);
 
     // Generate text using sample service
     println!("✍️  Generating text...");
-    let sample_request = SampleTextRequest {
+    let sample_request = Request::new(SampleTextRequest {
         prompt: vec!["Write a haiku about Rust programming".to_string()],
         model: "grok-2-latest".to_string(),
         max_tokens: Some(50),
         temperature: Some(0.8),
         ..Default::default()
-    };
-    let authenticated_sample_request = client.sample_request(sample_request).await?;
-    let sample_response = client.sample.sample_text(authenticated_sample_request).await?;
+    });
+    let sample_response = sample_client.sample_text(sample_request).await?;
     println!("Generated: {}\n", sample_response.into_inner().choices[0].text);
 
     // Chat completion
@@ -40,13 +42,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }],
         ..Default::default()
     };
-    let chat_request = GetCompletionsRequest {
+    let chat_request = Request::new(GetCompletionsRequest {
         model: "grok-3-latest".to_string(),
         messages: vec![message],
         ..Default::default()
-    };
-    let authenticated_chat_request = client.chat_request(chat_request).await?;
-    let chat_response = client.chat.get_completion(authenticated_chat_request).await?;
+    });
+    let chat_response = chat_client.get_completion(chat_request).await?;
     println!("Chat response: {}\n", chat_response.into_inner().choices[0].message.as_ref().unwrap().content);
 
     println!("✅ All operations completed successfully!");

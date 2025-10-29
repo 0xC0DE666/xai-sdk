@@ -1,36 +1,55 @@
-use crate::{XAI_API_URL, sample_client::SampleClient};
-use tonic::transport::{Channel, ClientTlsConfig};
-use tonic::metadata::MetadataValue;
-use tonic::Request;
+pub mod client {
+    use crate::common;
+    use crate::sample_client::SampleClient;
+    use tonic::service::Interceptor;
+    use tonic::service::interceptor::InterceptedService;
+    use tonic::transport::Channel;
 
-/// Creates a new SampleClient connected to the xAI API.
-///
-/// # Returns
-/// * `Result<SampleClient<Channel>, tonic::transport::Error>` - The connected client or connection error
-///
-/// # Example
-/// ```rust
-/// let client = sample::create_client().await?;
-/// ```
-pub async fn create_client() -> Result<SampleClient<Channel>, tonic::transport::Error> {
-    let channel = Channel::from_static(XAI_API_URL)
-        .tls_config(ClientTlsConfig::new().with_native_roots())?
-        .connect()
-        .await?;
+    /// Creates a new SampleClient connected to the xAI API.
+    ///
+    /// # Arguments
+    /// * `api_key` - The xAI API key for authentication
+    ///
+    /// # Returns
+    /// * `Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
+    ///
+    /// # Example
+    /// ```rust
+    /// let client = sample::client::new("your-api-key-here").await?;
+    /// ```
+    pub async fn new(
+        api_key: &str,
+    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
+    {
+        let channel = common::channel::new().await?;
+        let auth_intercept = common::interceptor::auth(api_key);
+        let client = SampleClient::with_interceptor(channel, auth_intercept);
 
-    Ok(SampleClient::new(channel))
-}
+        Ok(client)
+    }
 
-/// Adds authentication header to a request.
-///
-/// # Arguments
-/// * `request` - The request to add authentication to
-/// * `api_key` - The xAI API key for authentication
-///
-/// # Returns
-/// * `Result<Request<T>, Box<dyn std::error::Error + Send + Sync>>` - The authenticated request or error
-pub fn add_auth<T>(mut request: Request<T>, api_key: &str) -> Result<Request<T>, Box<dyn std::error::Error + Send + Sync>> {
-    let token = MetadataValue::try_from(format!("Bearer {}", api_key))?;
-    request.metadata_mut().insert("authorization", token);
-    Ok(request)
+    /// Creates a new SampleClient with an existing channel.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `api_key` - The xAI API key for authentication
+    ///
+    /// # Returns
+    /// * `Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
+    ///
+    /// # Example
+    /// ```rust
+    /// let channel = common::channel::new().await?;
+    /// let client = sample::client::with_channel(channel, "your-api-key-here")?;
+    /// ```
+    pub fn with_channel(
+        channel: Channel,
+        api_key: &str,
+    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
+    {
+        let auth_intercept = common::interceptor::auth(api_key);
+        let client = SampleClient::with_interceptor(channel, auth_intercept);
+
+        Ok(client)
+    }
 }

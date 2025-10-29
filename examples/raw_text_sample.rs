@@ -1,26 +1,7 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::{
-    metadata::MetadataValue,
-    Request,
-    transport::Channel,
-};
-use xai_sdk::sample_client::SampleClient;
-use xai_sdk::{SampleTextRequest, SampleTextResponse};
-
-/// Creates a gRPC client
-async fn create_client() -> Result<SampleClient<Channel>> {
-    // Create the gRPC channel - try different endpoint
-    let channel = Channel::from_static("https://api.x.ai:443")
-        .connect()
-        .await
-        .context("Failed to connect to xAI API")?;
-
-    // Create the client
-    let client = SampleClient::new(channel);
-
-    Ok(client)
-}
+use tonic::Request;
+use xai_sdk::{sample, SampleTextRequest, SampleTextResponse};
 
 /// Demonstrates raw text sampling with various parameters
 async fn demonstrate_text_sampling() -> Result<()> {
@@ -32,8 +13,8 @@ async fn demonstrate_text_sampling() -> Result<()> {
     let api_key = env::var("XAI_API_KEY")
         .context("XAI_API_KEY environment variable must be set")?;
 
-    // Create client
-    let mut client = create_client().await?;
+    // Create authenticated client
+    let mut client = sample::client::new(&api_key).await?;
 
     // Example 1: Creative writing
     println!("📝 Example 1: Creative Writing");
@@ -51,7 +32,36 @@ async fn demonstrate_text_sampling() -> Result<()> {
         ..Default::default()
     });
 
-    call_sample_api(&mut client, request1, "Creative poem about Rust", &api_key).await?;
+    // Example 1: Creative writing
+    println!("📤 Sending request: Creative poem about Rust");
+    println!("🤖 Model: {}", request1.get_ref().model);
+    println!("⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}", 
+             request1.get_ref().max_tokens, 
+             request1.get_ref().temperature, 
+             request1.get_ref().top_p);
+    println!();
+
+    match client.sample_text(request1).await {
+        Ok(response) => {
+            let sample_response: SampleTextResponse = response.into_inner();
+            println!("✅ Response received!");
+            println!("🆔 Request ID: {}", sample_response.id);
+            println!("🤖 Model used: {}", sample_response.model);
+            println!("📊 Usage: {:?}", sample_response.usage);
+            println!();
+
+            for (i, choice) in sample_response.choices.iter().enumerate() {
+                println!("📄 Choice {}:", i + 1);
+                println!("   Text: {}", choice.text);
+                println!("   Finish reason: {:?}", choice.finish_reason);
+                println!();
+            }
+        }
+        Err(e) => {
+            eprintln!("❌ Error calling xAI API: {}", e);
+            return Err(e.into());
+        }
+    }
 
     println!();
 
@@ -70,7 +80,35 @@ async fn demonstrate_text_sampling() -> Result<()> {
         ..Default::default()
     });
 
-    call_sample_api(&mut client, request2, "Technical explanation of Rust ownership", &api_key).await?;
+    println!("📤 Sending request: Technical explanation of Rust ownership");
+    println!("🤖 Model: {}", request2.get_ref().model);
+    println!("⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}", 
+             request2.get_ref().max_tokens, 
+             request2.get_ref().temperature, 
+             request2.get_ref().top_p);
+    println!();
+
+    match client.sample_text(request2).await {
+        Ok(response) => {
+            let sample_response: SampleTextResponse = response.into_inner();
+            println!("✅ Response received!");
+            println!("🆔 Request ID: {}", sample_response.id);
+            println!("🤖 Model used: {}", sample_response.model);
+            println!("📊 Usage: {:?}", sample_response.usage);
+            println!();
+
+            for (i, choice) in sample_response.choices.iter().enumerate() {
+                println!("📄 Choice {}:", i + 1);
+                println!("   Text: {}", choice.text);
+                println!("   Finish reason: {:?}", choice.finish_reason);
+                println!();
+            }
+        }
+        Err(e) => {
+            eprintln!("❌ Error calling xAI API: {}", e);
+            return Err(e.into());
+        }
+    }
 
     println!();
 
@@ -89,43 +127,23 @@ async fn demonstrate_text_sampling() -> Result<()> {
         ..Default::default()
     });
 
-    call_sample_api(&mut client, request3, "Multiple completions", &api_key).await?;
-
-    Ok(())
-}
-
-/// Helper function to make API calls and handle responses
-async fn call_sample_api(
-    client: &mut SampleClient<Channel>,
-    mut request: Request<SampleTextRequest>,
-    description: &str,
-    api_key: &str,
-) -> Result<()> {
-    // Add authentication header
-    let token = MetadataValue::try_from(format!("Bearer {}", api_key))
-        .context("Invalid API key format")?;
-    request.metadata_mut().insert("authorization", token);
-
-    println!("📤 Sending request: {}", description);
-    println!("🤖 Model: {}", request.get_ref().model);
+    println!("📤 Sending request: Multiple completions");
+    println!("🤖 Model: {}", request3.get_ref().model);
     println!("⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}", 
-             request.get_ref().max_tokens, 
-             request.get_ref().temperature, 
-             request.get_ref().top_p);
+             request3.get_ref().max_tokens, 
+             request3.get_ref().temperature, 
+             request3.get_ref().top_p);
     println!();
 
-    // Make the API call
-    match client.sample_text(request).await {
+    match client.sample_text(request3).await {
         Ok(response) => {
             let sample_response: SampleTextResponse = response.into_inner();
-            
             println!("✅ Response received!");
             println!("🆔 Request ID: {}", sample_response.id);
             println!("🤖 Model used: {}", sample_response.model);
             println!("📊 Usage: {:?}", sample_response.usage);
             println!();
 
-            // Display the generated text
             for (i, choice) in sample_response.choices.iter().enumerate() {
                 println!("📄 Choice {}:", i + 1);
                 println!("   Text: {}", choice.text);
@@ -141,6 +159,7 @@ async fn call_sample_api(
 
     Ok(())
 }
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
