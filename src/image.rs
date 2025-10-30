@@ -52,4 +52,32 @@ pub mod client {
 
         Ok(client)
     }
+
+    /// Creates a new `ImageClient` using a provided interceptor.
+    ///
+    /// Uses the same channel setup as [`new()`] but applies the custom interceptor.
+    ///
+    /// # Arguments
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `Result<ImageClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>`
+    ///   - The connected, intercepted client or a connection error
+    ///
+    /// # Example
+    /// ```rust
+    /// use xai_sdk::image;
+    /// use tonic::service::Interceptor;
+    ///
+    /// let custom = |req: tonic::Request<()>| -> Result<_, tonic::Status> { Ok(req) };
+    /// let client = image::client::with_interceptor(custom).await?;
+    /// ```
+    pub async fn with_interceptor(
+        interceptor: impl Interceptor,
+    ) -> Result<ImageClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
+    {
+        let channel = common::channel::new().await?;
+        let client = ImageClient::with_interceptor(channel, interceptor);
+        Ok(client)
+    }
 }

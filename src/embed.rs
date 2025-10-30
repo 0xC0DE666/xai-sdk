@@ -52,4 +52,32 @@ pub mod client {
 
         Ok(client)
     }
+
+    /// Creates a new `EmbedderClient` using a provided interceptor.
+    ///
+    /// Uses the same channel setup as [`new()`] but applies the custom interceptor.
+    ///
+    /// # Arguments
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `Result<EmbedderClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>`
+    ///   - The connected, intercepted client or a connection error
+    ///
+    /// # Example
+    /// ```rust
+    /// use xai_sdk::embed;
+    /// use tonic::service::Interceptor;
+    ///
+    /// let custom = |req: tonic::Request<()>| -> Result<_, tonic::Status> { Ok(req) };
+    /// let client = embed::client::with_interceptor(custom).await?;
+    /// ```
+    pub async fn with_interceptor(
+        interceptor: impl Interceptor,
+    ) -> Result<EmbedderClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
+    {
+        let channel = common::channel::new().await?;
+        let client = EmbedderClient::with_interceptor(channel, interceptor);
+        Ok(client)
+    }
 }

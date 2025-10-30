@@ -52,4 +52,32 @@ pub mod client {
 
         Ok(client)
     }
+
+    /// Creates a new `SampleClient` using a provided interceptor.
+    ///
+    /// Uses the same channel setup as [`new()`] but applies the custom interceptor.
+    ///
+    /// # Arguments
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>`
+    ///   - The connected, intercepted client or a connection error
+    ///
+    /// # Example
+    /// ```rust
+    /// use xai_sdk::sample;
+    /// use tonic::service::Interceptor;
+    ///
+    /// let custom = |req: tonic::Request<()>| -> Result<_, tonic::Status> { Ok(req) };
+    /// let client = sample::client::with_interceptor(custom).await?;
+    /// ```
+    pub async fn with_interceptor(
+        interceptor: impl Interceptor,
+    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
+    {
+        let channel = common::channel::new().await?;
+        let client = SampleClient::with_interceptor(channel, interceptor);
+        Ok(client)
+    }
 }

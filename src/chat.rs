@@ -35,6 +35,36 @@ pub mod client {
 
         Ok(client)
     }
+
+    /// Creates a new `ChatClient` using a provided interceptor.
+    ///
+    /// This mirrors [`new()`] channel creation but applies the custom interceptor
+    /// instead of the default auth interceptor.
+    ///
+    /// # Arguments
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>`
+    ///   - The connected, intercepted client or a connection error
+    ///
+    /// # Example
+    /// ```rust
+    /// use xai_sdk::chat;
+    /// use tonic::service::Interceptor;
+    ///
+    /// let custom = |req: tonic::Request<()>| -> Result<_, tonic::Status> { Ok(req) };
+    /// let client = chat::client::with_interceptor(custom).await?;
+    /// ```
+    pub async fn with_interceptor(
+        interceptor: impl Interceptor,
+    ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
+    {
+        let channel = common::channel::new().await?;
+        let client = ChatClient::with_interceptor(channel, interceptor);
+
+        Ok(client)
+    }
 }
 
 pub mod stream {
