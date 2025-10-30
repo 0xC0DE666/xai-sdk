@@ -10,10 +10,6 @@ pub mod client {
     /// # Returns
     /// * `Result<ChatClient<Channel>, tonic::transport::Error>` - The connected client or connection error
     ///
-    /// # Example
-    /// ```rust
-    /// let client = chat::create_client().await?;
-    /// ```
     pub async fn new(
         api_key: &str,
     ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
@@ -48,14 +44,6 @@ pub mod client {
     /// * `Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>`
     ///   - The connected, intercepted client or a connection error
     ///
-    /// # Example
-    /// ```rust
-    /// use xai_sdk::chat;
-    /// use tonic::service::Interceptor;
-    ///
-    /// let custom = |req: tonic::Request<()>| -> Result<_, tonic::Status> { Ok(req) };
-    /// let client = chat::client::with_interceptor(custom).await?;
-    /// ```
     pub async fn with_interceptor(
         interceptor: impl Interceptor,
     ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
@@ -87,12 +75,6 @@ pub mod stream {
     /// * `Ok(Vec<GetChatCompletionChunk>)` - All collected chunks from the stream
     /// * `Err(Status)` - Any gRPC error that occurred during streaming
     ///
-    /// # Example
-    /// ```rust
-    /// let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-    /// let consumer = StreamConsumer::with_stdout();
-    /// let chunks = process_stream(stream, consumer).await?;
-    /// ```
     pub async fn process(
         mut stream: Streaming<GetChatCompletionChunk>,
         mut consumer: Consumer,
@@ -161,13 +143,6 @@ pub mod stream {
     /// - **Metadata Preservation**: Uses first chunk for consistent metadata, last chunk for final stats
     /// - **Order Maintenance**: Sorts choices by index to preserve original order
     ///
-    /// # Example
-    /// ```rust
-    /// let chunks = process(stream, consumer).await?;
-    /// if let Some(response) = assemble_response(chunks) {
-    ///     println!("Complete response: {}", response.choices[0].message.as_ref().unwrap().content);
-    /// }
-    /// ```
     pub fn assemble_response(
         chunks: Vec<GetChatCompletionChunk>,
     ) -> Option<GetChatCompletionResponse> {

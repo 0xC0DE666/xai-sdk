@@ -13,10 +13,6 @@ pub mod client {
     /// # Returns
     /// * `Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
     ///
-    /// # Example
-    /// ```rust
-    /// let client = documents::client::new("your-api-key-here").await?;
-    /// ```
     pub async fn new(
         api_key: &str,
     ) -> Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
@@ -37,11 +33,6 @@ pub mod client {
     /// # Returns
     /// * `Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
     ///
-    /// # Example
-    /// ```rust
-    /// let channel = common::channel::new().await?;
-    /// let client = documents::client::with_channel(channel, "your-api-key-here")?;
-    /// ```
     pub fn with_channel(
         channel: Channel,
         api_key: &str,
@@ -64,14 +55,6 @@ pub mod client {
     /// * `Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>`
     ///   - The connected, intercepted client or a connection error
     ///
-    /// # Example
-    /// ```rust
-    /// use xai_sdk::documents;
-    /// use tonic::service::Interceptor;
-    ///
-    /// let custom = |req: tonic::Request<()>| -> Result<_, tonic::Status> { Ok(req) };
-    /// let client = documents::client::with_interceptor(custom).await?;
-    /// ```
     pub async fn with_interceptor(
         interceptor: impl Interceptor,
     ) -> Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>

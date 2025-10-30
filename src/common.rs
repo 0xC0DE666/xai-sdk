@@ -10,15 +10,6 @@ pub mod channel {
     /// # Returns
     /// * `Result<Channel, tonic::transport::Error>` - A connected channel or a connection error
     ///
-    /// # Example
-    /// ```rust
-    /// use xai_sdk::common::channel;
-    ///
-    /// # async fn run() -> Result<(), tonic::transport::Error> {
-    /// let ch = channel::new().await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn new() -> Result<Channel, tonic::transport::Error> {
         Channel::from_static(XAI_API_URL)
             .tls_config(ClientTlsConfig::new().with_native_roots())?
@@ -44,13 +35,6 @@ pub mod interceptor {
     /// # Returns
     /// * `impl Interceptor` - An interceptor that adds the authorization metadata
     ///
-    /// # Example
-    /// ```rust
-    /// use xai_sdk::common::interceptor;
-    /// use tonic::service::Interceptor;
-    ///
-    /// let auth = interceptor::auth("my-api-key");
-    /// ```
     pub fn auth(api_key: &str) -> impl Interceptor {
         move |mut req: Request<()>| -> Result<Request<()>, Status> {
             let token = MetadataValue::try_from(&format!("Bearer {}", api_key)).map_err(|e| {
@@ -83,16 +67,6 @@ pub mod interceptor {
     /// # Returns
     /// * `impl Interceptor` - A single interceptor that applies all provided interceptors
     ///
-    /// # Example
-    /// ```rust
-    /// use xai_sdk::common::interceptor::{self, DynInterceptor};
-    /// use tonic::Request;
-    ///
-    /// let composed = interceptor::compose(vec![
-    ///     Box::new(|mut r: Request<()>| { r.metadata_mut().insert("x-trace-id", "abc123".parse().unwrap()); Ok(r) }) as DynInterceptor,
-    ///     Box::new(|mut r: Request<()>| { r.metadata_mut().insert("x-tenant-id", "tenant-42".parse().unwrap()); Ok(r) }),
-    /// ]);
-    /// ```
     pub fn compose(mut interceptors: Vec<DynInterceptor>) -> impl Interceptor {
         move |mut req: Request<()>| -> Result<Request<()>, Status> {
             for f in interceptors.iter_mut() {
