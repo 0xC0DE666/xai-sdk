@@ -99,18 +99,18 @@ pub mod stream {
             // Process each chunk as it arrives
             match stream.message().await {
                 Ok(chunk) => {
+                    // Stream complete
                     if chunk.is_none() {
-                        // Stream complete
                         break;
                     }
 
                     // Handle the chunk
                     let chunk = chunk.unwrap();
-
                     if let Some(ref mut on_chunk) = consumer.on_chunk {
                         on_chunk(&chunk);
                     }
 
+                    // Handle each choice
                     for choice in &chunk.choices {
                         if let (Some(ref mut on_reason_token), Some(delta)) =
                             (consumer.on_reason_token.as_mut(), &choice.delta)
