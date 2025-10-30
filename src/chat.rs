@@ -157,9 +157,7 @@ pub mod stream {
     /// - **Metadata Preservation**: Uses first chunk for consistent metadata, last chunk for final stats
     /// - **Order Maintenance**: Sorts choices by index to preserve original order
     ///
-    pub fn assemble_response(
-        chunks: Vec<GetChatCompletionChunk>,
-    ) -> Option<GetChatCompletionResponse> {
+    pub fn assemble(chunks: Vec<GetChatCompletionChunk>) -> Option<GetChatCompletionResponse> {
         if chunks.is_empty() {
             return None;
         }

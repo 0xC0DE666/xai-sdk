@@ -174,7 +174,7 @@ async fn assemble(api_key: &str) -> Result<()> {
             println!("📦 Collected {} chunks from stream", chunks.len());
 
             // Assemble the chunks into a complete response
-            if let Some(response) = chat::stream::assemble_response(chunks) {
+            if let Some(response) = chat::stream::assemble(chunks) {
                 println!("\n🎯 Assembled Response:");
                 println!("ID: {}", response.id);
                 println!("Model: {}", response.model);
