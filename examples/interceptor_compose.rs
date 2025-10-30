@@ -13,13 +13,12 @@ async fn main() -> Result<()> {
         env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
     // Build interceptors: auth + some dummy metadata injectors
-    let api_key_owned = api_key.clone();
     let composed = common::interceptor::compose(vec![
         // Auth header (manually set to avoid type mismatch with helper)
         Box::new(move |mut r: Request<()>| {
             r.metadata_mut().insert(
                 "authorization",
-                format!("Bearer {}", api_key_owned).parse().unwrap(),
+                format!("Bearer {}", api_key).parse().unwrap(),
             );
             Ok(r)
         }) as common::interceptor::DynInterceptor,
@@ -66,7 +65,10 @@ async fn main() -> Result<()> {
     match client.get_completion(request).await {
         Ok(response) => {
             let resp: GetChatCompletionResponse = response.into_inner();
-            println!("✅ Response received!\nID: {} | Model: {}", resp.id, resp.model);
+            println!(
+                "✅ Response received!\nID: {} | Model: {}",
+                resp.id, resp.model
+            );
             if let Some(msg) = resp.choices.get(0).and_then(|c| c.message.as_ref()) {
                 println!("🗨️  {}", msg.content);
             }
