@@ -26,28 +26,20 @@ tokio = { version = "1.0", features = ["full"] }  # Async runtime
 anyhow = "1.0"  # Simplified error handling
 
 [build-dependencies]
-tonic-prost-build = { version = "0.14" }  # Matches Tonic 0.11
+tonic-prost-build = { version = "0.14" }
 
 [[example]]
 name = "raw_text_sample"
 path = "examples/raw_text_sample.rs"
 
 [[example]]
-name = "chat_post"
-path = "examples/chat_post.rs"
+name = "chat"
+path = "examples/chat.rs"
 
 [[example]]
-name = "chat_stream"
-path = "examples/chat_stream.rs"
+name = "multi_client"
+path = "examples/multi_client.rs"
 
 [[example]]
-name = "assemble_response"
-path = "examples/assemble_response.rs"
-
-[[example]]
-name = "unified_client"
-path = "examples/unified_client.rs"
-
-[[bin]]
 name = "test_connection"
 path = "examples/test_connection.rs"

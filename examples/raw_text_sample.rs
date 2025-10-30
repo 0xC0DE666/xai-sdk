@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::env;
 use tonic::Request;
-use xai_sdk::{sample, SampleTextRequest, SampleTextResponse};
+use xai_sdk::{SampleTextRequest, SampleTextResponse, sample};
 
 /// Demonstrates raw text sampling with various parameters
 async fn demonstrate_text_sampling() -> Result<()> {
@@ -10,8 +10,8 @@ async fn demonstrate_text_sampling() -> Result<()> {
     println!();
 
     // Load API key for authentication
-    let api_key = env::var("XAI_API_KEY")
-        .context("XAI_API_KEY environment variable must be set")?;
+    let api_key =
+        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
     // Create authenticated client
     let mut client = sample::client::new(&api_key).await?;
@@ -35,10 +35,12 @@ async fn demonstrate_text_sampling() -> Result<()> {
     // Example 1: Creative writing
     println!("📤 Sending request: Creative poem about Rust");
     println!("🤖 Model: {}", request1.get_ref().model);
-    println!("⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}", 
-             request1.get_ref().max_tokens, 
-             request1.get_ref().temperature, 
-             request1.get_ref().top_p);
+    println!(
+        "⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}",
+        request1.get_ref().max_tokens,
+        request1.get_ref().temperature,
+        request1.get_ref().top_p
+    );
     println!();
 
     match client.sample_text(request1).await {
@@ -69,7 +71,10 @@ async fn demonstrate_text_sampling() -> Result<()> {
     println!("🔧 Example 2: Technical Explanation");
     println!("-----------------------------------");
     let request2 = Request::new(SampleTextRequest {
-        prompt: vec!["Explain the concept of ownership in Rust programming language in simple terms.".to_string()],
+        prompt: vec![
+            "Explain the concept of ownership in Rust programming language in simple terms."
+                .to_string(),
+        ],
         model: "grok-2-latest".to_string(),
         max_tokens: Some(300),
         temperature: Some(0.3),
@@ -82,10 +87,12 @@ async fn demonstrate_text_sampling() -> Result<()> {
 
     println!("📤 Sending request: Technical explanation of Rust ownership");
     println!("🤖 Model: {}", request2.get_ref().model);
-    println!("⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}", 
-             request2.get_ref().max_tokens, 
-             request2.get_ref().temperature, 
-             request2.get_ref().top_p);
+    println!(
+        "⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}",
+        request2.get_ref().max_tokens,
+        request2.get_ref().temperature,
+        request2.get_ref().top_p
+    );
     println!();
 
     match client.sample_text(request2).await {
@@ -116,7 +123,10 @@ async fn demonstrate_text_sampling() -> Result<()> {
     println!("🎯 Example 3: Multiple Completions");
     println!("----------------------------------");
     let request3 = Request::new(SampleTextRequest {
-        prompt: vec!["Complete this sentence: 'The best programming language for systems programming is'".to_string()],
+        prompt: vec![
+            "Complete this sentence: 'The best programming language for systems programming is'"
+                .to_string(),
+        ],
         model: "grok-2-latest".to_string(),
         max_tokens: Some(50),
         temperature: Some(0.7),
@@ -129,10 +139,12 @@ async fn demonstrate_text_sampling() -> Result<()> {
 
     println!("📤 Sending request: Multiple completions");
     println!("🤖 Model: {}", request3.get_ref().model);
-    println!("⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}", 
-             request3.get_ref().max_tokens, 
-             request3.get_ref().temperature, 
-             request3.get_ref().top_p);
+    println!(
+        "⚙️  Max tokens: {:?}, Temperature: {:?}, Top-p: {:?}",
+        request3.get_ref().max_tokens,
+        request3.get_ref().temperature,
+        request3.get_ref().top_p
+    );
     println!();
 
     match client.sample_text(request3).await {
@@ -159,7 +171,6 @@ async fn demonstrate_text_sampling() -> Result<()> {
 
     Ok(())
 }
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
