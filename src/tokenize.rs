@@ -63,4 +63,19 @@ pub mod client {
         let client = TokenizeClient::with_interceptor(channel, interceptor);
         Ok(client)
     }
+
+    /// Creates a new `TokenizeClient` with an existing channel and a provided interceptor.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `TokenizeClient<InterceptedService<Channel, impl Interceptor>>` - The intercepted client
+    pub fn with_channel_and_interceptor(
+        channel: Channel,
+        interceptor: impl Interceptor,
+    ) -> TokenizeClient<InterceptedService<Channel, impl Interceptor>> {
+        TokenizeClient::with_interceptor(channel, interceptor)
+    }
 }

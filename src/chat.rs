@@ -53,6 +53,21 @@ pub mod client {
 
         Ok(client)
     }
+
+    /// Creates a new `ChatClient` with an existing channel and a provided interceptor.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `ChatClient<InterceptedService<Channel, impl Interceptor>>` - The intercepted client
+    pub fn with_channel_and_interceptor(
+        channel: Channel,
+        interceptor: impl Interceptor,
+    ) -> ChatClient<InterceptedService<Channel, impl Interceptor>> {
+        ChatClient::with_interceptor(channel, interceptor)
+    }
 }
 
 pub mod stream {

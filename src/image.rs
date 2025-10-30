@@ -63,4 +63,19 @@ pub mod client {
         let client = ImageClient::with_interceptor(channel, interceptor);
         Ok(client)
     }
+
+    /// Creates a new `ImageClient` with an existing channel and a provided interceptor.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `ImageClient<InterceptedService<Channel, impl Interceptor>>` - The intercepted client
+    pub fn with_channel_and_interceptor(
+        channel: Channel,
+        interceptor: impl Interceptor,
+    ) -> ImageClient<InterceptedService<Channel, impl Interceptor>> {
+        ImageClient::with_interceptor(channel, interceptor)
+    }
 }

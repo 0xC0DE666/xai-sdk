@@ -63,4 +63,19 @@ pub mod client {
         let client = DocumentsClient::with_interceptor(channel, interceptor);
         Ok(client)
     }
+
+    /// Creates a new `DocumentsClient` with an existing channel and a provided interceptor.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `DocumentsClient<InterceptedService<Channel, impl Interceptor>>` - The intercepted client
+    pub fn with_channel_and_interceptor(
+        channel: Channel,
+        interceptor: impl Interceptor,
+    ) -> DocumentsClient<InterceptedService<Channel, impl Interceptor>> {
+        DocumentsClient::with_interceptor(channel, interceptor)
+    }
 }

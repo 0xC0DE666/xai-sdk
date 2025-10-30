@@ -64,4 +64,19 @@ pub mod client {
 
         Ok(client)
     }
+
+    /// Creates a new `AuthClient` with an existing channel and a provided interceptor.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `AuthClient<InterceptedService<Channel, impl Interceptor>>` - The intercepted client
+    pub fn with_channel_and_interceptor(
+        channel: Channel,
+        interceptor: impl Interceptor,
+    ) -> AuthClient<InterceptedService<Channel, impl Interceptor>> {
+        AuthClient::with_interceptor(channel, interceptor)
+    }
 }

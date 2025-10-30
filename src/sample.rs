@@ -63,4 +63,19 @@ pub mod client {
         let client = SampleClient::with_interceptor(channel, interceptor);
         Ok(client)
     }
+
+    /// Creates a new `SampleClient` with an existing channel and a provided interceptor.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    ///
+    /// # Returns
+    /// * `SampleClient<InterceptedService<Channel, impl Interceptor>>` - The intercepted client
+    pub fn with_channel_and_interceptor(
+        channel: Channel,
+        interceptor: impl Interceptor,
+    ) -> SampleClient<InterceptedService<Channel, impl Interceptor>> {
+        SampleClient::with_interceptor(channel, interceptor)
+    }
 }
