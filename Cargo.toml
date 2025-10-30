@@ -29,6 +29,10 @@ anyhow = "1.0"  # Simplified error handling
 tonic-prost-build = { version = "0.14" }
 
 [[example]]
+name = "auth_info"
+path = "examples/auth_info.rs"
+
+[[example]]
 name = "raw_text_sample"
 path = "examples/raw_text_sample.rs"
 
