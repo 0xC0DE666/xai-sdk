@@ -47,7 +47,3 @@ path = "examples/multi_client.rs"
 [[example]]
 name = "interceptor_compose"
 path = "examples/interceptor_compose.rs"
-
-[[example]]
-name = "test_connection"
-path = "examples/test_connection.rs"
