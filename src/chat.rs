@@ -24,12 +24,11 @@ pub mod client {
     pub fn with_channel(
         channel: Channel,
         api_key: &str,
-    ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> ChatClient<InterceptedService<Channel, impl Interceptor>> {
         let auth_intercept = common::interceptor::auth(api_key);
         let client = ChatClient::with_interceptor(channel, auth_intercept);
 
-        Ok(client)
+        client
     }
 
     /// Creates a new `ChatClient` using a provided interceptor.

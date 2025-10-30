@@ -15,8 +15,10 @@ pub mod client {
     ///
     pub async fn new(
         api_key: &str,
-    ) -> Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> Result<
+        DocumentsClient<InterceptedService<Channel, impl Interceptor>>,
+        tonic::transport::Error,
+    > {
         let channel = common::channel::new().await?;
         let auth_intercept = common::interceptor::auth(api_key);
         let client = DocumentsClient::with_interceptor(channel, auth_intercept);
@@ -36,12 +38,11 @@ pub mod client {
     pub fn with_channel(
         channel: Channel,
         api_key: &str,
-    ) -> Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> DocumentsClient<InterceptedService<Channel, impl Interceptor>> {
         let auth_intercept = common::interceptor::auth(api_key);
         let client = DocumentsClient::with_interceptor(channel, auth_intercept);
 
-        Ok(client)
+        client
     }
 
     /// Creates a new `DocumentsClient` using a provided interceptor.
@@ -57,8 +58,10 @@ pub mod client {
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor,
-    ) -> Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> Result<
+        DocumentsClient<InterceptedService<Channel, impl Interceptor>>,
+        tonic::transport::Error,
+    > {
         let channel = common::channel::new().await?;
         let client = DocumentsClient::with_interceptor(channel, interceptor);
         Ok(client)

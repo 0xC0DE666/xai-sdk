@@ -51,9 +51,8 @@ pub mod interceptor {
     ///
     /// This function takes a `Request<()>` and returns either the (possibly modified)
     /// request or a `Status` error.
-    pub type DynInterceptor = Box<
-        dyn FnMut(Request<()>) -> Result<Request<()>, Status> + Send + Sync + 'static,
-    >;
+    pub type DynInterceptor =
+        Box<dyn FnMut(Request<()>) -> Result<Request<()>, Status> + Send + Sync + 'static>;
 
     /// Compose multiple interceptors into a single interceptor, applied in order.
     ///

@@ -36,12 +36,11 @@ pub mod client {
     pub fn with_channel(
         channel: Channel,
         api_key: &str,
-    ) -> Result<ImageClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> ImageClient<InterceptedService<Channel, impl Interceptor>> {
         let auth_intercept = common::interceptor::auth(api_key);
         let client = ImageClient::with_interceptor(channel, auth_intercept);
 
-        Ok(client)
+        client
     }
 
     /// Creates a new `ImageClient` using a provided interceptor.

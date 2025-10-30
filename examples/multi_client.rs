@@ -1,7 +1,7 @@
 use tonic::Request;
 use xai_sdk::{
-    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, chat, content, models,
-    sample,
+    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, chat, common, content,
+    models, sample,
 };
 
 #[tokio::main]
@@ -12,10 +12,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 xAI SDK Modular Client Example");
     println!("=================================\n");
 
+    // Create shared channel
+    let channel = common::channel::new().await?;
+
     // Create authenticated clients for different services
-    let mut models_client = models::client::new(&api_key).await?;
-    let mut sample_client = sample::client::new(&api_key).await?;
-    let mut chat_client = chat::client::new(&api_key).await?;
+    let mut models_client = models::client::with_channel(channel.clone(), &api_key);
+    let mut sample_client = sample::client::with_channel(channel.clone(), &api_key);
+    let mut chat_client = chat::client::with_channel(channel.clone(), &api_key);
 
     // List available models
     println!("📋 Listing available models...");
