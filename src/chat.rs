@@ -111,19 +111,28 @@ pub mod stream {
                     }
 
                     // Handle each choice
+                    let total_choices = chunk.choices.len();
                     for choice in &chunk.choices {
                         if let Some(delta) = &choice.delta {
                             if let Some(ref mut on_reason_token) = consumer.on_reason_token {
                                 let reason_token = &delta.reasoning_content;
                                 if !reason_token.is_empty() {
-                                    on_reason_token(choice.index, reason_token);
+                                    on_reason_token(
+                                        total_choices,
+                                        choice.index as usize,
+                                        reason_token,
+                                    );
                                 }
                             }
 
                             if let Some(ref mut on_content_token) = consumer.on_content_token {
                                 let content_token = &delta.content;
                                 if !content_token.is_empty() {
-                                    on_content_token(choice.index, content_token);
+                                    on_content_token(
+                                        total_choices,
+                                        choice.index as usize,
+                                        content_token,
+                                    );
                                 }
                             }
                         }
@@ -266,8 +275,8 @@ pub mod stream {
     // ####################
 
     pub struct Consumer {
-        pub on_content_token: Option<Box<dyn FnMut(i32, &str) + Send + Sync>>,
-        pub on_reason_token: Option<Box<dyn FnMut(i32, &str) + Send + Sync>>,
+        pub on_content_token: Option<Box<dyn FnMut(usize, usize, &str) + Send + Sync>>,
+        pub on_reason_token: Option<Box<dyn FnMut(usize, usize, &str) + Send + Sync>>,
         pub on_chunk: Option<Box<dyn FnMut(&GetChatCompletionChunk) + Send + Sync>>,
     }
 
@@ -284,14 +293,18 @@ pub mod stream {
         /// Create a Consumer that prints content and reason tokens to stdout
         pub fn with_stdout() -> Self {
             Self {
-                on_content_token: Some(Box::new(|idx: i32, s: &str| {
-                    print!("[choice {idx}] {s}");
-                    std::io::stdout().flush().expect("Error flushing stdout");
-                })),
-                on_reason_token: Some(Box::new(|idx: i32, s: &str| {
-                    print!("[choice {idx} reasoning] {s}");
-                    std::io::stdout().flush().expect("Error flushing stdout");
-                })),
+                on_content_token: Some(Box::new(
+                    |total_choices: usize, choice_idx: usize, s: &str| {
+                        print!("[choice {choice_idx}/{total_choices}] {s}");
+                        std::io::stdout().flush().expect("Error flushing stdout");
+                    },
+                )),
+                on_reason_token: Some(Box::new(
+                    |total_choices: usize, choice_idx: usize, s: &str| {
+                        print!("[choice {choice_idx}/{total_choices} reasoning] {s}");
+                        std::io::stdout().flush().expect("Error flushing stdout");
+                    },
+                )),
                 on_chunk: None,
             }
         }
@@ -299,7 +312,7 @@ pub mod stream {
         /// Builder method to set content token callback
         pub fn on_content_token<F>(mut self, f: F) -> Self
         where
-            F: FnMut(i32, &str) + Send + Sync + 'static,
+            F: FnMut(usize, usize, &str) + Send + Sync + 'static,
         {
             self.on_content_token = Some(Box::new(f));
             self
@@ -308,7 +321,7 @@ pub mod stream {
         /// Builder method to set reason token callback
         pub fn on_reason_token<F>(mut self, f: F) -> Self
         where
-            F: FnMut(i32, &str) + Send + Sync + 'static,
+            F: FnMut(usize, usize, &str) + Send + Sync + 'static,
         {
             self.on_reason_token = Some(Box::new(f));
             self
