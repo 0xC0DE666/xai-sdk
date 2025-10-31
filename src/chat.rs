@@ -73,6 +73,7 @@ pub mod stream {
     use crate::{Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse};
     use std::collections::HashMap;
     use std::io::Write;
+    use std::sync::{Arc, Mutex};
     use tonic::{Status, Streaming};
 
     /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.
@@ -294,18 +295,89 @@ pub mod stream {
         pub fn with_stdout() -> Self {
             Self {
                 on_content_token: Some(Box::new(
-                    |total_choices: usize, choice_idx: usize, s: &str| {
-                        print!("[choice {choice_idx}/{total_choices}] {s}");
+                    |_total_choices: usize, choice_idx: usize, s: &str| {
+                        if choice_idx != 0 {
+                            return;
+                        }
+                        print!("{s}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     },
                 )),
                 on_reason_token: Some(Box::new(
-                    |total_choices: usize, choice_idx: usize, s: &str| {
-                        print!("[choice {choice_idx}/{total_choices} reasoning] {s}");
+                    |_total_choices: usize, choice_idx: usize, s: &str| {
+                        if choice_idx != 0 {
+                            return;
+                        }
+                        print!("{s}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     },
                 )),
                 on_chunk: None,
+            }
+        }
+
+        /// Create a Consumer that buffers tokens per choice and prints them in labeled blocks when each choice completes.
+        ///
+        /// This prevents output mangling when streaming multiple choices by buffering tokens
+        /// until a choice finishes (has a finish_reason), then printing that choice's complete output
+        /// in a clean labeled block.
+        pub fn with_buffered_stdout() -> Self {
+            #[derive(Default)]
+            struct ChoiceBuffer {
+                content: String,
+                reasoning: String,
+            }
+
+            let buffers: Arc<Mutex<HashMap<i32, ChoiceBuffer>>> =
+                Arc::new(Mutex::new(HashMap::new()));
+            let finished: Arc<Mutex<HashMap<i32, bool>>> = Arc::new(Mutex::new(HashMap::new()));
+
+            let buffers_content = buffers.clone();
+            let buffers_reason = buffers.clone();
+            let buffers_chunk = buffers.clone();
+            let finished_clone = finished.clone();
+
+            Self {
+                on_content_token: Some(Box::new(
+                    move |_total_choices: usize, choice_idx: usize, s: &str| {
+                        let mut buffers = buffers_content.lock().unwrap();
+                        let choice_buf = buffers.entry(choice_idx as i32).or_default();
+                        choice_buf.content.push_str(s);
+                    },
+                )),
+                on_reason_token: Some(Box::new(
+                    move |_total_choices: usize, choice_idx: usize, s: &str| {
+                        let mut buffers = buffers_reason.lock().unwrap();
+                        let choice_buf = buffers.entry(choice_idx as i32).or_default();
+                        choice_buf.reasoning.push_str(s);
+                    },
+                )),
+                on_chunk: Some(Box::new(move |chunk: &GetChatCompletionChunk| {
+                    let mut buffers = buffers_chunk.lock().unwrap();
+                    let mut finished = finished_clone.lock().unwrap();
+
+                    for choice in &chunk.choices {
+                        let idx = choice.index;
+
+                        // Check if this choice just finished
+                        if choice.finish_reason != 0 && !finished.contains_key(&idx) {
+                            finished.insert(idx, true);
+
+                            // Print the buffered content for this choice
+                            if let Some(choice_buf) = buffers.remove(&idx) {
+                                println!("\n--- Choice {idx} ---");
+                                if !choice_buf.reasoning.is_empty() {
+                                    println!("Reasoning:\n{}\n", choice_buf.reasoning);
+                                }
+                                if !choice_buf.content.is_empty() {
+                                    println!("Content:\n{}\n", choice_buf.content);
+                                }
+                                println!("Finish reason: {}\n", choice.finish_reason);
+                                std::io::stdout().flush().expect("Error flushing stdout");
+                            }
+                        }
+                    }
+                })),
             }
         }
 

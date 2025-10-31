@@ -101,7 +101,9 @@ async fn stream(api_key: &str) -> Result<()> {
 
     // Create the request
     let mut cntnt = Content::default();
-    cntnt.content = Some(content::Content::Text("Quote a King 810 song.".into()));
+    cntnt.content = Some(content::Content::Text(
+        "Quote different Slipknot songs.".into(),
+    ));
     let mut msg = Message::default();
     msg.role = MessageRole::RoleUser.into();
     msg.content = vec![cntnt];
@@ -109,7 +111,7 @@ async fn stream(api_key: &str) -> Result<()> {
     let mut request = Request::new(GetCompletionsRequest {
         model: "grok-3-latest".to_string(),
         messages,
-        n: Some(1),
+        n: Some(2),
         ..Default::default()
     });
 
