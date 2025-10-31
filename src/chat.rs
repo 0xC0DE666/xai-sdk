@@ -1,3 +1,8 @@
+//! Chat completion service client.
+//!
+//! Provides clients for chat completions, both blocking and streaming, as well as
+//! utilities for processing and assembling streaming responses.
+
 pub mod client {
     use crate::chat_client::ChatClient;
     use crate::common;
@@ -5,10 +10,13 @@ pub mod client {
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;
 
-    /// Creates a new ChatClient connected to the xAI API.
+    /// Creates a new `ChatClient` connected to the xAI API.
+    ///
+    /// # Arguments
+    /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ChatClient<Channel>, tonic::transport::Error>` - The connected client or connection error
+    /// * `Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
     ///
     pub async fn new(
         api_key: &str,
@@ -21,6 +29,14 @@ pub mod client {
         Ok(client)
     }
 
+    /// Creates a new `ChatClient` with an existing channel.
+    ///
+    /// # Arguments
+    /// * `channel` - An existing gRPC channel
+    /// * `api_key` - The xAI API key for authentication
+    ///
+    /// # Returns
+    /// * `ChatClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,
@@ -69,6 +85,10 @@ pub mod client {
     }
 }
 
+//! Streaming utilities for chat completions.
+//!
+//! Provides functions for processing streaming responses, assembling chunks into complete
+//! responses, and flexible callback-based consumers for real-time token processing.
 pub mod stream {
     use crate::{Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse};
     use std::collections::HashMap;
@@ -82,9 +102,12 @@ pub mod stream {
     /// and processes each chunk as it arrives. It calls user-defined callbacks for content tokens,
     /// reasoning tokens, and complete chunks, allowing for real-time processing of AI responses.
     ///
+    /// The token callbacks receive `(total_choices, choice_idx, token)` to properly handle
+    /// multiple concurrent choices in a single stream.
+    ///
     /// # Arguments
     /// * `stream` - The gRPC streaming response containing chat completion chunks
-    /// * `consumer` - A `StreamConsumer` that defines callback functions for handling different types of data
+    /// * `consumer` - A [`Consumer`] that defines callback functions for handling different types of data
     ///
     /// # Returns
     /// * `Ok(Vec<GetChatCompletionChunk>)` - All collected chunks from the stream
@@ -271,18 +294,34 @@ pub mod stream {
         logprobs: Option<crate::LogProbs>,
     }
 
-    // ####################
-    // STREAM CONSUMER
-    // ####################
-
+    /// A callback-based consumer for processing streaming chat completion responses.
+    ///
+    /// The `Consumer` allows you to define custom callbacks that are invoked as chunks
+    /// arrive from the stream. All callbacks are optional and can be set using builder
+    /// methods or by using the pre-configured [`with_stdout()`](Consumer::with_stdout) or
+    /// [`with_buffered_stdout()`](Consumer::with_buffered_stdout) constructors.
+    ///
+    /// # Callback Signatures
+    /// - `on_content_token`: Called for each content token with `(total_choices, choice_idx, token)`
+    /// - `on_reason_token`: Called for each reasoning token with `(total_choices, choice_idx, token)`
+    /// - `on_chunk`: Called once per complete chunk received
     pub struct Consumer {
+        /// Callback invoked for each content token in the stream.
+        ///
+        /// Receives `(total_choices: usize, choice_idx: usize, token: &str)`
         pub on_content_token: Option<Box<dyn FnMut(usize, usize, &str) + Send + Sync>>,
+        /// Callback invoked for each reasoning token in the stream.
+        ///
+        /// Receives `(total_choices: usize, choice_idx: usize, token: &str)`
         pub on_reason_token: Option<Box<dyn FnMut(usize, usize, &str) + Send + Sync>>,
+        /// Callback invoked once per complete chunk received.
+        ///
+        /// Receives `&GetChatCompletionChunk`
         pub on_chunk: Option<Box<dyn FnMut(&GetChatCompletionChunk) + Send + Sync>>,
     }
 
     impl Consumer {
-        /// Create a new empty StreamConsumer
+        /// Create a new empty `Consumer` with no callbacks set.
         pub fn new() -> Self {
             Self {
                 on_content_token: None,
@@ -291,7 +330,11 @@ pub mod stream {
             }
         }
 
-        /// Create a Consumer that prints content and reason tokens to stdout
+        /// Create a `Consumer` that prints content and reason tokens to stdout.
+        ///
+        /// This consumer only prints tokens from the first choice (index 0) to avoid
+        /// output mangling when multiple choices are requested. For multi-choice
+        /// streaming, use [`with_buffered_stdout()`] instead.
         pub fn with_stdout() -> Self {
             Self {
                 on_content_token: Some(Box::new(
@@ -381,7 +424,12 @@ pub mod stream {
             }
         }
 
-        /// Builder method to set content token callback
+        /// Builder method to set content token callback.
+        ///
+        /// The callback receives `(total_choices, choice_idx, token)` parameters.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `(total_choices: usize, choice_idx: usize, token: &str)`
         pub fn on_content_token<F>(mut self, f: F) -> Self
         where
             F: FnMut(usize, usize, &str) + Send + Sync + 'static,
@@ -390,7 +438,12 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set reason token callback
+        /// Builder method to set reason token callback.
+        ///
+        /// The callback receives `(total_choices, choice_idx, token)` parameters.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `(total_choices: usize, choice_idx: usize, token: &str)`
         pub fn on_reason_token<F>(mut self, f: F) -> Self
         where
             F: FnMut(usize, usize, &str) + Send + Sync + 'static,
@@ -399,7 +452,12 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set chunk callback
+        /// Builder method to set chunk callback.
+        ///
+        /// Called once per chunk received, before token callbacks are invoked.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `&GetChatCompletionChunk`
         pub fn on_chunk<F>(mut self, f: F) -> Self
         where
             F: FnMut(&GetChatCompletionChunk) + Send + Sync + 'static,

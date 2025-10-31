@@ -1,3 +1,7 @@
+//! Tokenization service client.
+//!
+//! Provides clients for tokenizing text into tokens.
+
 pub mod client {
     use crate::common;
     use crate::tokenize_client::TokenizeClient;
@@ -26,15 +30,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new TokenizeClient with an existing channel.
+    /// Creates a new `TokenizeClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<TokenizeClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `TokenizeClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,

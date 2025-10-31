@@ -1,3 +1,7 @@
+//! Model information service client.
+//!
+//! Provides clients for listing available language models, embedding models, and image generation models.
+
 pub mod client {
     use crate::common;
     use crate::models_client::ModelsClient;
@@ -24,15 +28,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new ModelsClient with an existing channel.
+    /// Creates a new `ModelsClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ModelsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `ModelsClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,

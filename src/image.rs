@@ -1,3 +1,7 @@
+//! Image generation service client.
+//!
+//! Provides clients for generating images from text prompts.
+
 pub mod client {
     use crate::common;
     use crate::image_client::ImageClient;
@@ -24,15 +28,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new ImageClient with an existing channel.
+    /// Creates a new `ImageClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ImageClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `ImageClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,

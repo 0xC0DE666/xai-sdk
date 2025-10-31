@@ -1,3 +1,7 @@
+//! Text sampling service client.
+//!
+//! Provides clients for raw text generation and sampling operations.
+
 pub mod client {
     use crate::common;
     use crate::sample_client::SampleClient;
@@ -24,15 +28,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new SampleClient with an existing channel.
+    /// Creates a new `SampleClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `SampleClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,

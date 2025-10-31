@@ -1,3 +1,7 @@
+//! Common utilities for the xAI SDK.
+//!
+//! Provides shared functionality for channel creation and request interceptors.
+
 pub mod channel {
     use crate::XAI_API_URL;
     use tonic::transport::{Channel, ClientTlsConfig};

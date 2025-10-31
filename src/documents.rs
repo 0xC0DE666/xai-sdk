@@ -1,3 +1,5 @@
+//! Document processing service client.
+
 pub mod client {
     use crate::common;
     use crate::documents_client::DocumentsClient;
@@ -26,15 +28,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new DocumentsClient with an existing channel.
+    /// Creates a new `DocumentsClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<DocumentsClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `DocumentsClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,

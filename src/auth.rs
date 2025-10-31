@@ -1,3 +1,7 @@
+//! Authentication service client.
+//!
+//! Provides a client for querying API key information and authentication-related operations.
+
 pub mod client {
     use crate::auth_client::AuthClient;
     use crate::common;
@@ -24,15 +28,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new AuthClient with an existing channel.
+    /// Creates a new `AuthClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<AuthClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `AuthClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,

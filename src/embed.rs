@@ -1,3 +1,7 @@
+//! Embedding service client.
+//!
+//! Provides clients for generating embeddings from text or images.
+
 pub mod client {
     use crate::common;
     use crate::embedder_client::EmbedderClient;
@@ -26,15 +30,14 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new EmbedderClient with an existing channel.
+    /// Creates a new `EmbedderClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<EmbedderClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
-    ///
+    /// * `EmbedderClient<InterceptedService<Channel, impl Interceptor>>` - The connected client
     pub fn with_channel(
         channel: Channel,
         api_key: &str,
