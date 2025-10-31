@@ -1,6 +1,6 @@
 //! Authentication service client.
 //!
-//! Provides a client for querying API key information and authentication-related operations.
+//! Provides clients for querying API key information and authentication-related operations.
 
 pub mod client {
     use crate::auth_client::AuthClient;

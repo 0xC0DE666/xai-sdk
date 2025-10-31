@@ -85,10 +85,10 @@ pub mod client {
     }
 }
 
-//! Streaming utilities for chat completions.
-//!
-//! Provides functions for processing streaming responses, assembling chunks into complete
-//! responses, and flexible callback-based consumers for real-time token processing.
+/// Streaming utilities for chat completions.
+///
+/// Provides functions for processing streaming responses, assembling chunks into complete
+/// responses, and flexible callback-based consumers for real-time token processing.
 pub mod stream {
     use crate::{Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse};
     use std::collections::HashMap;

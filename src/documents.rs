@@ -1,4 +1,6 @@
 //! Document processing service client.
+//!
+//! Provides clients for searching document collections.
 
 pub mod client {
     use crate::common;
