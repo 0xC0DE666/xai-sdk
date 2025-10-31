@@ -1,6 +1,6 @@
 # xAI SDK
 
-A comprehensive Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services including Grok language models, embeddings, image generation, and more.
+A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services including Grok language models, embeddings, image generation, and more.
 
 ## Features
 
