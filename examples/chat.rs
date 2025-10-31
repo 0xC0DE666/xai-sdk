@@ -111,7 +111,7 @@ async fn stream(api_key: &str) -> Result<()> {
     let mut request = Request::new(GetCompletionsRequest {
         model: "grok-3-latest".to_string(),
         messages,
-        n: Some(2),
+        n: Some(1),
         ..Default::default()
     });
 

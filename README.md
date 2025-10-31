@@ -26,7 +26,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.1.0"
+xai-sdk = "0.3.0"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -38,29 +38,36 @@ anyhow = "1.0"
    export XAI_API_KEY="your-api-key-here"
    ```
 
-2. Run the text generation example:
+2. Run the authentication info example:
+   ```bash
+   cargo run --example auth_info
+   ```
+
+3. Run the raw text sampling example:
    ```bash
    cargo run --example raw_text_sample
    ```
 
-3. Run the chat completion example:
+4. Run the chat completion example (supports multiple modes):
    ```bash
-   cargo run --example chat_post
+   # Blocking completion
+   cargo run --example chat -- --complete
+   
+   # Streaming completion
+   cargo run --example chat -- --stream
+   
+   # Streaming with assembly
+   cargo run --example chat -- --assemble
    ```
 
-4. Run the streaming chat example:
+5. Run the multi-client example (demonstrates using multiple services with shared channel):
    ```bash
-   cargo run --example chat_stream
+   cargo run --example multi_client
    ```
 
-5. Run the response assembly example:
+6. Run the interceptor composition example:
    ```bash
-   cargo run --example assemble_response
-   ```
-
-6. Test your connection:
-   ```bash
-   cargo run --bin test_connection
+   cargo run --example interceptor_compose
    ```
 
 ## Usage Examples
@@ -162,7 +169,7 @@ let consumer = chat::stream::Consumer::with_stdout();
 let chunks = chat::stream::process(stream, consumer).await?;
 
 // Assemble complete response
-if let Some(response) = chat::stream::assemble_response(chunks) {
+if let Some(response) = chat::stream::assemble(chunks) {
     println!("Complete response: {}", 
         response.choices[0].message.as_ref().unwrap().content);
 }
@@ -177,6 +184,8 @@ The SDK provides clients for all xAI services:
 - **`GetCompletionChunk`** - Streaming chat completion  
 - **`StartDeferredCompletion`** - Async completion with polling
 - **`GetDeferredCompletion`** - Retrieve async results
+- **`GetStoredCompletion`** - Stored chat completion
+- **`DeleteStoredCompletion`** - Delete stored chat completion
 
 ### Sample Service  
 - **`SampleText`** - Raw text generation
@@ -284,14 +293,15 @@ The SDK provides powerful utilities for working with streaming responses:
 
 ### StreamConsumer
 A flexible callback system for processing streaming data:
-- **`on_content_token`** - Called for each piece of response content
-- **`on_reason_token`** - Called for each piece of reasoning content  
-- **`on_chunk`** - Called for each complete chunk received
+- **`on_content_token(total_choices, choice_idx, token)`** - Called for each piece of response content
+- **`on_reason_token(total_choices, choice_idx, token)`** - Called for each piece of reasoning content  
+- **`on_chunk(chunk)`** - Called for each complete chunk received
 
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks
-- **`chat::stream::assemble_response`** - Convert collected chunks into complete responses
-- **`chat::stream::Consumer::with_stdout`** - Pre-configured consumer for real-time output
+- **`chat::stream::assemble`** - Convert collected chunks into complete responses
+- **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-choice real-time output
+- **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-choice buffered output
 
 ## Configuration
 

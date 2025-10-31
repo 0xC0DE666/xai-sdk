@@ -5,13 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2025-10-31
+
+### Added
+- **Enhanced Stream Consumer**: `Consumer` callbacks now receive `(total_choices, choice_idx, token)` parameters for better multi-choice handling
+- **Buffered Output**: `Consumer::with_buffered_stdout()` for clean, non-interleaved output when streaming multiple choices
+- **Interceptor Composition**: `common::interceptor::compose()` for combining multiple interceptors
+- **Custom Interceptor Support**: `with_interceptor()` and `with_channel_and_interceptor()` methods on all client modules
+- **Comprehensive Documentation**: Complete rustdoc documentation for all modules, functions, and types
+- **Module-Level Documentation**: Added module descriptions explaining the purpose of each service client
+
+### Changed
+- **BREAKING**: `Consumer::on_content_token` and `Consumer::on_reason_token` callbacks now receive `(total_choices: usize, choice_idx: usize, token: &str)` instead of `(choice_idx: i32, token: &str)`
+- **BREAKING**: Renamed `chat::stream::assemble_response()` to `chat::stream::assemble()`
+- **Stream Consumer**: `Consumer::with_stdout()` now only prints tokens from the first choice to avoid output mangling
+- **Documentation**: Fixed incorrect return types in `with_channel()` documentation across all modules
+- **Type Consistency**: Stream consumer indices changed from `i32` to `usize` for better type safety
+
+### Fixed
+- Corrected return type documentation for `with_channel()` methods (they return directly, not wrapped in Result)
+- Fixed module documentation formatting issues
+- Improved accuracy of all rustdoc comments
+
+## [0.2.0] - 2025-10-30
 
 ### Added
 - **Modular Client Architecture**: Each service now has a dedicated `client` submodule with automatic authentication
 - **Automatic Authentication**: Clients created with `module::client::new(api_key)` handle authentication automatically via interceptors
 - **Common Utilities**: `common::channel::new()` for centralized channel creation and `common::interceptor::auth()` for authentication
-- **Stream Processing**: `chat::stream::process()` and `chat::stream::assemble_response()` for handling streaming responses
+- **Stream Processing**: `chat::stream::process()` and `chat::stream::assemble()` for handling streaming responses
 - **StreamConsumer**: Flexible callback system for processing streaming data with `chat::stream::Consumer`
 - **Channel Reuse**: `with_channel()` methods for creating clients with existing channels
 - **Comprehensive Examples**: Updated all examples to use the new modular architecture
