@@ -291,7 +291,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The SDK provides powerful utilities for working with streaming responses:
 
-### StreamConsumer
+### Stream Consumer
 A flexible callback system for processing streaming data:
 - **`on_content_token(total_choices, choice_idx, token)`** - Called for each piece of response content
 - **`on_reason_token(total_choices, choice_idx, token)`** - Called for each piece of reasoning content  
