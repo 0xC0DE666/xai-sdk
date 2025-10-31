@@ -4,7 +4,7 @@
 
 pub mod client {
     use crate::common;
-    use crate::sample_client::SampleClient;
+    use crate::xai_api::sample_client::SampleClient;
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;

@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::env;
 use tonic::Request;
-use xai_sdk::{
-    Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, chat, common,
-    content,
+use xai_sdk::xai_api::{
+    Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };
+use xai_sdk::{chat, common};
 
 #[tokio::main]
 async fn main() -> Result<()> {

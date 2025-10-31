@@ -4,8 +4,8 @@
 //! utilities for processing and assembling streaming responses.
 
 pub mod client {
-    use crate::chat_client::ChatClient;
     use crate::common;
+    use crate::xai_api::chat_client::ChatClient;
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;
@@ -90,7 +90,9 @@ pub mod client {
 /// Provides functions for processing streaming responses, assembling chunks into complete
 /// responses, and flexible callback-based consumers for real-time token processing.
 pub mod stream {
-    use crate::{Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse};
+    use crate::xai_api::{
+        Choice, CompletionMessage, GetChatCompletionChunk, GetChatCompletionResponse,
+    };
     use std::collections::HashMap;
     use std::io::Write;
     use std::sync::{Arc, Mutex};
@@ -288,10 +290,10 @@ pub mod stream {
         content: String,
         reasoning_content: String,
         role: i32,
-        tool_calls: Vec<crate::ToolCall>,
+        tool_calls: Vec<crate::xai_api::ToolCall>,
         encrypted_content: String,
         finish_reason: i32,
-        logprobs: Option<crate::LogProbs>,
+        logprobs: Option<crate::xai_api::LogProbs>,
     }
 
     /// A callback-based consumer for processing streaming chat completion responses.

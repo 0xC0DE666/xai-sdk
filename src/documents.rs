@@ -4,7 +4,7 @@
 
 pub mod client {
     use crate::common;
-    use crate::documents_client::DocumentsClient;
+    use crate::xai_api::documents_client::DocumentsClient;
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;

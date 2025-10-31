@@ -4,7 +4,7 @@
 
 pub mod client {
     use crate::common;
-    use crate::embedder_client::EmbedderClient;
+    use crate::xai_api::embedder_client::EmbedderClient;
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;

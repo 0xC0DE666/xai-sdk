@@ -1,8 +1,8 @@
 use tonic::Request;
-use xai_sdk::{
-    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, chat, common, content,
-    models, sample,
+use xai_sdk::xai_api::{
+    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, content,
 };
+use xai_sdk::{common, models, sample};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

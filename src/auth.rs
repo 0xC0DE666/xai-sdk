@@ -3,8 +3,8 @@
 //! Provides clients for querying API key information and authentication-related operations.
 
 pub mod client {
-    use crate::auth_client::AuthClient;
     use crate::common;
+    use crate::xai_api::auth_client::AuthClient;
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;

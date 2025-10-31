@@ -4,7 +4,7 @@
 
 pub mod client {
     use crate::common;
-    use crate::tokenize_client::TokenizeClient;
+    use crate::xai_api::tokenize_client::TokenizeClient;
     use tonic::service::Interceptor;
     use tonic::service::interceptor::InterceptedService;
     use tonic::transport::Channel;
