@@ -117,9 +117,13 @@ The SDK is organized into focused modules, each providing easy client creation:
 Here's a complete example showing multiple services using the modular architecture:
 
 ```rust
+use anyhow::Context;
 use std::env;
 use tonic::Request;
-use xai_sdk::{chat, sample, models, SampleTextRequest, GetCompletionsRequest, Message, MessageRole, Content, content};
+use xai_sdk::xai_api::{
+    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, content,
+};
+use xai_sdk::{chat, models, sample};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.3.2] - 2025-10-31
-Cleaned up readme.
+
+### Changed
+- **BREAKING**: Removed wildcard re-export of `xai_api` types. Types from the `xai_api` module (e.g., `Message`, `Content`, `GetCompletionsRequest`, etc.) must now be imported explicitly via `xai_sdk::xai_api::...` instead of being available directly from `xai_sdk`
+- Updated all examples to use explicit `xai_api` imports
+- Updated README documentation with correct import examples
+
+### Fixed
+- Improved API clarity by making generated types explicitly scoped to `xai_api` module
 
 ## [0.3.1] - 2025-10-31
 Added repo url to Cargo.toml.
