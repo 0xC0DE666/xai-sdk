@@ -1,8 +1,9 @@
 use tonic::Request;
 use xai_sdk::xai_api::{
-    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, content,
+    Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
+    content,
 };
-use xai_sdk::{common, models, sample};
+use xai_sdk::{chat, common, models, sample};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,6 +29,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Available models: {:?}\n",
         models_response.into_inner().models
     );
+
+    // Get language model detail
+    println!("📋 Language model details...");
+    let model_request = Request::new(GetModelRequest {
+        name: "grok-code-fast".to_string(),
+    });
+    let model_response = models_client.get_language_model(model_request).await?;
+    println!("Language model: {:#?}\n", model_response.into_inner());
 
     // Generate text using sample service
     println!("✍️  Generating text...");
