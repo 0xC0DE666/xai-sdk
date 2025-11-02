@@ -3,6 +3,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_client(true)
         .build_server(false)
         .out_dir(&"src/")
+        .type_attribute(".xai_api", "#[cfg_attr(feature = \"serde\", derive(::serde::Serialize, ::serde::Deserialize))]")
         .compile_protos(
             &[
                 "xai/proto/xai/api/v1/auth.proto",
