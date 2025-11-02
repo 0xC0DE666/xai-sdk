@@ -1,9 +1,11 @@
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_prost_build::configure()
-        .build_client(true)
-        .build_server(false)
-        .out_dir(&"src/")
-        .type_attribute(".xai_api", "#[cfg_attr(feature = \"serde\", derive(::serde::Serialize, ::serde::Deserialize))]")
+fn main() {
+    let mut prost_build = prost_build::Config::new();
+    prost_build
+        .type_attribute(".", "#[derive(serde::Serialize,serde::Deserialize)]")
+        .extern_path(".google.protobuf.Any", "::prost_wkt_types::Any")
+        .extern_path(".google.protobuf.Timestamp", "::prost_wkt_types::Timestamp")
+        .extern_path(".google.protobuf.Value", "::prost_wkt_types::Value")
+        .out_dir("src/")
         .compile_protos(
             &[
                 "xai/proto/xai/api/v1/auth.proto",
@@ -17,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "xai/proto/xai/api/v1/tokenize.proto",
                 "xai/proto/xai/api/v1/usage.proto",
             ],
-            &["xai/proto"], // Include dir for imports
-        )?;
-    Ok(())
+            &["xai/proto"],
+        )
+        .unwrap();
 }
