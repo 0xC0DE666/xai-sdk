@@ -12,6 +12,7 @@ pub mod image;
 pub mod models;
 pub mod sample;
 pub mod tokenize;
+pub mod utils;
 pub mod xai_api;
 
 /// Default xAI API URL
