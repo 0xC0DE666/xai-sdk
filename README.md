@@ -25,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.3"
+xai-sdk = "0.4"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -175,9 +175,15 @@ The SDK provides powerful utilities for working with streaming responses:
 
 ### Stream Consumer
 A flexible callback system for processing streaming data:
-- **`on_content_token(total_choices, choice_idx, token)`** - Called for each piece of response content
-- **`on_reason_token(total_choices, choice_idx, token)`** - Called for each piece of reasoning content  
+- **`on_content_token(TokenContext, token: &str)`** - Called for each piece of response content
+- **`on_reason_token(TokenContext, token: &str)`** - Called for each piece of reasoning content  
 - **`on_chunk(chunk)`** - Called for each complete chunk received
+
+The `TokenContext` provides:
+- `total_choices` - Total number of choices in the stream
+- `choice_index` - Index of the choice this token belongs to
+- `reasoning_complete` - Whether the reasoning phase is complete
+- `content_complete` - Whether the content phase is complete
 
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks

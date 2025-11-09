@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-11-09
+
+### Added
+- **TokenContext**: New `TokenContext` struct providing contextual information about tokens in streaming responses
+  - Includes `total_choices`, `choice_index`, `reasoning_complete`, and `content_complete` fields
+  - Comprehensive rustdoc documentation
+- **Enhanced Completion Detection**: Improved logic for detecting when reasoning and content phases are complete using `finish_reason`
+
+### Changed
+- **BREAKING**: `Consumer::on_content_token` and `Consumer::on_reason_token` callbacks now receive `(TokenContext, token: &str)` instead of `(total_choices: usize, choice_idx: usize, token: &str)`
+  - Context-first parameter order for better ergonomics
+  - All related data grouped into a single struct for easier extension
+- **BREAKING**: `Consumer::with_stdout()` now uses completion flags to print newlines when reasoning or content phases complete
+
+### Fixed
+- Fixed completion flag logic to accurately detect reasoning and content completion using `finish_reason`
+- Fixed documentation typos and improved consistency
+
 ## [0.3.2] - 2025-10-31
 
 ### Changed
