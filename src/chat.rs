@@ -120,6 +120,8 @@ pub mod stream {
         mut consumer: Consumer,
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
+        let mut flag_reasoning_complete = false;
+        let mut flag_content_complete = false;
 
         loop {
             // Process each chunk as it arrives
@@ -142,33 +144,63 @@ pub mod stream {
                             // Reasoning is complete when we have no reasoning content and either:
                             // - we have content (reasoning finished, content starting), or
                             // - the choice is finished (everything is done)
-                            let reasoning_complete = delta.reasoning_content.is_empty()
+                            let reasoning_status = if delta.reasoning_content.is_empty()
                                 && (!delta.content.is_empty()
-                                    || choice.finish_reason != FinishReason::ReasonInvalid.into());
+                                    || choice.finish_reason != FinishReason::ReasonInvalid.into())
+                            {
+                                PhaseStatus::Complete
+                            } else if !delta.reasoning_content.is_empty()
+                                && delta.content.is_empty()
+                            {
+                                PhaseStatus::Pending
+                            } else {
+                                PhaseStatus::Init
+                            };
 
                             // Content is complete when the choice has finished
-                            let content_complete =
-                                choice.finish_reason != FinishReason::ReasonInvalid.into();
+                            let content_status = if delta.reasoning_content.is_empty()
+                                && choice.finish_reason != FinishReason::ReasonInvalid.into()
+                            {
+                                PhaseStatus::Complete
+                            } else if !delta.content.is_empty() {
+                                PhaseStatus::Pending
+                            } else {
+                                PhaseStatus::Init
+                            };
 
                             let token_context = TokenContext::init(
                                 chunk.choices.len(),
                                 choice.index as usize,
-                                reasoning_complete,
-                                content_complete,
+                                reasoning_status.clone(),
+                                content_status.clone(),
                             );
 
+                            // Reasoning
                             if let Some(ref mut on_reason_token) = consumer.on_reason_token {
                                 let reason_token = &delta.reasoning_content;
-                                if !reason_token.is_empty() {
-                                    on_reason_token(token_context.clone(), reason_token);
-                                }
+                                on_reason_token(token_context.clone(), reason_token);
                             }
 
+                            if let Some(ref mut on_reason_complete) = consumer.on_reason_complete
+                                && flag_reasoning_complete == false
+                                && reasoning_status == PhaseStatus::Complete
+                            {
+                                on_reason_complete();
+                                flag_reasoning_complete = true;
+                            }
+
+                            // Content
                             if let Some(ref mut on_content_token) = consumer.on_content_token {
                                 let content_token = &delta.content;
-                                if !content_token.is_empty() {
-                                    on_content_token(token_context, content_token);
-                                }
+                                on_content_token(token_context, content_token);
+                            }
+
+                            if let Some(ref mut on_content_complete) = consumer.on_content_complete
+                                && flag_content_complete == false
+                                && content_status == PhaseStatus::Complete
+                            {
+                                on_content_complete();
+                                flag_content_complete = true;
                             }
                         }
                     }
@@ -321,10 +353,14 @@ pub mod stream {
         ///
         /// Receives `(TokenContext, token: &str)`
         pub on_content_token: Option<Box<dyn FnMut(TokenContext, &str) + Send + Sync>>,
+
+        pub on_content_complete: Option<Box<dyn FnMut() + Send + Sync>>,
         /// Callback invoked for each reasoning token in the stream.
         ///
         /// Receives `(TokenContext, token: &str)`
         pub on_reason_token: Option<Box<dyn FnMut(TokenContext, &str) + Send + Sync>>,
+
+        pub on_reason_complete: Option<Box<dyn FnMut() + Send + Sync>>,
         /// Callback invoked once per complete chunk received.
         ///
         /// Receives `&GetChatCompletionChunk`
@@ -336,7 +372,9 @@ pub mod stream {
         pub fn new() -> Self {
             Self {
                 on_content_token: None,
+                on_content_complete: None,
                 on_reason_token: None,
+                on_reason_complete: None,
                 on_chunk: None,
             }
         }
@@ -348,30 +386,30 @@ pub mod stream {
         /// streaming, use [`with_buffered_stdout()`](Consumer::with_buffered_stdout) instead.
         pub fn with_stdout() -> Self {
             Self {
-                on_content_token: Some(Box::new(|token_context: TokenContext, token: &str| {
-                    if token_context.choice_index != 0 {
+                on_content_token: Some(Box::new(|ctx: TokenContext, token: &str| {
+                    if ctx.choice_index != 0 {
                         return;
                     }
 
                     print!("{token}");
                     std::io::stdout().flush().expect("Error flushing stdout");
-
-                    if token_context.content_complete {
-                        println!("\n");
-                    }
                 })),
-                on_reason_token: Some(Box::new(|token_context: TokenContext, token: &str| {
-                    if token_context.choice_index != 0 {
+                on_content_complete: Some(Box::new(|| {
+                    println!("\n");
+                })),
+
+                on_reason_token: Some(Box::new(|ctx: TokenContext, token: &str| {
+                    if ctx.choice_index != 0 {
                         return;
                     }
 
                     print!("{token}");
                     std::io::stdout().flush().expect("Error flushing stdout");
-
-                    if token_context.reasoning_complete {
-                        println!("\n");
-                    }
                 })),
+                on_reason_complete: Some(Box::new(|| {
+                    println!("\n");
+                })),
+
                 on_chunk: None,
             }
         }
@@ -398,22 +436,18 @@ pub mod stream {
             let finished_clone = finished.clone();
 
             Self {
-                on_content_token: Some(Box::new(
-                    move |token_context: TokenContext, token: &str| {
-                        let mut buffers = buffers_content.lock().unwrap();
-                        let choice_buf = buffers
-                            .entry(token_context.choice_index as i32)
-                            .or_default();
-                        choice_buf.content.push_str(token);
-                    },
-                )),
-                on_reason_token: Some(Box::new(move |token_context: TokenContext, token: &str| {
+                on_content_token: Some(Box::new(move |ctx: TokenContext, token: &str| {
+                    let mut buffers = buffers_content.lock().unwrap();
+                    let choice_buf = buffers.entry(ctx.choice_index as i32).or_default();
+                    choice_buf.content.push_str(token);
+                })),
+                on_content_complete: None,
+                on_reason_token: Some(Box::new(move |ctx: TokenContext, token: &str| {
                     let mut buffers = buffers_reason.lock().unwrap();
-                    let choice_buf = buffers
-                        .entry(token_context.choice_index as i32)
-                        .or_default();
+                    let choice_buf = buffers.entry(ctx.choice_index as i32).or_default();
                     choice_buf.reasoning.push_str(token);
                 })),
+                on_reason_complete: None,
                 on_chunk: Some(Box::new(move |chunk: &GetChatCompletionChunk| {
                     let mut buffers = buffers_chunk.lock().unwrap();
                     let mut finished = finished_clone.lock().unwrap();
@@ -492,6 +526,13 @@ pub mod stream {
         }
     }
 
+    #[derive(Clone, Debug, PartialEq)]
+    pub enum PhaseStatus {
+        Init,
+        Pending,
+        Complete,
+    }
+
     /// Contextual information about a token in a streaming chat completion response.
     ///
     /// `TokenContext` provides metadata about the current token being processed, including
@@ -524,7 +565,7 @@ pub mod stream {
         ///
         /// Use this flag to detect when the model has finished its reasoning phase
         /// and moved on to generating the final answer.
-        pub reasoning_complete: bool,
+        pub reasoning_status: PhaseStatus,
 
         /// Indicates whether the content phase is complete for this choice.
         ///
@@ -533,7 +574,7 @@ pub mod stream {
         ///
         /// Use this flag to detect when a choice has completed and perform any
         /// final processing or cleanup.
-        pub content_complete: bool,
+        pub content_status: PhaseStatus,
     }
 
     impl TokenContext {
@@ -552,14 +593,14 @@ pub mod stream {
         pub fn init(
             total_choices: usize,
             choice_index: usize,
-            reasoning_complete: bool,
-            content_complete: bool,
+            reasoning_status: PhaseStatus,
+            content_status: PhaseStatus,
         ) -> Self {
             Self {
                 total_choices,
                 choice_index,
-                reasoning_complete,
-                content_complete,
+                reasoning_status,
+                content_status,
             }
         }
     }
