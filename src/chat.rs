@@ -153,7 +153,7 @@ pub mod stream {
                                 choice.finish_reason,
                             );
 
-                            let token_context = TokenContext::init(
+                            let token_ctx = TokenContext::new(
                                 chunk.choices.len(),
                                 choice.index as usize,
                                 reasoning_status.clone(),
@@ -163,7 +163,7 @@ pub mod stream {
                             // Reasoning
                             if let Some(ref mut on_reason_token) = consumer.on_reason_token {
                                 let reason_token = &delta.reasoning_content;
-                                on_reason_token(token_context.clone(), reason_token);
+                                on_reason_token(token_ctx.clone(), reason_token);
                             }
 
                             if let Some(ref mut on_reasoning_complete) =
@@ -174,7 +174,11 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && reasoning_status == PhaseStatus::Complete {
-                                    on_reasoning_complete();
+                                    let completion_ctx = CompletionContext::new(
+                                        chunk.choices.len(),
+                                        choice.index as usize,
+                                    );
+                                    on_reasoning_complete(completion_ctx);
                                     reasoning_complete_flags.insert(choice.index, true);
                                 }
                             }
@@ -182,7 +186,7 @@ pub mod stream {
                             // Content
                             if let Some(ref mut on_content_token) = consumer.on_content_token {
                                 let content_token = &delta.content;
-                                on_content_token(token_context, content_token);
+                                on_content_token(token_ctx, content_token);
                             }
 
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
@@ -192,7 +196,11 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && content_status == PhaseStatus::Complete {
-                                    on_content_complete();
+                                    let completion_ctx = CompletionContext::new(
+                                        chunk.choices.len(),
+                                        choice.index as usize,
+                                    );
+                                    on_content_complete(completion_ctx);
                                     content_complete_flags.insert(choice.index, true);
                                 }
                             }
@@ -396,9 +404,9 @@ pub mod stream {
     ///
     /// # Callback Signatures
     /// - `on_content_token`: Called for each content token with `(TokenContext, token: &str)`
-    /// - `on_content_complete`: Called once when content phase completes for a choice
+    /// - `on_content_complete`: Called once when content phase completes for a choice with `CompletionContext`
     /// - `on_reason_token`: Called for each reasoning token with `(TokenContext, token: &str)`
-    /// - `on_reasoning_complete`: Called once when reasoning phase completes for a choice
+    /// - `on_reasoning_complete`: Called once when reasoning phase completes for a choice with `CompletionContext`
     /// - `on_chunk`: Called once per complete chunk received
     pub struct Consumer {
         /// Callback invoked for each content token in the stream.
@@ -410,7 +418,9 @@ pub mod stream {
         ///
         /// This callback is called only once per choice when the content phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when content generation finishes.
-        pub on_content_complete: Option<Box<dyn FnMut() + Send + Sync>>,
+        ///
+        /// Receives `CompletionContext` with information about which choice completed.
+        pub on_content_complete: Option<Box<dyn FnMut(CompletionContext) + Send + Sync>>,
 
         /// Callback invoked for each reasoning token in the stream.
         ///
@@ -421,7 +431,9 @@ pub mod stream {
         ///
         /// This callback is called only once per choice when the reasoning phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
-        pub on_reasoning_complete: Option<Box<dyn FnMut() + Send + Sync>>,
+        ///
+        /// Receives `CompletionContext` with information about which choice completed.
+        pub on_reasoning_complete: Option<Box<dyn FnMut(CompletionContext) + Send + Sync>>,
         /// Callback invoked once per complete chunk received.
         ///
         /// Receives `&GetChatCompletionChunk`
@@ -455,7 +467,7 @@ pub mod stream {
                     print!("{token}");
                     std::io::stdout().flush().expect("Error flushing stdout");
                 })),
-                on_content_complete: Some(Box::new(|| {
+                on_content_complete: Some(Box::new(|_ctx: CompletionContext| {
                     println!("\n");
                 })),
 
@@ -467,7 +479,7 @@ pub mod stream {
                     print!("{token}");
                     std::io::stdout().flush().expect("Error flushing stdout");
                 })),
-                on_reasoning_complete: Some(Box::new(|| {
+                on_reasoning_complete: Some(Box::new(|_ctx: CompletionContext| {
                     println!("\n");
                 })),
 
@@ -586,10 +598,10 @@ pub mod stream {
         /// This callback is invoked only once per choice when reasoning transitions to Complete.
         ///
         /// # Arguments
-        /// * `f` - Closure that is called when reasoning completes
+        /// * `f` - Closure that receives `CompletionContext` and is called when reasoning completes
         pub fn on_reasoning_complete<F>(mut self, f: F) -> Self
         where
-            F: FnMut() + Send + Sync + 'static,
+            F: FnMut(CompletionContext) + Send + Sync + 'static,
         {
             self.on_reasoning_complete = Some(Box::new(f));
             self
@@ -601,10 +613,10 @@ pub mod stream {
         /// This callback is invoked only once per choice when content transitions to Complete.
         ///
         /// # Arguments
-        /// * `f` - Closure that is called when content completes
+        /// * `f` - Closure that receives `CompletionContext` and is called when content completes
         pub fn on_content_complete<F>(mut self, f: F) -> Self
         where
-            F: FnMut() + Send + Sync + 'static,
+            F: FnMut(CompletionContext) + Send + Sync + 'static,
         {
             self.on_content_complete = Some(Box::new(f));
             self
@@ -681,7 +693,7 @@ pub mod stream {
         /// # Returns
         ///
         /// A new `TokenContext` instance with the provided values.
-        pub fn init(
+        pub fn new(
             total_choices: usize,
             choice_index: usize,
             reasoning_status: PhaseStatus,
@@ -692,6 +704,48 @@ pub mod stream {
                 choice_index,
                 reasoning_status,
                 content_status,
+            }
+        }
+    }
+
+    /// Contextual information provided to completion callbacks.
+    ///
+    /// `CompletionContext` provides metadata about which choice completed, allowing
+    /// completion callbacks to identify the specific choice that finished and understand
+    /// its position within the overall stream.
+    ///
+    /// This struct is passed to completion callbacks (`on_reasoning_complete` and
+    /// `on_content_complete`) to provide context about which choice completed.
+    #[derive(Clone, Debug)]
+    pub struct CompletionContext {
+        /// The total number of choices in this streaming response.
+        ///
+        /// When `n > 1` is specified in the request, multiple choices are generated
+        /// concurrently. This field indicates how many choices are being streamed.
+        pub total_choices: usize,
+
+        /// The index of the choice that completed.
+        ///
+        /// Choices are indexed starting from 0. Use this to distinguish which choice
+        /// completed when processing multi-choice streams.
+        pub choice_index: usize,
+    }
+
+    impl CompletionContext {
+        /// Creates a new `CompletionContext` with the specified values.
+        ///
+        /// # Arguments
+        ///
+        /// * `total_choices` - The total number of choices in the stream
+        /// * `choice_index` - The index of the choice that completed
+        ///
+        /// # Returns
+        ///
+        /// A new `CompletionContext` instance with the provided values.
+        pub fn new(total_choices: usize, choice_index: usize) -> Self {
+            Self {
+                total_choices,
+                choice_index,
             }
         }
     }

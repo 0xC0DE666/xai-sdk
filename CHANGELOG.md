@@ -12,9 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Includes `total_choices`, `choice_index`, `reasoning_status`, and `content_status` fields
   - Comprehensive rustdoc documentation
 - **PhaseStatus Enum**: New `PhaseStatus` enum (`Init`, `Pending`, `Complete`) for tracking reasoning and content phase states
+- **CompletionContext**: New `CompletionContext` struct providing contextual information to completion callbacks
+  - Includes `choice_index` and `total_choices` fields to identify which choice completed
+  - Passed to `on_reasoning_complete` and `on_content_complete` callbacks
 - **Completion Callbacks**: New callbacks for detecting phase completion transitions
-  - `Consumer::on_reasoning_complete()` - Called once when reasoning phase completes for a choice
-  - `Consumer::on_content_complete()` - Called once when content phase completes for a choice
+  - `Consumer::on_reasoning_complete(CompletionContext)` - Called once when reasoning phase completes for a choice
+  - `Consumer::on_content_complete(CompletionContext)` - Called once when content phase completes for a choice
   - Builder methods `on_reasoning_complete()` and `on_content_complete()` for fluent API
 - **Enhanced Completion Detection**: Improved logic for detecting when reasoning and content phases are complete using `finish_reason`
 - **Per-Choice Completion Tracking**: Completion callbacks now correctly track state per choice, enabling proper handling of multiple concurrent choices
