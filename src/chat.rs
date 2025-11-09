@@ -141,32 +141,17 @@ pub mod stream {
                     // Handle each choice
                     for choice in &chunk.choices {
                         if let Some(delta) = &choice.delta {
-                            // Reasoning is complete when we have no reasoning content and either:
-                            // - we have content (reasoning finished, content starting), or
-                            // - the choice is finished (everything is done)
-                            let reasoning_status = if delta.reasoning_content.is_empty()
-                                && (!delta.content.is_empty()
-                                    || choice.finish_reason != FinishReason::ReasonInvalid.into())
-                            {
-                                PhaseStatus::Complete
-                            } else if !delta.reasoning_content.is_empty()
-                                && delta.content.is_empty()
-                            {
-                                PhaseStatus::Pending
-                            } else {
-                                PhaseStatus::Init
-                            };
+                            let reasoning_status = get_reasoning_status(
+                                &delta.reasoning_content,
+                                &delta.content,
+                                choice.finish_reason,
+                            );
 
-                            // Content is complete when the choice has finished
-                            let content_status = if delta.reasoning_content.is_empty()
-                                && choice.finish_reason != FinishReason::ReasonInvalid.into()
-                            {
-                                PhaseStatus::Complete
-                            } else if !delta.content.is_empty() {
-                                PhaseStatus::Pending
-                            } else {
-                                PhaseStatus::Init
-                            };
+                            let content_status = get_content_status(
+                                &delta.reasoning_content,
+                                &delta.content,
+                                choice.finish_reason,
+                            );
 
                             let token_context = TokenContext::init(
                                 chunk.choices.len(),
@@ -222,6 +207,62 @@ pub mod stream {
         }
 
         Ok(chunks)
+    }
+
+    /// Determines the reasoning phase status based on the delta content and choice finish reason.
+    ///
+    /// Reasoning is complete when:
+    /// - We have no reasoning content AND either:
+    ///   - We have content (reasoning finished, content starting), or
+    ///   - The choice is finished (everything is done)
+    ///
+    /// Reasoning is pending when:
+    /// - We have reasoning content AND no content yet
+    ///
+    /// Otherwise, reasoning is in the initial state.
+    fn get_reasoning_status(
+        reasoning_content: &str,
+        content: &str,
+        finish_reason: i32,
+    ) -> PhaseStatus {
+        let has_reasoning = !reasoning_content.is_empty();
+        let has_content = !content.is_empty();
+        let is_finished = finish_reason != FinishReason::ReasonInvalid.into();
+
+        if !has_reasoning && (has_content || is_finished) {
+            PhaseStatus::Complete
+        } else if has_reasoning && !has_content {
+            PhaseStatus::Pending
+        } else {
+            PhaseStatus::Init
+        }
+    }
+
+    /// Determines the content phase status based on the delta content and choice finish reason.
+    ///
+    /// Content is complete when:
+    /// - Reasoning is empty (reasoning phase is done) AND the choice has finished
+    ///
+    /// Content is pending when:
+    /// - We have content tokens being generated
+    ///
+    /// Otherwise, content is in the initial state.
+    fn get_content_status(
+        reasoning_content: &str,
+        content: &str,
+        finish_reason: i32,
+    ) -> PhaseStatus {
+        let has_reasoning = !reasoning_content.is_empty();
+        let has_content = !content.is_empty();
+        let is_finished = finish_reason != FinishReason::ReasonInvalid.into();
+
+        if !has_reasoning && is_finished {
+            PhaseStatus::Complete
+        } else if has_content {
+            PhaseStatus::Pending
+        } else {
+            PhaseStatus::Init
+        }
     }
 
     /// Assembles a vector of streaming chunks into a complete GetChatCompletionResponse.
