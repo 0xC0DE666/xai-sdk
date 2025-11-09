@@ -120,8 +120,8 @@ pub mod stream {
         mut consumer: Consumer,
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
-        let mut flag_reasoning_complete = false;
-        let mut flag_content_complete = false;
+        let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
+        let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
 
         loop {
             // Process each chunk as it arrives
@@ -181,12 +181,15 @@ pub mod stream {
                                 on_reason_token(token_context.clone(), reason_token);
                             }
 
-                            if let Some(ref mut on_reason_complete) = consumer.on_reason_complete
-                                && flag_reasoning_complete == false
-                                && reasoning_status == PhaseStatus::Complete
-                            {
-                                on_reason_complete();
-                                flag_reasoning_complete = true;
+                            if let Some(ref mut on_reason_complete) = consumer.on_reason_complete {
+                                let was_complete = reasoning_complete_flags
+                                    .get(&choice.index)
+                                    .copied()
+                                    .unwrap_or(false);
+                                if !was_complete && reasoning_status == PhaseStatus::Complete {
+                                    on_reason_complete();
+                                    reasoning_complete_flags.insert(choice.index, true);
+                                }
                             }
 
                             // Content
@@ -196,11 +199,15 @@ pub mod stream {
                             }
 
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
-                                && flag_content_complete == false
-                                && content_status == PhaseStatus::Complete
                             {
-                                on_content_complete();
-                                flag_content_complete = true;
+                                let was_complete = content_complete_flags
+                                    .get(&choice.index)
+                                    .copied()
+                                    .unwrap_or(false);
+                                if !was_complete && content_status == PhaseStatus::Complete {
+                                    on_content_complete();
+                                    content_complete_flags.insert(choice.index, true);
+                                }
                             }
                         }
                     }
@@ -346,7 +353,9 @@ pub mod stream {
     ///
     /// # Callback Signatures
     /// - `on_content_token`: Called for each content token with `(TokenContext, token: &str)`
+    /// - `on_content_complete`: Called once when content phase completes for a choice
     /// - `on_reason_token`: Called for each reasoning token with `(TokenContext, token: &str)`
+    /// - `on_reason_complete`: Called once when reasoning phase completes for a choice
     /// - `on_chunk`: Called once per complete chunk received
     pub struct Consumer {
         /// Callback invoked for each content token in the stream.
@@ -354,12 +363,21 @@ pub mod stream {
         /// Receives `(TokenContext, token: &str)`
         pub on_content_token: Option<Box<dyn FnMut(TokenContext, &str) + Send + Sync>>,
 
+        /// Callback invoked once when the content phase completes for a choice.
+        ///
+        /// This callback is called only once per choice when the content phase transitions
+        /// to `Complete`. Useful for performing cleanup or formatting when content generation finishes.
         pub on_content_complete: Option<Box<dyn FnMut() + Send + Sync>>,
+
         /// Callback invoked for each reasoning token in the stream.
         ///
         /// Receives `(TokenContext, token: &str)`
         pub on_reason_token: Option<Box<dyn FnMut(TokenContext, &str) + Send + Sync>>,
 
+        /// Callback invoked once when the reasoning phase completes for a choice.
+        ///
+        /// This callback is called only once per choice when the reasoning phase transitions
+        /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
         pub on_reason_complete: Option<Box<dyn FnMut() + Send + Sync>>,
         /// Callback invoked once per complete chunk received.
         ///
@@ -516,6 +534,36 @@ pub mod stream {
             F: FnMut(&GetChatCompletionChunk) + Send + Sync + 'static,
         {
             self.on_chunk = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set reasoning completion callback.
+        ///
+        /// Called once when the reasoning phase completes for a choice.
+        /// This callback is invoked only once per choice when reasoning transitions to Complete.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that is called when reasoning completes
+        pub fn on_reason_complete<F>(mut self, f: F) -> Self
+        where
+            F: FnMut() + Send + Sync + 'static,
+        {
+            self.on_reason_complete = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set content completion callback.
+        ///
+        /// Called once when the content phase completes for a choice.
+        /// This callback is invoked only once per choice when content transitions to Complete.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that is called when content completes
+        pub fn on_content_complete<F>(mut self, f: F) -> Self
+        where
+            F: FnMut() + Send + Sync + 'static,
+        {
+            self.on_content_complete = Some(Box::new(f));
             self
         }
     }
