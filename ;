@@ -143,12 +143,10 @@ pub mod stream {
                             // - we have content (reasoning finished, content starting), or
                             // - the choice is finished (everything is done)
                             let reasoning_complete = delta.reasoning_content.is_empty()
-                                && (!delta.content.is_empty()
-                                    || choice.finish_reason != FinishReason::ReasonInvalid.into());
+                                && (!delta.content.is_empty() || choice.finish_reason != 0);
 
                             // Content is complete when the choice has finished
-                            let content_complete =
-                                choice.finish_reason != FinishReason::ReasonInvalid.into();
+                            let content_complete = choice.finish_reason != 0;
 
                             let token_context = TokenContext::init(
                                 chunk.choices.len(),
@@ -188,7 +186,7 @@ pub mod stream {
     /// This function takes the collected chunks from a streaming chat completion response
     /// and reconstructs them into a single, complete response object. It handles multiple
     /// choices by grouping chunks by index, accumulates content from deltas, and preserves
-    /// all metadata and usage statistics.
+    /// all token_context and usage statistics.
     ///
     /// # Arguments
     /// * `chunks` - A vector of `GetChatCompletionChunk` objects collected from a streaming response
@@ -200,7 +198,7 @@ pub mod stream {
     /// # Features
     /// - **Multiple Choices**: Groups chunks by choice index to handle multiple response choices
     /// - **Content Accumulation**: Concatenates all delta content, reasoning, and encrypted content
-    /// - **Metadata Preservation**: Uses first chunk for consistent metadata, last chunk for final stats
+    /// - **Metadata Preservation**: Uses first chunk for consistent token_context, last chunk for final stats
     /// - **Order Maintenance**: Sorts choices by index to preserve original order
     ///
     pub fn assemble(chunks: Vec<GetChatCompletionChunk>) -> Option<GetChatCompletionResponse> {
@@ -208,7 +206,7 @@ pub mod stream {
             return None;
         }
 
-        // Use the first chunk for metadata that should be consistent across all chunks
+        // Use the first chunk for token_context that should be consistent across all chunks
         let first_chunk = &chunks[0];
         let last_chunk = &chunks[chunks.len() - 1];
 
@@ -352,7 +350,6 @@ pub mod stream {
                     if token_context.choice_index != 0 {
                         return;
                     }
-
                     print!("{token}");
                     std::io::stdout().flush().expect("Error flushing stdout");
 
