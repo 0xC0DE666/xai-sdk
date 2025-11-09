@@ -176,14 +176,16 @@ The SDK provides powerful utilities for working with streaming responses:
 ### Stream Consumer
 A flexible callback system for processing streaming data:
 - **`on_content_token(TokenContext, token: &str)`** - Called for each piece of response content
-- **`on_reason_token(TokenContext, token: &str)`** - Called for each piece of reasoning content  
+- **`on_content_complete()`** - Called once when the content phase completes for a choice
+- **`on_reason_token(TokenContext, token: &str)`** - Called for each piece of reasoning content
+- **`on_reasoning_complete()`** - Called once when the reasoning phase completes for a choice
 - **`on_chunk(chunk)`** - Called for each complete chunk received
 
 The `TokenContext` provides:
 - `total_choices` - Total number of choices in the stream
 - `choice_index` - Index of the choice this token belongs to
-- `reasoning_complete` - Whether the reasoning phase is complete
-- `content_complete` - Whether the content phase is complete
+- `reasoning_status` - Current status of the reasoning phase (`Init`, `Pending`, or `Complete`)
+- `content_status` - Current status of the content phase (`Init`, `Pending`, or `Complete`)
 
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks

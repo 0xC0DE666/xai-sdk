@@ -181,13 +181,15 @@ pub mod stream {
                                 on_reason_token(token_context.clone(), reason_token);
                             }
 
-                            if let Some(ref mut on_reason_complete) = consumer.on_reason_complete {
+                            if let Some(ref mut on_reasoning_complete) =
+                                consumer.on_reasoning_complete
+                            {
                                 let was_complete = reasoning_complete_flags
                                     .get(&choice.index)
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && reasoning_status == PhaseStatus::Complete {
-                                    on_reason_complete();
+                                    on_reasoning_complete();
                                     reasoning_complete_flags.insert(choice.index, true);
                                 }
                             }
@@ -355,7 +357,7 @@ pub mod stream {
     /// - `on_content_token`: Called for each content token with `(TokenContext, token: &str)`
     /// - `on_content_complete`: Called once when content phase completes for a choice
     /// - `on_reason_token`: Called for each reasoning token with `(TokenContext, token: &str)`
-    /// - `on_reason_complete`: Called once when reasoning phase completes for a choice
+    /// - `on_reasoning_complete`: Called once when reasoning phase completes for a choice
     /// - `on_chunk`: Called once per complete chunk received
     pub struct Consumer {
         /// Callback invoked for each content token in the stream.
@@ -378,7 +380,7 @@ pub mod stream {
         ///
         /// This callback is called only once per choice when the reasoning phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
-        pub on_reason_complete: Option<Box<dyn FnMut() + Send + Sync>>,
+        pub on_reasoning_complete: Option<Box<dyn FnMut() + Send + Sync>>,
         /// Callback invoked once per complete chunk received.
         ///
         /// Receives `&GetChatCompletionChunk`
@@ -392,7 +394,7 @@ pub mod stream {
                 on_content_token: None,
                 on_content_complete: None,
                 on_reason_token: None,
-                on_reason_complete: None,
+                on_reasoning_complete: None,
                 on_chunk: None,
             }
         }
@@ -424,7 +426,7 @@ pub mod stream {
                     print!("{token}");
                     std::io::stdout().flush().expect("Error flushing stdout");
                 })),
-                on_reason_complete: Some(Box::new(|| {
+                on_reasoning_complete: Some(Box::new(|| {
                     println!("\n");
                 })),
 
@@ -465,7 +467,7 @@ pub mod stream {
                     let choice_buf = buffers.entry(ctx.choice_index as i32).or_default();
                     choice_buf.reasoning.push_str(token);
                 })),
-                on_reason_complete: None,
+                on_reasoning_complete: None,
                 on_chunk: Some(Box::new(move |chunk: &GetChatCompletionChunk| {
                     let mut buffers = buffers_chunk.lock().unwrap();
                     let mut finished = finished_clone.lock().unwrap();
@@ -544,11 +546,11 @@ pub mod stream {
         ///
         /// # Arguments
         /// * `f` - Closure that is called when reasoning completes
-        pub fn on_reason_complete<F>(mut self, f: F) -> Self
+        pub fn on_reasoning_complete<F>(mut self, f: F) -> Self
         where
             F: FnMut() + Send + Sync + 'static,
         {
-            self.on_reason_complete = Some(Box::new(f));
+            self.on_reasoning_complete = Some(Box::new(f));
             self
         }
 
