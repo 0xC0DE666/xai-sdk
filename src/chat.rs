@@ -345,7 +345,7 @@ pub mod stream {
         ///
         /// This consumer only prints tokens from the first choice (index 0) to avoid
         /// output mangling when multiple choices are requested. For multi-choice
-        /// streaming, use [`with_buffered_stdout()`] instead.
+        /// streaming, use [`with_buffered_stdout()`](Consumer::with_buffered_stdout) instead.
         pub fn with_stdout() -> Self {
             Self {
                 on_content_token: Some(Box::new(|token_context: TokenContext, token: &str| {
@@ -492,15 +492,63 @@ pub mod stream {
         }
     }
 
+    /// Contextual information about a token in a streaming chat completion response.
+    ///
+    /// `TokenContext` provides metadata about the current token being processed, including
+    /// which choice it belongs to, how many total choices are in the stream, and completion
+    /// status flags for reasoning and content phases.
+    ///
+    /// This struct is passed to token callbacks (`on_content_token` and `on_reason_token`)
+    /// to provide context about the token's position in the stream and the state of the
+    /// response generation.
+    ///
     #[derive(Clone, Debug)]
     pub struct TokenContext {
+        /// The total number of choices in this streaming response.
+        ///
+        /// When `n > 1` is specified in the request, multiple choices are generated
+        /// concurrently. This field indicates how many choices are being streamed.
         pub total_choices: usize,
+
+        /// The index of the choice this token belongs to.
+        ///
+        /// Choices are indexed starting from 0. Use this to distinguish tokens from
+        /// different choices when processing multi-choice streams.
         pub choice_index: usize,
+
+        /// Indicates whether the reasoning phase is complete for this choice.
+        ///
+        /// This is `true` when:
+        /// - The reasoning content has finished (no more reasoning tokens), and
+        /// - Either content tokens have started appearing, or the choice has finished
+        ///
+        /// Use this flag to detect when the model has finished its reasoning phase
+        /// and moved on to generating the final answer.
         pub reasoning_complete: bool,
+
+        /// Indicates whether the content phase is complete for this choice.
+        ///
+        /// This is `true` when the choice has finished (i.e., `finish_reason != 0`),
+        /// meaning no more tokens will be generated for this choice.
+        ///
+        /// Use this flag to detect when a choice has completed and perform any
+        /// final processing or cleanup.
         pub content_complete: bool,
     }
 
     impl TokenContext {
+        /// Creates a new `TokenContext` with the specified values.
+        ///
+        /// # Arguments
+        ///
+        /// * `total_choices` - The total number of choices in the stream
+        /// * `choice_index` - The index of the choice this token belongs to
+        /// * `reasoning_complete` - Whether the reasoning phase is complete
+        /// * `content_complete` - Whether the content phase is complete
+        ///
+        /// # Returns
+        ///
+        /// A new `TokenContext` instance with the provided values.
         pub fn init(
             total_choices: usize,
             choice_index: usize,
