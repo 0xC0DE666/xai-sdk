@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
 fn help() {
     println!("Chat Examples");
     println!("  {}      - Run post complete example", COMPLETE);
-    println!("  {}        - Run stream example", STREAM);
+    println!("  {}      - Run stream example", STREAM);
     println!("  {}      - Run assemble stream result example", ASSEMBLE);
 }
 
@@ -51,22 +51,24 @@ async fn complete(api_key: &str) -> Result<()> {
     let mut client = chat::client::new(&api_key).await?;
 
     // Create the request
+    let prompt = "Quote Hannibal Lectre.";
+    let model = "grok-3";
     let mut cntnt = Content::default();
-    cntnt.content = Some(content::Content::Text("Quote Hannibal Lectre.".into()));
+    cntnt.content = Some(content::Content::Text(prompt.into()));
     let mut msg = Message::default();
     msg.role = MessageRole::RoleUser.into();
     msg.content = vec![cntnt];
     let messages = vec![msg];
     let request = Request::new(GetCompletionsRequest {
-        model: "grok-3-latest".to_string(),
+        model: model.to_string(),
         messages,
         n: Some(1),
         ..Default::default()
     });
 
     println!("🚀 Sending request to xAI API...");
-    println!("📝 Prompt: Quote Hannibal Lectre.");
-    println!("🤖 Model: grok-3-latest");
+    println!("📝 Prompt: {prompt}");
+    println!("🤖 Model: {model}");
     println!();
 
     // Make the API call - authentication is automatic!
@@ -82,9 +84,9 @@ async fn complete(api_key: &str) -> Result<()> {
 
             // Display the generated text
             for (i, choice) in sample_response.choices.iter().enumerate() {
-                println!("📄 Choice {}:", i + 1);
-                println!("   {}", choice.message.clone().unwrap().content);
-                println!("   Finish reason: {:?}", choice.finish_reason);
+                println!("Choice {}:", i + 1);
+                println!("{}", choice.message.clone().unwrap().content);
+                println!("Finish reason: {:?}", choice.finish_reason);
             }
         }
         Err(e) => {
@@ -101,16 +103,16 @@ async fn stream(api_key: &str) -> Result<()> {
     let mut client = chat::client::new(&api_key).await?;
 
     // Create the request
+    let prompt = "What is 35 + 34?";
+    let model = "grok-3-mini";
     let mut cntnt = Content::default();
-    cntnt.content = Some(content::Content::Text(
-        "What is 35 + 34?".into(),
-    ));
+    cntnt.content = Some(content::Content::Text(prompt.into()));
     let mut msg = Message::default();
     msg.role = MessageRole::RoleUser.into();
     msg.content = vec![cntnt];
     let messages = vec![msg];
     let mut request = Request::new(GetCompletionsRequest {
-        model: "grok-3-mini".to_string(),
+        model: model.to_string(),
         messages,
         n: Some(1),
         ..Default::default()
@@ -122,8 +124,8 @@ async fn stream(api_key: &str) -> Result<()> {
     request.metadata_mut().insert("authorization", token);
 
     println!("🚀 Sending request to xAI API...");
-    println!("📝 Prompt: Quote Tyler Durden.");
-    println!("🤖 Model: grok-3-latest");
+    println!("📝 Prompt: {prompt}");
+    println!("🤖 Model: {model}");
     println!();
 
     // Make the API call
@@ -147,22 +149,24 @@ async fn assemble(api_key: &str) -> Result<()> {
     let mut client = chat::client::new(&api_key).await?;
 
     // Create the request
+    let prompt = "Quote a King 810 song.";
+    let model = "grok-3-mini";
     let mut cntnt = Content::default();
-    cntnt.content = Some(content::Content::Text("Quote a King 810 song.".into()));
+    cntnt.content = Some(content::Content::Text(prompt.into()));
     let mut msg = Message::default();
     msg.role = MessageRole::RoleUser.into();
     msg.content = vec![cntnt];
     let messages = vec![msg];
     let request = Request::new(GetCompletionsRequest {
-        model: "grok-3-latest".to_string(),
+        model: model.to_string(),
         messages,
         n: Some(3),
         ..Default::default()
     });
 
     println!("🚀 Sending request to xAI API...");
-    println!("📝 Prompt: Quote a King 810 song.");
-    println!("🤖 Model: grok-3-latest");
+    println!("📝 Prompt: {prompt}");
+    println!("🤖 Model: {model}");
     println!();
 
     // Make the API call and collect all chunks - authentication is automatic!

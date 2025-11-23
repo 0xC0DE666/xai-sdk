@@ -1,50 +1,13 @@
-[package]
-name = "xai-sdk"
-version = "0.4.1"
+[workspace]
+resolver = "2"
+members = [
+	"sdk",
+	"examples",
+]
+exclude = ["examples"]
+
+[workspace.package]
 edition = "2024"
-description = "xAI SDK"
-documentation = "https://docs.rs/xai-sdk"
-categories = ["web-programming", "asynchronous"]
-keywords = ["grpc", "async", "grok"]
 license = "MIT"
 repository = "https://github.com/0xC0DE666/xai-sdk"
 rust-version = "1.88"
-
-[lib]
-name = "xai_sdk"
-path = "src/lib.rs"
-
-[dependencies]
-# MAIN
-prost = "0.14"
-prost-wkt-types = "0.7"
-tonic = { version = "0.14", features = ["channel", "tls-ring", "tls-native-roots"] }
-tonic-prost = { version = "0.14" }
-serde = { version = "1.0", features = ["derive"] }
-
-# EXAMPLE
-tokio = { version = "1.0", features = ["full"] }
-anyhow = "1.0"
-
-[build-dependencies]
-tonic-prost-build = { version = "0.14" }
-
-[[example]]
-name = "auth_info"
-path = "examples/auth_info.rs"
-
-[[example]]
-name = "raw_text_sample"
-path = "examples/raw_text_sample.rs"
-
-[[example]]
-name = "chat"
-path = "examples/chat.rs"
-
-[[example]]
-name = "multi_client"
-path = "examples/multi_client.rs"
-
-[[example]]
-name = "interceptor_compose"
-path = "examples/interceptor_compose.rs"

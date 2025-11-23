@@ -1,0 +1,30 @@
+[package]
+name = "examples"
+description = "xAI SDK examples"
+edition.workspace = true
+
+[dependencies]
+xai-sdk = { path = "../sdk" }
+tonic = { version = "0.14" }
+tokio = { version = "1.0", features = ["full"] }
+anyhow = { version = "1.0" }
+
+[[example]]
+name = "auth_info"
+path = "src/auth_info.rs"
+
+[[example]]
+name = "raw_text_sample"
+path = "src/raw_text_sample.rs"
+
+[[example]]
+name = "chat"
+path = "src/chat.rs"
+
+[[example]]
+name = "multi_client"
+path = "src/multi_client.rs"
+
+[[example]]
+name = "interceptor_compose"
+path = "src/interceptor_compose.rs"

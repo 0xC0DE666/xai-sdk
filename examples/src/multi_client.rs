@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use tonic::Request;
 use xai_sdk::xai_api::{
     Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
@@ -8,7 +9,8 @@ use xai_sdk::{chat, common, models, sample};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get API key from environment variable
-    let api_key = std::env::var("XAI_API_KEY").unwrap_or_else(|_| "your-api-key-here".to_string());
+    let api_key =
+        std::env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
     println!("🚀 xAI SDK Modular Client Example");
     println!("=================================\n");
@@ -26,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let models_request = Request::new(());
     let models_response = models_client.list_language_models(models_request).await?;
     println!(
-        "Available models: {:?}\n",
+        "Available models: {:#?}\n",
         models_response.into_inner().models
     );
 

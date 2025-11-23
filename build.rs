@@ -2,7 +2,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_prost_build::configure()
         .build_client(true)
         .build_server(false)
-        .out_dir(&"src/")
+        .out_dir(&"sdk/src/")
         .type_attribute(".", "#[derive(serde::Serialize,serde::Deserialize)]")
         .extern_path(".google.protobuf.Any", "::prost_wkt_types::Any")
         .extern_path(".google.protobuf.Timestamp", "::prost_wkt_types::Timestamp")
