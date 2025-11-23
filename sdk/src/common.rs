@@ -4,7 +4,7 @@
 
 pub mod channel {
     use crate::XAI_API_URL;
-    use tonic::transport::{Channel, ClientTlsConfig};
+    use crate::export::transport::{Channel, ClientTlsConfig, Error};
 
     /// Create a TLS-enabled gRPC `Channel` to the xAI API endpoint.
     ///
@@ -12,9 +12,9 @@ pub mod channel {
     /// the SDK's default endpoint defined by [`XAI_API_URL`].
     ///
     /// # Returns
-    /// * `Result<Channel, tonic::transport::Error>` - A connected channel or a connection error
+    /// * `Result<Channel, Error>` - A connected channel or a connection error
     ///
-    pub async fn new() -> Result<Channel, tonic::transport::Error> {
+    pub async fn new() -> Result<Channel, Error> {
         Channel::from_static(XAI_API_URL)
             .tls_config(ClientTlsConfig::new().with_native_roots())?
             .connect()
@@ -23,10 +23,9 @@ pub mod channel {
 }
 
 pub mod interceptor {
-    use tonic::Request;
-    use tonic::Status;
-    use tonic::metadata::MetadataValue;
-    use tonic::service::Interceptor;
+    use crate::export::metadata::MetadataValue;
+    use crate::export::service::Interceptor;
+    use crate::export::{Request, Status};
 
     /// Build an interceptor that injects a Bearer token `authorization` header.
     ///

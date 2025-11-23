@@ -5,10 +5,9 @@
 
 pub mod client {
     use crate::common;
+    use crate::export::service::{Interceptor, interceptor::InterceptedService};
+    use crate::export::transport::{Channel, Error};
     use crate::xai_api::chat_client::ChatClient;
-    use tonic::service::Interceptor;
-    use tonic::service::interceptor::InterceptedService;
-    use tonic::transport::Channel;
 
     /// Creates a new `ChatClient` connected to the xAI API.
     ///
@@ -16,12 +15,11 @@ pub mod client {
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
+    /// * `Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, Error>` - The connected client or connection error
     ///
     pub async fn new(
         api_key: &str,
-    ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, Error> {
         let channel = common::channel::new().await?;
         let auth_intercept = common::interceptor::auth(api_key);
         let client = ChatClient::with_interceptor(channel, auth_intercept);
@@ -61,8 +59,7 @@ pub mod client {
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor,
-    ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> Result<ChatClient<InterceptedService<Channel, impl Interceptor>>, Error> {
         let channel = common::channel::new().await?;
         let client = ChatClient::with_interceptor(channel, interceptor);
 
@@ -90,13 +87,13 @@ pub mod client {
 /// Provides functions for processing streaming responses, assembling chunks into complete
 /// responses, and flexible callback-based consumers for real-time token processing.
 pub mod stream {
+    use crate::export::{Status, Streaming};
     use crate::xai_api::{
         Choice, CompletionMessage, FinishReason, GetChatCompletionChunk, GetChatCompletionResponse,
     };
     use std::collections::HashMap;
     use std::io::Write;
     use std::sync::{Arc, Mutex};
-    use tonic::{Status, Streaming};
 
     /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.
     ///

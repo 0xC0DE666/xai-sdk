@@ -4,10 +4,9 @@
 
 pub mod client {
     use crate::common;
+    use crate::export::service::{Interceptor, interceptor::InterceptedService};
+    use crate::export::transport::{Channel, Error};
     use crate::xai_api::sample_client::SampleClient;
-    use tonic::service::Interceptor;
-    use tonic::service::interceptor::InterceptedService;
-    use tonic::transport::Channel;
 
     /// Creates a new SampleClient connected to the xAI API.
     ///
@@ -15,12 +14,11 @@ pub mod client {
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>` - The connected client or connection error
+    /// * `Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, Error>` - The connected client or connection error
     ///
     pub async fn new(
         api_key: &str,
-    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, Error> {
         let channel = common::channel::new().await?;
         let auth_intercept = common::interceptor::auth(api_key);
         let client = SampleClient::with_interceptor(channel, auth_intercept);
@@ -59,8 +57,7 @@ pub mod client {
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor,
-    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, tonic::transport::Error>
-    {
+    ) -> Result<SampleClient<InterceptedService<Channel, impl Interceptor>>, Error> {
         let channel = common::channel::new().await?;
         let client = SampleClient::with_interceptor(channel, interceptor);
         Ok(client)
