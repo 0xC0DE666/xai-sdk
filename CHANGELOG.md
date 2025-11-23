@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-11-23
+
+### Changed
+- **Internal refactoring**: All user-facing modules now use types from the `export` module instead of direct `tonic` imports
+  - Ensures that only properly exported types are used throughout the codebase
+  - Validates that all exported types work correctly
+  - Improved code consistency and maintainability
+- **Enhanced export module**: Added mirroring module structure (`transport`, `service`, `metadata`) to match `tonic`'s organization
+  - `xai_sdk::transport::Channel`, `xai_sdk::transport::Error`, etc.
+  - `xai_sdk::service::Interceptor`, `xai_sdk::service::interceptor::InterceptedService`
+  - `xai_sdk::metadata::MetadataValue`
+
 ## [0.6.0] - 2025-11-23
 
 ### Added
