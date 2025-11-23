@@ -4,7 +4,6 @@ members = [
 	"sdk",
 	"examples",
 ]
-exclude = ["examples"]
 
 [workspace.package]
 edition = "2024"

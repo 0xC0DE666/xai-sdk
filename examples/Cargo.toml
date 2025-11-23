@@ -2,6 +2,7 @@
 name = "examples"
 description = "xAI SDK examples"
 edition.workspace = true
+publish = false
 
 [dependencies]
 xai-sdk = { path = "../sdk" }
