@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-11-23
+
+### Changed
+- **Project Structure**: Converted from single-package to Cargo workspace structure
+  - Main SDK library moved to `sdk/` crate
+  - Examples moved to separate `examples/` crate
+  - Improved separation of concerns and dependency management
+- **Build System**: Updated build script to generate code in the new workspace structure
+- **Workspace Configuration**: Centralized workspace metadata (edition, license, repository, rust-version)
+
+### Internal
+- Reorganized source files from `src/` to `sdk/src/`
+- Examples now have their own `Cargo.toml` with proper dependency on the SDK
+- Regenerated Protocol Buffer code in new location
+
 ## [0.4.0] - 2025-11-09
 
 ### Added
