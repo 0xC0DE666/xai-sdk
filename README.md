@@ -16,7 +16,7 @@ A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services 
 
 ### Prerequisites
 
-1. Rust 1.70+ installed
+1. Rust 1.88+ installed
 2. xAI API key
 
 ### Installation
