@@ -8,12 +8,15 @@ pub mod chat;
 pub mod common;
 pub mod documents;
 pub mod embed;
+pub mod export;
 pub mod image;
 pub mod models;
 pub mod sample;
 pub mod tokenize;
 pub mod utils;
 pub mod xai_api;
+
+pub use export::*;
 
 /// Default xAI API URL
 pub const XAI_API_URL: &str = "https://api.x.ai:443";

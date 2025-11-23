@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use tonic::Request;
+use xai_sdk::Request;
 use xai_sdk::xai_api::{
     Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
     content,

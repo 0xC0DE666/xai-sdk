@@ -1,12 +1,11 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::metadata::MetadataValue;
-use tonic::{Request, Streaming};
 use xai_sdk::chat;
 use xai_sdk::xai_api::{
     Content, GetChatCompletionChunk, GetChatCompletionResponse, GetCompletionsRequest, Message,
     MessageRole, content,
 };
+use xai_sdk::{Request, Streaming};
 
 const COMPLETE: &str = "--complete";
 const STREAM: &str = "--stream";
@@ -111,17 +110,12 @@ async fn stream(api_key: &str) -> Result<()> {
     msg.role = MessageRole::RoleUser.into();
     msg.content = vec![cntnt];
     let messages = vec![msg];
-    let mut request = Request::new(GetCompletionsRequest {
+    let request = Request::new(GetCompletionsRequest {
         model: model.to_string(),
         messages,
         n: Some(1),
         ..Default::default()
     });
-
-    // Add authentication header
-    let token =
-        MetadataValue::try_from(format!("Bearer {}", api_key)).context("Invalid API key format")?;
-    request.metadata_mut().insert("authorization", token);
 
     println!("🚀 Sending request to xAI API...");
     println!("📝 Prompt: {prompt}");

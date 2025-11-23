@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::Request;
+use xai_sdk::Request;
 use xai_sdk::xai_api::{
     Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };
@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
                 format!("Bearer {}", api_key).parse().unwrap(),
             );
             Ok(r)
-        }) as common::interceptor::DynInterceptor,
+        }),
         // Add a trace id
         Box::new(|mut r: Request<()>| {
             r.metadata_mut()

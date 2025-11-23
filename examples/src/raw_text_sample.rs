@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
-use tonic::Request;
+use xai_sdk::Request;
 use xai_sdk::sample;
 use xai_sdk::xai_api::{SampleTextRequest, SampleTextResponse};
 
