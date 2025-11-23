@@ -9,6 +9,7 @@ rust-version.workspace = true
 keywords.workspace = true
 categories.workspace = true
 license.workspace = true
+readme.workspace = true
 
 [lib]
 name = "xai_sdk"
