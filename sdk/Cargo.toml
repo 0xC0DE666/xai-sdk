@@ -5,10 +5,10 @@ documentation.workspace = true
 repository.workspace = true
 version.workspace = true
 edition.workspace = true
-rust-version.workspace-version = true
-license.workspace = true
+rust-version.workspace = true
 keywords.workspace = true
 categories.workspace = true
+license.workspace = true
 
 [lib]
 name = "xai_sdk"
