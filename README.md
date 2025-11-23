@@ -25,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.5"
+xai-sdk = "0.6"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -119,7 +119,7 @@ Here's a complete example showing multiple services using the modular architectu
 ```rust
 use anyhow::Context;
 use std::env;
-use tonic::Request;
+use xai_sdk::Request;
 use xai_sdk::xai_api::{
     Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, content,
 };

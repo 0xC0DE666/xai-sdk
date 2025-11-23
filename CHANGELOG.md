@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-11-23
+
+### Added
+- **Re-exported tonic types**: Added `export` module re-exporting commonly used `tonic` types
+  - Users can now use `xai_sdk::Request`, `xai_sdk::Response`, `xai_sdk::Status`, and `xai_sdk::Streaming`
+  - No longer need to add `tonic` as a dependency for basic usage
+  - All examples updated to use re-exported types
+
 ## [0.5.0] - 2025-11-23
 
 ### Changed
