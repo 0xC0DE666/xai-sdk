@@ -23,8 +23,8 @@ fn test_client_interceptor_new() {
 
 #[test]
 fn test_client_interceptor_from_boxed() {
-    // Test From<Box<dyn Interceptor>> implementation
-    let boxed: Box<dyn Interceptor> =
+    // Test From<Box<dyn Interceptor + Send + Sync>> implementation
+    let boxed: Box<dyn Interceptor + Send + Sync> =
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
                 .insert("from-header", "from-value".parse().unwrap());
@@ -43,7 +43,7 @@ fn test_client_interceptor_from_boxed() {
 #[test]
 fn test_client_interceptor_into() {
     // Test Into trait (via From)
-    let boxed: Box<dyn Interceptor> =
+    let boxed: Box<dyn Interceptor + Send + Sync> =
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
                 .insert("into-header", "into-value".parse().unwrap());
@@ -103,7 +103,7 @@ fn test_auth_interceptor_different_keys() {
 #[test]
 fn test_compose_single_interceptor() {
     // Test compose with a single interceptor
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![Box::new(
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![Box::new(
         |mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
                 .insert("single", "value".parse().unwrap());
@@ -123,7 +123,7 @@ fn test_compose_single_interceptor() {
 #[test]
 fn test_compose_multiple_interceptors() {
     // Test compose with multiple interceptors - should apply in order
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut().insert("first", "1".parse().unwrap());
             Ok(req)
@@ -154,7 +154,7 @@ fn test_compose_multiple_interceptors() {
 #[test]
 fn test_compose_interceptors_modify_same_header() {
     // Test that later interceptors can modify headers set by earlier ones
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
                 .insert("trace-id", "original".parse().unwrap());
@@ -182,7 +182,7 @@ fn test_compose_interceptors_modify_same_header() {
 #[test]
 fn test_compose_with_auth() {
     // Test compose with auth interceptor
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![
         Box::new(auth("test-key")),
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
@@ -206,7 +206,7 @@ fn test_compose_with_auth() {
 #[test]
 fn test_compose_error_propagation() {
     // Test that errors from interceptors are propagated
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
                 .insert("before-error", "value".parse().unwrap());
@@ -237,7 +237,7 @@ fn test_compose_error_propagation() {
 #[test]
 fn test_compose_empty_vec() {
     // Test compose with empty vector - should pass through unchanged
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![];
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![];
 
     let mut composed = compose(interceptors);
     let request = Request::new(());
@@ -282,7 +282,7 @@ fn test_client_interceptor_reusable() {
 fn test_auth_with_compose_realistic() {
     // Test a realistic scenario: auth + trace-id + tenant-id
     let api_key = "real-api-key-123";
-    let interceptors: Vec<Box<dyn Interceptor>> = vec![
+    let interceptors: Vec<Box<dyn Interceptor + Send + Sync>> = vec![
         Box::new(auth(api_key)),
         Box::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut()
@@ -332,4 +332,31 @@ async fn test_channel_new() {
         "Expected successful connection, got: {:?}",
         result
     );
+}
+
+#[tokio::test]
+async fn test_client_interceptor_send_sync() {
+    // Verify that ClientInterceptor is Send + Sync, allowing it to be used in tokio::spawn
+    use std::sync::{Arc, Mutex};
+    
+    let interceptor = ClientInterceptor::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
+        req.metadata_mut().insert("test", "value".parse().unwrap());
+        Ok(req)
+    });
+    
+    // Test that it can be moved into a spawned task
+    let interceptor_mutex = Arc::new(Mutex::new(interceptor));
+    let interceptor_clone = Arc::clone(&interceptor_mutex);
+    
+    let handle = tokio::spawn(async move {
+        let mut interceptor = interceptor_clone.lock().unwrap();
+        let request = Request::new(());
+        interceptor.call(request)
+    });
+    
+    let result = handle.await;
+    assert!(result.is_ok());
+    let request_result = result.unwrap();
+    assert!(request_result.is_ok());
+    assert_eq!(request_result.unwrap().metadata().get("test").unwrap(), "value");
 }

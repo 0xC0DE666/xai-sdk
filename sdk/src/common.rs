@@ -32,8 +32,11 @@ pub mod interceptor {
     /// This type erases the concrete interceptor implementation, allowing it to be
     /// used as a concrete type in return positions and stored in structs where
     /// `impl Interceptor` cannot be used.
+    ///
+    /// `ClientInterceptor` is `Send + Sync`, making it safe to use across thread
+    /// boundaries, including in `tokio::spawn` and other async contexts.
     pub struct ClientInterceptor {
-        inner: Box<dyn Interceptor>,
+        inner: Box<dyn Interceptor + Send + Sync>,
     }
 
     impl ClientInterceptor {
@@ -43,17 +46,17 @@ pub mod interceptor {
         /// as a concrete type in contexts where `impl Interceptor` cannot be used.
         ///
         /// # Arguments
-        /// * `inner` - Any type implementing `Interceptor`
+        /// * `inner` - Any type implementing `Interceptor` that is `Send + Sync`
         ///
-        pub fn new(inner: impl Interceptor + 'static) -> Self {
+        pub fn new(inner: impl Interceptor + Send + Sync + 'static) -> Self {
             Self {
                 inner: Box::new(inner),
             }
         }
     }
 
-    impl From<Box<dyn Interceptor>> for ClientInterceptor {
-        fn from(inner: Box<dyn Interceptor>) -> Self {
+    impl From<Box<dyn Interceptor + Send + Sync>> for ClientInterceptor {
+        fn from(inner: Box<dyn Interceptor + Send + Sync>) -> Self {
             Self { inner }
         }
     }
@@ -100,7 +103,7 @@ pub mod interceptor {
     /// # Returns
     /// * `ClientInterceptor` - A single interceptor that applies all provided interceptors
     ///
-    pub fn compose(mut interceptors: Vec<Box<dyn Interceptor>>) -> ClientInterceptor {
+    pub fn compose(mut interceptors: Vec<Box<dyn Interceptor + Send + Sync>>) -> ClientInterceptor {
         ClientInterceptor::new(move |mut req: Request<()>| -> Result<Request<()>, Status> {
             for int in interceptors.iter_mut() {
                 req = int.call(req)?;

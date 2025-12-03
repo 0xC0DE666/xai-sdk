@@ -57,7 +57,7 @@ pub mod client {
     ///   - The connected, intercepted client or a connection error
     ///
     pub async fn with_interceptor(
-        interceptor: impl Interceptor + 'static,
+        interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<AuthClient<InterceptedService<Channel, ClientInterceptor>>, Error> {
         let channel = common::channel::new().await?;
         let client = AuthClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
@@ -75,7 +75,7 @@ pub mod client {
     /// * `AuthClient<InterceptedService<Channel, ClientInterceptor>>` - The intercepted client
     pub fn with_channel_and_interceptor(
         channel: Channel,
-        interceptor: impl Interceptor + 'static,
+        interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> AuthClient<InterceptedService<Channel, ClientInterceptor>> {
         AuthClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
     }

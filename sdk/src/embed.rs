@@ -57,7 +57,7 @@ pub mod client {
     ///   - The connected, intercepted client or a connection error
     ///
     pub async fn with_interceptor(
-        interceptor: impl Interceptor + 'static,
+        interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<EmbedderClient<InterceptedService<Channel, ClientInterceptor>>, Error> {
         let channel = common::channel::new().await?;
         let client = EmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
@@ -74,7 +74,7 @@ pub mod client {
     /// * `EmbedderClient<InterceptedService<Channel, ClientInterceptor>>` - The intercepted client
     pub fn with_channel_and_interceptor(
         channel: Channel,
-        interceptor: impl Interceptor + 'static,
+        interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> EmbedderClient<InterceptedService<Channel, ClientInterceptor>> {
         EmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
     }
