@@ -25,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.7"
+xai-sdk = "0.7.1"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -217,7 +217,7 @@ Combine multiple interceptors using `compose()`:
 ```rust
 use xai_sdk::common::interceptor::{auth, compose};
 
-let interceptors = vec![
+let interceptors: Vec<Box<dyn xai_sdk::export::service::Interceptor + Send + Sync>> = vec![
     Box::new(auth("your-api-key")),
     Box::new(|mut req| {
         req.metadata_mut().insert("x-custom-header", "value".parse().unwrap());
@@ -228,13 +228,16 @@ let composed = compose(interceptors);
 let client = chat::client::with_interceptor(composed).await?;
 ```
 
+**Note**: All interceptors must be `Send + Sync` to ensure thread safety when used in async contexts.
+
 ### ClientInterceptor Type
 All client functions return `ClientInterceptor`, a concrete type that can be:
 - Stored in structs
 - Used in trait implementations
 - Passed between functions without type erasure issues
+- Used across thread boundaries (`Send + Sync`) - safe to use in `tokio::spawn` and other async contexts
 
-The `ClientInterceptor` can be created from any `impl Interceptor + 'static`:
+The `ClientInterceptor` can be created from any `impl Interceptor + Send + Sync + 'static`:
 
 ```rust
 use xai_sdk::common::interceptor::ClientInterceptor;
@@ -242,6 +245,12 @@ use xai_sdk::common::interceptor::ClientInterceptor;
 let interceptor = ClientInterceptor::new(|mut req| {
     // Custom logic
     Ok(req)
+});
+
+// Can be used in spawned tasks
+tokio::spawn(async move {
+    let client = chat::client::with_interceptor(interceptor).await?;
+    // Use client...
 });
 ```
 

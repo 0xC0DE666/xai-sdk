@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2025-12-03
+
+### Fixed
+- **Fixed `Send + Sync` requirement**: `ClientInterceptor` now requires `Send + Sync` bounds, making it safe to use across thread boundaries
+  - `ClientInterceptor` is now `Send + Sync`, allowing it to be used in `tokio::spawn` and other async contexts
+  - All client functions that accept interceptors now require `impl Interceptor + Send + Sync + 'static`
+  - `compose()` now requires `Vec<Box<dyn Interceptor + Send + Sync>>`
+  - This fixes compilation errors when using clients in spawned tasks or across thread boundaries
+
+### Changed
+- **BREAKING**: `ClientInterceptor::new()` now requires `impl Interceptor + Send + Sync + 'static` instead of just `impl Interceptor + 'static`
+- **BREAKING**: `From<Box<dyn Interceptor>>` implementation now requires `Box<dyn Interceptor + Send + Sync>`
+- **BREAKING**: All `with_interceptor()` and `with_channel_and_interceptor()` methods now require `Send + Sync` bounds
+- **BREAKING**: `compose()` now requires `Vec<Box<dyn Interceptor + Send + Sync>>` instead of `Vec<Box<dyn Interceptor>>`
+
 ## [0.7.0] - 2025-12-03
 
 ### Changed
