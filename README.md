@@ -25,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.6"
+xai-sdk = "0.7"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -196,6 +196,54 @@ The `CompletionContext` provides:
 - **`chat::stream::assemble`** - Convert collected chunks into complete responses
 - **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-choice real-time output
 - **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-choice buffered output
+
+## Interceptors
+
+The SDK provides a flexible interceptor system for customizing request handling:
+
+### Authentication Interceptor
+The `auth()` function creates an interceptor that adds Bearer token authentication:
+
+```rust
+use xai_sdk::common::interceptor::auth;
+
+let interceptor = auth("your-api-key");
+let client = chat::client::with_interceptor(interceptor).await?;
+```
+
+### Composing Interceptors
+Combine multiple interceptors using `compose()`:
+
+```rust
+use xai_sdk::common::interceptor::{auth, compose};
+
+let interceptors = vec![
+    Box::new(auth("your-api-key")),
+    Box::new(|mut req| {
+        req.metadata_mut().insert("x-custom-header", "value".parse().unwrap());
+        Ok(req)
+    }),
+];
+let composed = compose(interceptors);
+let client = chat::client::with_interceptor(composed).await?;
+```
+
+### ClientInterceptor Type
+All client functions return `ClientInterceptor`, a concrete type that can be:
+- Stored in structs
+- Used in trait implementations
+- Passed between functions without type erasure issues
+
+The `ClientInterceptor` can be created from any `impl Interceptor + 'static`:
+
+```rust
+use xai_sdk::common::interceptor::ClientInterceptor;
+
+let interceptor = ClientInterceptor::new(|mut req| {
+    // Custom logic
+    Ok(req)
+});
+```
 
 ## Configuration
 

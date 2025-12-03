@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-12-03
+
+### Changed
+- **BREAKING**: All client creation functions now return `ClientInterceptor` instead of `impl Interceptor`
+  - This provides a concrete, nameable type that can be stored in structs and used in trait implementations
+  - All client modules (`auth`, `chat`, `sample`, `tokenize`, `models`, `image`, `embed`, `documents`) updated
+  - Functions affected: `new()`, `with_channel()`, `with_interceptor()`, `with_channel_and_interceptor()`
+- **BREAKING**: `common::interceptor::auth()` now returns `ClientInterceptor` instead of `impl Interceptor`
+- **BREAKING**: `common::interceptor::compose()` now returns `ClientInterceptor` instead of `impl Interceptor`
+- **BREAKING**: Renamed `BoxInterceptor` to `ClientInterceptor` for better semantic clarity
+  - The type is specifically designed for use in client contexts where concrete types are needed
+  - Updated all documentation and examples
+
+### Added
+- **`ClientInterceptor`**: New concrete interceptor type for use in client contexts
+  - Implements `Interceptor` trait
+  - Can be created from any `impl Interceptor + 'static` via `ClientInterceptor::new()`
+  - Supports `From<Box<dyn Interceptor>>` for conversion from boxed interceptors
+  - Provides a concrete type that can be stored in structs and used in return positions
+- **Enhanced `ClientInterceptor::new()`**: Now accepts `impl Interceptor + 'static` and boxes internally
+  - Eliminates the need for double-boxing (`BoxInterceptor::new(Box::new(...))`)
+  - More ergonomic API: `ClientInterceptor::new(interceptor)` instead of `ClientInterceptor::new(Box::new(interceptor))`
+- **Comprehensive test suite**: Added extensive tests organized by source file
+  - `sdk/tests/common.rs`: Tests for interceptor functionality and channel creation
+  - `sdk/tests/chat.rs`: Tests for streaming utilities, Consumer, and assembly functions
+  - All tests follow the same file structure as the source code
+
+### Fixed
+- Fixed lifetime issues in `auth()` function by cloning the API key string
+- Improved type safety by providing concrete return types instead of opaque `impl Trait` types
+
 ## [0.6.1] - 2025-11-23
 
 ### Changed
