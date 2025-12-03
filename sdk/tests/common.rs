@@ -1,3 +1,4 @@
+use xai_sdk::common;
 use xai_sdk::common::interceptor::{ClientInterceptor, auth, compose};
 use xai_sdk::export::service::Interceptor;
 use xai_sdk::{Request, Status};
@@ -318,4 +319,17 @@ fn test_auth_with_compose_realistic() {
         .to_str()
         .unwrap();
     assert_eq!(auth_value, format!("Bearer {}", api_key));
+}
+
+#[tokio::test]
+async fn test_channel_new() {
+    // Attempt to create a channel using the SDK helper.
+    // This validates TLS config and endpoint are well-formed.
+    let result = common::channel::new().await;
+
+    assert!(
+        result.is_ok(),
+        "Expected successful connection, got: {:?}",
+        result
+    );
 }
