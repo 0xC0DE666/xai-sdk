@@ -27,6 +27,43 @@ pub mod interceptor {
     use crate::export::service::Interceptor;
     use crate::export::{Request, Status};
 
+    /// A concrete interceptor type for use in client contexts.
+    ///
+    /// This type erases the concrete interceptor implementation, allowing it to be
+    /// used as a concrete type in return positions and stored in structs where
+    /// `impl Interceptor` cannot be used.
+    pub struct ClientInterceptor {
+        inner: Box<dyn Interceptor>,
+    }
+
+    impl ClientInterceptor {
+        /// Create a new `ClientInterceptor` from any interceptor.
+        ///
+        /// The interceptor will be boxed internally, allowing it to be used
+        /// as a concrete type in contexts where `impl Interceptor` cannot be used.
+        ///
+        /// # Arguments
+        /// * `inner` - Any type implementing `Interceptor`
+        ///
+        pub fn new(inner: impl Interceptor + 'static) -> Self {
+            Self {
+                inner: Box::new(inner),
+            }
+        }
+    }
+
+    impl From<Box<dyn Interceptor>> for ClientInterceptor {
+        fn from(inner: Box<dyn Interceptor>) -> Self {
+            Self { inner }
+        }
+    }
+
+    impl Interceptor for ClientInterceptor {
+        fn call(&mut self, request: tonic::Request<()>) -> Result<tonic::Request<()>, Status> {
+            self.inner.call(request)
+        }
+    }
+
     /// Build an interceptor that injects a Bearer token `authorization` header.
     ///
     /// The header value is set to `Bearer {api_key}`. This is the default
@@ -36,10 +73,11 @@ pub mod interceptor {
     /// * `api_key` - The xAI API key used for Bearer authentication
     ///
     /// # Returns
-    /// * `impl Interceptor` - An interceptor that adds the authorization metadata
+    /// * `ClientInterceptor` - An interceptor that adds the authorization metadata
     ///
-    pub fn auth(api_key: &str) -> impl Interceptor {
-        move |mut req: Request<()>| -> Result<Request<()>, Status> {
+    pub fn auth(api_key: &str) -> ClientInterceptor {
+        let api_key = api_key.to_string();
+        ClientInterceptor::new(move |mut req: Request<()>| -> Result<Request<()>, Status> {
             let token = MetadataValue::try_from(&format!("Bearer {}", api_key)).map_err(|e| {
                 Status::invalid_argument(format!("Failed to create metadata value: {}", e))
             })?;
@@ -47,15 +85,8 @@ pub mod interceptor {
             req.metadata_mut().insert("authorization", token);
 
             Ok(req)
-        }
+        })
     }
-
-    /// A boxed interceptor function type alias for composition.
-    ///
-    /// This function takes a `Request<()>` and returns either the (possibly modified)
-    /// request or a `Status` error.
-    pub type DynInterceptor =
-        Box<dyn FnMut(Request<()>) -> Result<Request<()>, Status> + Send + Sync + 'static>;
 
     /// Compose multiple interceptors into a single interceptor, applied in order.
     ///
@@ -67,14 +98,14 @@ pub mod interceptor {
     /// * `interceptors` - A vector of boxed interceptor functions applied sequentially
     ///
     /// # Returns
-    /// * `impl Interceptor` - A single interceptor that applies all provided interceptors
+    /// * `ClientInterceptor` - A single interceptor that applies all provided interceptors
     ///
-    pub fn compose(mut interceptors: Vec<DynInterceptor>) -> impl Interceptor {
-        move |mut req: Request<()>| -> Result<Request<()>, Status> {
-            for f in interceptors.iter_mut() {
-                req = f(req)?;
+    pub fn compose(mut interceptors: Vec<Box<dyn Interceptor>>) -> ClientInterceptor {
+        ClientInterceptor::new(move |mut req: Request<()>| -> Result<Request<()>, Status> {
+            for int in interceptors.iter_mut() {
+                req = int.call(req)?;
             }
             Ok(req)
-        }
+        })
     }
 }
