@@ -81,4 +81,3 @@ pub mod client {
         UiSvcClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
     }
 }
-
