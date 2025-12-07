@@ -25,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.7.1"
+xai-sdk = "0.8.0"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -69,6 +69,11 @@ anyhow = "1.0"
    cargo run --example interceptor_compose
    ```
 
+7. Run the billing service example:
+   ```bash
+   cargo run --example billing
+   ```
+
 ## API Services
 
 The SDK provides clients for all xAI services:
@@ -99,12 +104,26 @@ The SDK provides clients for all xAI services:
 ### Auth Service
 - **`get_api_key_info`** - Get API key information
 
+### Billing Service
+- **`SetBillingInfo`** - Set billing information for a team
+- **`GetBillingInfo`** - Get billing information for a team
+- **`ListPaymentMethods`** - List payment methods on file
+- **`SetDefaultPaymentMethod`** - Set default payment method
+- **`GetAmountToPay`** - Preview current billing period amount
+- **`AnalyzeBillingItems`** - Analyze historical billing usage
+- **`ListInvoices`** - List invoices for a team
+- **`ListPrepaidBalanceChanges`** - List prepaid credit balance changes
+- **`TopUpOrGetExistingPendingChange`** - Top up prepaid credits
+- **`GetSpendingLimits`** - Get spending limits
+- **`SetSoftSpendingLimit`** - Set soft spending limit
+
 ## Client Modules
 
 The SDK is organized into focused modules, each providing easy client creation:
 
 ### Available Modules
 - **`auth`** - Authentication services
+- **`billing`** - Billing and payment management
 - **`chat`** - Chat completions and streaming
 - **`documents`** - Document processing
 - **`embed`** - Text and image embeddings
@@ -163,7 +182,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     });
     let chat_response = chat_client.get_completion(chat_request).await?;
-    println!("Chat response: {}", chat_response.into_inner().choices[0].message.unwrap().content);
+    println!("Chat response: {}", chat_response.into_inner().outputs[0].message.as_ref().unwrap().content);
 
     Ok(())
 }
@@ -176,26 +195,26 @@ The SDK provides powerful utilities for working with streaming responses:
 ### Stream Consumer
 A flexible callback system for processing streaming data:
 - **`on_content_token(TokenContext, token: &str)`** - Called for each piece of response content
-- **`on_content_complete(CompletionContext)`** - Called once when the content phase completes for a choice
+- **`on_content_complete(CompletionContext)`** - Called once when the content phase completes for an output
 - **`on_reason_token(TokenContext, token: &str)`** - Called for each piece of reasoning content
-- **`on_reasoning_complete(CompletionContext)`** - Called once when the reasoning phase completes for a choice
+- **`on_reasoning_complete(CompletionContext)`** - Called once when the reasoning phase completes for an output
 - **`on_chunk(chunk)`** - Called for each complete chunk received
 
 The `TokenContext` provides:
-- `total_choices` - Total number of choices in the stream
-- `choice_index` - Index of the choice this token belongs to
+- `total_choices` - Total number of outputs in the stream
+- `choice_index` - Index of the output this token belongs to
 - `reasoning_status` - Current status of the reasoning phase (`Init`, `Pending`, or `Complete`)
 - `content_status` - Current status of the content phase (`Init`, `Pending`, or `Complete`)
 
 The `CompletionContext` provides:
-- `total_choices` - Total number of choices in the stream
-- `choice_index` - Index of the choice that completed
+- `total_choices` - Total number of outputs in the stream
+- `choice_index` - Index of the output that completed
 
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks
 - **`chat::stream::assemble`** - Convert collected chunks into complete responses
-- **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-choice real-time output
-- **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-choice buffered output
+- **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-output real-time output
+- **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-output buffered output
 
 ## Interceptors
 

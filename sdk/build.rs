@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tonic_prost_build::configure()
             .build_client(true)
             .build_server(false)
+            .emit_rerun_if_changed(true)
             .out_dir(&"src/")
             .type_attribute(".", "#[derive(serde::Serialize,serde::Deserialize)]")
             .extern_path(".google.protobuf.Any", "::prost_wkt_types::Any")

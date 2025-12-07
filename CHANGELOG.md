@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-12-08
+
+### Added
+- **Billing API Support**: Complete billing and payment management API
+  - New `billing::client` module for billing service operations
+  - Support for managing billing information, payment methods, invoices, prepaid credits, and spending limits
+  - 11 RPC methods: `SetBillingInfo`, `GetBillingInfo`, `ListPaymentMethods`, `SetDefaultPaymentMethod`, `GetAmountToPay`, `AnalyzeBillingItems`, `ListInvoices`, `ListPrepaidBalanceChanges`, `TopUpOrGetExistingPendingChange`, `GetSpendingLimits`, `SetSoftSpendingLimit`
+  - New billing example demonstrating basic billing operations
+- **API Organization Module**: New `api` module providing organized public API surface
+  - `api::*` for standard API types
+  - `api::management::billing::*` for billing service and types
+  - `api::management::billing::analytics::*` for billing analytics
+  - Mirrors xAI's API organization structure
+
+### Changed
+- **BREAKING**: Updated to latest proto definitions with significant API changes
+  - `Choice` → `CompletionOutput` (for responses)
+  - `ChoiceChunk` → `CompletionOutputChunk` (for streaming chunks)
+  - `choices` field → `outputs` field in `GetChatCompletionChunk` and `GetChatCompletionResponse`
+  - Updated all documentation to use "outputs" terminology instead of "choices"
+  - Updated `chat.rs` stream processing to work with new structure
+  - Updated all tests and examples to use new types
+- **Build System Improvements**: Moved `build.rs` from workspace root to `sdk/` directory
+  - Build script now in correct location for Cargo to find it
+  - Added `rerun-if-changed` directives to detect proto file changes
+  - Build script now properly regenerates code when proto files are updated
+- **Module Organization**: Improved organization of generated proto files
+  - Generated files properly organized with `pub(crate)` visibility
+  - Clean separation between public API and generated code
+  - Better module structure matching proto organization
+
+### Fixed
+- Fixed build script not running when proto files changed
+- Fixed all compilation errors from proto structure changes
+- Updated all documentation to accurately reflect new API structure
+- Fixed terminology inconsistencies in documentation (choices → outputs)
+
 ## [0.7.1] - 2025-12-03
 
 ### Fixed
