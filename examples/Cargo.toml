@@ -28,3 +28,7 @@ path = "src/multi_client.rs"
 [[example]]
 name = "interceptor_compose"
 path = "src/interceptor_compose.rs"
+
+[[example]]
+name = "billing"
+path = "src/billing.rs"
