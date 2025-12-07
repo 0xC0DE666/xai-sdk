@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::env;
-use xai_sdk::chat;
-use xai_sdk::xai_api::{
+use xai_sdk::api::{
     Content, GetChatCompletionChunk, GetChatCompletionResponse, GetCompletionsRequest, Message,
     MessageRole, content,
 };
+use xai_sdk::chat;
 use xai_sdk::{Request, Streaming};
 
 const COMPLETE: &str = "--complete";

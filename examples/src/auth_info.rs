@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use std::env;
 use xai_sdk::Request;
+use xai_sdk::api::ApiKey;
 use xai_sdk::auth;
-use xai_sdk::xai_api::ApiKey;
 
 #[tokio::main]
 async fn main() -> Result<()> {

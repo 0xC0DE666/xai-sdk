@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::env;
 use xai_sdk::Request;
-use xai_sdk::xai_api::{
+use xai_sdk::api::{
     Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };
 use xai_sdk::{chat, common};

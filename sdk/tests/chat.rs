@@ -1,8 +1,7 @@
-use xai_sdk::chat::stream::{CompletionContext, Consumer, PhaseStatus, TokenContext, assemble};
-use xai_sdk::xai_api::{
-    CompletionOutput, CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk,
-    GetChatCompletionResponse, SamplingUsage,
+use xai_sdk::api::{
+    CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
 };
+use xai_sdk::chat::stream::{CompletionContext, Consumer, PhaseStatus, TokenContext, assemble};
 
 #[test]
 fn test_token_context_new() {

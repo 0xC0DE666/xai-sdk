@@ -22,16 +22,13 @@ pub mod utils;
 pub use export::*;
 
 // Generated proto files (from build.rs)
-#[allow(missing_docs)]
+#[path = "prod.clickhouse_analytics.rs"]
+mod clickhouse_analytics;
 mod prod_charger;
-#[allow(missing_docs)]
 mod prod_mc_billing;
-#[allow(missing_docs)]
 mod xai_api;
+
 #[allow(missing_docs)]
-mod prod {
-    // Generated proto module
-    #[allow(missing_docs)]
-    #[path = "prod.clickhouse_analytics.rs"]
-    pub mod clickhouse_analytics;
+pub(crate) mod prod {
+    pub(crate) use crate::clickhouse_analytics;
 }

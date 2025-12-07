@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use std::env;
 use xai_sdk::Request;
+use xai_sdk::api::{SampleTextRequest, SampleTextResponse};
 use xai_sdk::sample;
-use xai_sdk::xai_api::{SampleTextRequest, SampleTextResponse};
 
 /// Demonstrates raw text sampling with various parameters
 async fn demonstrate_text_sampling() -> Result<()> {
