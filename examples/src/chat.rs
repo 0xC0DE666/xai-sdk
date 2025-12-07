@@ -82,7 +82,7 @@ async fn complete(api_key: &str) -> Result<()> {
             println!();
 
             // Display the generated text
-            for (i, choice) in sample_response.choices.iter().enumerate() {
+            for (i, choice) in sample_response.outputs.iter().enumerate() {
                 println!("Choice {}:", i + 1);
                 println!("{}", choice.message.clone().unwrap().content);
                 println!("Finish reason: {:?}", choice.finish_reason);
@@ -195,7 +195,7 @@ async fn assemble(api_key: &str) -> Result<()> {
                 }
 
                 println!("\n📝 Choices:");
-                for (i, choice) in response.choices.iter().enumerate() {
+                for (i, choice) in response.outputs.iter().enumerate() {
                     println!(
                         "Choice {} (index: {}, finish_reason: {}):",
                         i, choice.index, choice.finish_reason

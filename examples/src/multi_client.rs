@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chat_response = chat_client.get_completion(chat_request).await?;
     println!(
         "{}",
-        chat_response.into_inner().choices[0]
+        chat_response.into_inner().outputs[0]
             .message
             .as_ref()
             .unwrap()

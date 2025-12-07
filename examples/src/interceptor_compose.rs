@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
                 "✅ Response received!\nID: {} | Model: {}",
                 resp.id, resp.model
             );
-            if let Some(msg) = resp.choices.get(0).and_then(|c| c.message.as_ref()) {
+            if let Some(msg) = resp.outputs.get(0).and_then(|c| c.message.as_ref()) {
                 println!("🗨️  {}", msg.content);
             }
         }
