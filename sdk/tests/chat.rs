@@ -1,7 +1,7 @@
 use xai_sdk::chat::stream::{CompletionContext, Consumer, PhaseStatus, TokenContext, assemble};
 use xai_sdk::xai_api::{
-    Choice, ChoiceChunk, Delta, FinishReason, GetChatCompletionChunk, GetChatCompletionResponse,
-    SamplingUsage,
+    CompletionOutput, CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk,
+    GetChatCompletionResponse, SamplingUsage,
 };
 
 #[test]
@@ -143,16 +143,16 @@ fn test_assemble_single_chunk_single_choice() {
     chunk.id = "test-id".to_string();
     chunk.model = "test-model".to_string();
 
-    let mut choice = ChoiceChunk::default();
-    choice.index = 0;
-    choice.finish_reason = FinishReason::ReasonStop.into();
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
 
     let mut delta = Delta::default();
     delta.content = "Hello".to_string();
     delta.reasoning_content = "Thinking...".to_string();
-    choice.delta = Some(delta);
+    output.delta = Some(delta);
 
-    chunk.choices = vec![choice];
+    chunk.outputs = vec![output];
 
     let chunks = vec![chunk];
     let result = assemble(chunks);
@@ -161,10 +161,10 @@ fn test_assemble_single_chunk_single_choice() {
     let response = result.unwrap();
     assert_eq!(response.id, "test-id");
     assert_eq!(response.model, "test-model");
-    assert_eq!(response.choices.len(), 1);
-    assert_eq!(response.choices[0].index, 0);
-    assert!(response.choices[0].message.is_some());
-    let message = response.choices[0].message.as_ref().unwrap();
+    assert_eq!(response.outputs.len(), 1);
+    assert_eq!(response.outputs[0].index, 0);
+    assert!(response.outputs[0].message.is_some());
+    let message = response.outputs[0].message.as_ref().unwrap();
     assert_eq!(message.content, "Hello");
     assert_eq!(message.reasoning_content, "Thinking...");
 }
@@ -176,74 +176,74 @@ fn test_assemble_multiple_chunks_accumulate_content() {
     chunk1.id = "test-id".to_string();
     chunk1.model = "test-model".to_string();
 
-    let mut choice1 = ChoiceChunk::default();
-    choice1.index = 0;
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
     let mut delta1 = Delta::default();
     delta1.content = "Hello".to_string();
-    choice1.delta = Some(delta1);
-    chunk1.choices = vec![choice1];
+    output1.delta = Some(delta1);
+    chunk1.outputs = vec![output1];
 
     let mut chunk2 = GetChatCompletionChunk::default();
     chunk2.id = "test-id".to_string();
     chunk2.model = "test-model".to_string();
 
-    let mut choice2 = ChoiceChunk::default();
-    choice2.index = 0;
-    choice2.finish_reason = FinishReason::ReasonStop.into();
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 0;
+    output2.finish_reason = FinishReason::ReasonStop.into();
     let mut delta2 = Delta::default();
     delta2.content = " World".to_string();
-    choice2.delta = Some(delta2);
-    chunk2.choices = vec![choice2];
+    output2.delta = Some(delta2);
+    chunk2.outputs = vec![output2];
 
     let chunks = vec![chunk1, chunk2];
     let result = assemble(chunks);
 
     assert!(result.is_some());
     let response = result.unwrap();
-    assert_eq!(response.choices.len(), 1);
-    let message = response.choices[0].message.as_ref().unwrap();
+    assert_eq!(response.outputs.len(), 1);
+    let message = response.outputs[0].message.as_ref().unwrap();
     assert_eq!(message.content, "Hello World");
 }
 
 #[test]
 fn test_assemble_multiple_choices() {
-    // Test assembling chunks with multiple choices
+    // Test assembling chunks with multiple outputs
     let mut chunk = GetChatCompletionChunk::default();
     chunk.id = "test-id".to_string();
     chunk.model = "test-model".to_string();
 
-    let mut choice1 = ChoiceChunk::default();
-    choice1.index = 0;
-    choice1.finish_reason = FinishReason::ReasonStop.into();
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
+    output1.finish_reason = FinishReason::ReasonStop.into();
     let mut delta1 = Delta::default();
-    delta1.content = "Choice 1".to_string();
-    choice1.delta = Some(delta1);
+    delta1.content = "Output 1".to_string();
+    output1.delta = Some(delta1);
 
-    let mut choice2 = ChoiceChunk::default();
-    choice2.index = 1;
-    choice2.finish_reason = FinishReason::ReasonStop.into();
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 1;
+    output2.finish_reason = FinishReason::ReasonStop.into();
     let mut delta2 = Delta::default();
-    delta2.content = "Choice 2".to_string();
-    choice2.delta = Some(delta2);
+    delta2.content = "Output 2".to_string();
+    output2.delta = Some(delta2);
 
-    chunk.choices = vec![choice1, choice2];
+    chunk.outputs = vec![output1, output2];
 
     let chunks = vec![chunk];
     let result = assemble(chunks);
 
     assert!(result.is_some());
     let response = result.unwrap();
-    assert_eq!(response.choices.len(), 2);
-    // Choices should be sorted by index
-    assert_eq!(response.choices[0].index, 0);
-    assert_eq!(response.choices[1].index, 1);
+    assert_eq!(response.outputs.len(), 2);
+    // Outputs should be sorted by index
+    assert_eq!(response.outputs[0].index, 0);
+    assert_eq!(response.outputs[1].index, 1);
     assert_eq!(
-        response.choices[0].message.as_ref().unwrap().content,
-        "Choice 1"
+        response.outputs[0].message.as_ref().unwrap().content,
+        "Output 1"
     );
     assert_eq!(
-        response.choices[1].message.as_ref().unwrap().content,
-        "Choice 2"
+        response.outputs[1].message.as_ref().unwrap().content,
+        "Output 2"
     );
 }
 
@@ -254,13 +254,13 @@ fn test_assemble_preserves_metadata() {
     chunk.model = "grok-3-latest".to_string();
     chunk.system_fingerprint = "fp-123".to_string();
 
-    let mut choice = ChoiceChunk::default();
-    choice.index = 0;
-    choice.finish_reason = FinishReason::ReasonStop.into();
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
     let mut delta = Delta::default();
     delta.content = "Test".to_string();
-    choice.delta = Some(delta);
-    chunk.choices = vec![choice];
+    output.delta = Some(delta);
+    chunk.outputs = vec![output];
 
     let chunks = vec![chunk];
     let result = assemble(chunks);
@@ -278,32 +278,32 @@ fn test_assemble_accumulates_reasoning_content() {
     chunk1.id = "test-id".to_string();
     chunk1.model = "test-model".to_string();
 
-    let mut choice1 = ChoiceChunk::default();
-    choice1.index = 0;
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
     let mut delta1 = Delta::default();
     delta1.reasoning_content = "Step 1: ".to_string();
-    choice1.delta = Some(delta1);
-    chunk1.choices = vec![choice1];
+    output1.delta = Some(delta1);
+    chunk1.outputs = vec![output1];
 
     let mut chunk2 = GetChatCompletionChunk::default();
     chunk2.id = "test-id".to_string();
     chunk2.model = "test-model".to_string();
 
-    let mut choice2 = ChoiceChunk::default();
-    choice2.index = 0;
-    choice2.finish_reason = FinishReason::ReasonStop.into();
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 0;
+    output2.finish_reason = FinishReason::ReasonStop.into();
     let mut delta2 = Delta::default();
     delta2.reasoning_content = "Step 2".to_string();
     delta2.content = "Answer".to_string();
-    choice2.delta = Some(delta2);
-    chunk2.choices = vec![choice2];
+    output2.delta = Some(delta2);
+    chunk2.outputs = vec![output2];
 
     let chunks = vec![chunk1, chunk2];
     let result = assemble(chunks);
 
     assert!(result.is_some());
     let response = result.unwrap();
-    let message = response.choices[0].message.as_ref().unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
     assert_eq!(message.reasoning_content, "Step 1: Step 2");
     assert_eq!(message.content, "Answer");
 }
@@ -320,12 +320,12 @@ fn test_assemble_uses_last_chunk_for_usage() {
         ..Default::default()
     });
 
-    let mut choice1 = ChoiceChunk::default();
-    choice1.index = 0;
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
     let mut delta1 = Delta::default();
     delta1.content = "Hello".to_string();
-    choice1.delta = Some(delta1);
-    chunk1.choices = vec![choice1];
+    output1.delta = Some(delta1);
+    chunk1.outputs = vec![output1];
 
     let mut chunk2 = GetChatCompletionChunk::default();
     chunk2.id = "test-id".to_string();
@@ -337,13 +337,13 @@ fn test_assemble_uses_last_chunk_for_usage() {
         ..Default::default()
     });
 
-    let mut choice2 = ChoiceChunk::default();
-    choice2.index = 0;
-    choice2.finish_reason = FinishReason::ReasonStop.into();
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 0;
+    output2.finish_reason = FinishReason::ReasonStop.into();
     let mut delta2 = Delta::default();
     delta2.content = " World".to_string();
-    choice2.delta = Some(delta2);
-    chunk2.choices = vec![choice2];
+    output2.delta = Some(delta2);
+    chunk2.outputs = vec![output2];
 
     let chunks = vec![chunk1, chunk2];
     let result = assemble(chunks);
