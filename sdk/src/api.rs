@@ -1,3 +1,16 @@
+//! API organization module.
+//!
+//! This module provides a clean, organized public API surface that groups related
+//! functionality together. It re-exports generated proto types in a logical structure
+//! that matches the xAI API organization.
+//!
+//! # Structure
+//!
+//! - **Standard API**: Main xAI API types (chat, embeddings, images, etc.)
+//! - **Management API**: Team and account management APIs
+//!   - **Billing**: Billing service, payment methods, invoices, and spending limits
+//!   - **Analytics**: Analytics types for querying billing and usage data
+
 // Standard API
 pub use crate::xai_api::*;
 

@@ -104,7 +104,7 @@ pub mod stream {
     /// reasoning tokens, and complete chunks, allowing for real-time processing of AI responses.
     ///
     /// The token callbacks receive `(TokenContext, token: &str)` to properly handle
-    /// multiple concurrent choices in a single stream.
+    /// multiple concurrent outputs in a single stream.
     ///
     /// # Arguments
     /// * `stream` - The gRPC streaming response containing chat completion chunks
@@ -216,12 +216,12 @@ pub mod stream {
         Ok(chunks)
     }
 
-    /// Determines the reasoning phase status based on the delta content and choice finish reason.
+    /// Determines the reasoning phase status based on the delta content and output finish reason.
     ///
     /// Reasoning is complete when:
     /// - We have no reasoning content AND either:
     ///   - We have content (reasoning finished, content starting), or
-    ///   - The choice is finished (everything is done)
+    ///   - The output is finished (everything is done)
     ///
     /// Reasoning is pending when:
     /// - We have reasoning content AND no content yet
@@ -245,10 +245,10 @@ pub mod stream {
         }
     }
 
-    /// Determines the content phase status based on the delta content and choice finish reason.
+    /// Determines the content phase status based on the delta content and output finish reason.
     ///
     /// Content is complete when:
-    /// - Reasoning is empty (reasoning phase is done) AND the choice has finished
+    /// - Reasoning is empty (reasoning phase is done) AND the output has finished
     ///
     /// Content is pending when:
     /// - We have content tokens being generated
@@ -276,7 +276,7 @@ pub mod stream {
     ///
     /// This function takes the collected chunks from a streaming chat completion response
     /// and reconstructs them into a single, complete response object. It handles multiple
-    /// choices by grouping chunks by index, accumulates content from deltas, and preserves
+    /// outputs by grouping chunks by index, accumulates content from deltas, and preserves
     /// all metadata and usage statistics.
     ///
     /// # Arguments
@@ -287,10 +287,10 @@ pub mod stream {
     /// * `None` - If the chunks vector is empty
     ///
     /// # Features
-    /// - **Multiple Choices**: Groups chunks by choice index to handle multiple response choices
+    /// - **Multiple Outputs**: Groups chunks by output index to handle multiple response outputs
     /// - **Content Accumulation**: Concatenates all delta content, reasoning, and encrypted content
     /// - **Metadata Preservation**: Uses first chunk for consistent metadata, last chunk for final stats
-    /// - **Order Maintenance**: Sorts choices by index to preserve original order
+    /// - **Order Maintenance**: Sorts outputs by index to preserve original order
     ///
     pub fn assemble(chunks: Vec<GetChatCompletionChunk>) -> Option<GetChatCompletionResponse> {
         if chunks.is_empty() {
@@ -410,9 +410,9 @@ pub mod stream {
     ///
     /// # Callback Signatures
     /// - `on_content_token`: Called for each content token with `(TokenContext, token: &str)`
-    /// - `on_content_complete`: Called once when content phase completes for a choice with `CompletionContext`
+    /// - `on_content_complete`: Called once when content phase completes for an output with `CompletionContext`
     /// - `on_reason_token`: Called for each reasoning token with `(TokenContext, token: &str)`
-    /// - `on_reasoning_complete`: Called once when reasoning phase completes for a choice with `CompletionContext`
+    /// - `on_reasoning_complete`: Called once when reasoning phase completes for an output with `CompletionContext`
     /// - `on_chunk`: Called once per complete chunk received
     pub struct Consumer {
         /// Callback invoked for each content token in the stream.
@@ -420,12 +420,12 @@ pub mod stream {
         /// Receives `(TokenContext, token: &str)`
         pub on_content_token: Option<Box<dyn FnMut(TokenContext, &str) + Send + Sync>>,
 
-        /// Callback invoked once when the content phase completes for a choice.
+        /// Callback invoked once when the content phase completes for an output.
         ///
-        /// This callback is called only once per choice when the content phase transitions
+        /// This callback is called only once per output when the content phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when content generation finishes.
         ///
-        /// Receives `CompletionContext` with information about which choice completed.
+        /// Receives `CompletionContext` with information about which output completed.
         pub on_content_complete: Option<Box<dyn FnMut(CompletionContext) + Send + Sync>>,
 
         /// Callback invoked for each reasoning token in the stream.
@@ -433,12 +433,12 @@ pub mod stream {
         /// Receives `(TokenContext, token: &str)`
         pub on_reason_token: Option<Box<dyn FnMut(TokenContext, &str) + Send + Sync>>,
 
-        /// Callback invoked once when the reasoning phase completes for a choice.
+        /// Callback invoked once when the reasoning phase completes for an output.
         ///
-        /// This callback is called only once per choice when the reasoning phase transitions
+        /// This callback is called only once per output when the reasoning phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
         ///
-        /// Receives `CompletionContext` with information about which choice completed.
+        /// Receives `CompletionContext` with information about which output completed.
         pub on_reasoning_complete: Option<Box<dyn FnMut(CompletionContext) + Send + Sync>>,
         /// Callback invoked once per complete chunk received.
         ///
@@ -460,8 +460,8 @@ pub mod stream {
 
         /// Create a `Consumer` that prints content and reason tokens to stdout.
         ///
-        /// This consumer only prints tokens from the first choice (index 0) to avoid
-        /// output mangling when multiple choices are requested. For multi-choice
+        /// This consumer only prints tokens from the first output (index 0) to avoid
+        /// output mangling when multiple outputs are requested. For multi-output
         /// streaming, use [`with_buffered_stdout()`](Consumer::with_buffered_stdout) instead.
         pub fn with_stdout() -> Self {
             Self {
@@ -493,10 +493,10 @@ pub mod stream {
             }
         }
 
-        /// Create a Consumer that buffers tokens per choice and prints them in labeled blocks when each choice completes.
+        /// Create a Consumer that buffers tokens per output and prints them in labeled blocks when each output completes.
         ///
-        /// This prevents output mangling when streaming multiple choices by buffering tokens
-        /// until a choice finishes (has a finish_reason), then printing that choice's complete output
+        /// This prevents output mangling when streaming multiple outputs by buffering tokens
+        /// until an output finishes (has a finish_reason), then printing that output's complete content
         /// in a clean labeled block.
         pub fn with_buffered_stdout() -> Self {
             #[derive(Default)]
@@ -600,8 +600,8 @@ pub mod stream {
 
         /// Builder method to set reasoning completion callback.
         ///
-        /// Called once when the reasoning phase completes for a choice.
-        /// This callback is invoked only once per choice when reasoning transitions to Complete.
+        /// Called once when the reasoning phase completes for an output.
+        /// This callback is invoked only once per output when reasoning transitions to Complete.
         ///
         /// # Arguments
         /// * `f` - Closure that receives `CompletionContext` and is called when reasoning completes
@@ -615,8 +615,8 @@ pub mod stream {
 
         /// Builder method to set content completion callback.
         ///
-        /// Called once when the content phase completes for a choice.
-        /// This callback is invoked only once per choice when content transitions to Complete.
+        /// Called once when the content phase completes for an output.
+        /// This callback is invoked only once per output when content transitions to Complete.
         ///
         /// # Arguments
         /// * `f` - Closure that receives `CompletionContext` and is called when content completes
@@ -645,7 +645,7 @@ pub mod stream {
     /// Contextual information about a token in a streaming chat completion response.
     ///
     /// `TokenContext` provides metadata about the current token being processed, including
-    /// which choice it belongs to, how many total choices are in the stream, and completion
+    /// which output it belongs to, how many total outputs are in the stream, and completion
     /// status flags for reasoning and content phases.
     ///
     /// This struct is passed to token callbacks (`on_content_token` and `on_reason_token`)
@@ -654,34 +654,34 @@ pub mod stream {
     ///
     #[derive(Clone, Debug)]
     pub struct TokenContext {
-        /// The total number of choices in this streaming response.
+        /// The total number of outputs in this streaming response.
         ///
-        /// When `n > 1` is specified in the request, multiple choices are generated
-        /// concurrently. This field indicates how many choices are being streamed.
+        /// When `n > 1` is specified in the request, multiple outputs are generated
+        /// concurrently. This field indicates how many outputs are being streamed.
         pub total_choices: usize,
 
-        /// The index of the choice this token belongs to.
+        /// The index of the output this token belongs to.
         ///
-        /// Choices are indexed starting from 0. Use this to distinguish tokens from
-        /// different choices when processing multi-choice streams.
+        /// Outputs are indexed starting from 0. Use this to distinguish tokens from
+        /// different outputs when processing multi-output streams.
         pub choice_index: usize,
 
-        /// Indicates whether the reasoning phase is complete for this choice.
+        /// Indicates whether the reasoning phase is complete for this output.
         ///
         /// This is `true` when:
         /// - The reasoning content has finished (no more reasoning tokens), and
-        /// - Either content tokens have started appearing, or the choice has finished
+        /// - Either content tokens have started appearing, or the output has finished
         ///
         /// Use this flag to detect when the model has finished its reasoning phase
         /// and moved on to generating the final answer.
         pub reasoning_status: PhaseStatus,
 
-        /// Indicates whether the content phase is complete for this choice.
+        /// Indicates whether the content phase is complete for this output.
         ///
-        /// This is `true` when the choice has finished (i.e., `finish_reason != 0`),
-        /// meaning no more tokens will be generated for this choice.
+        /// This is `true` when the output has finished (i.e., `finish_reason != 0`),
+        /// meaning no more tokens will be generated for this output.
         ///
-        /// Use this flag to detect when a choice has completed and perform any
+        /// Use this flag to detect when an output has completed and perform any
         /// final processing or cleanup.
         pub content_status: PhaseStatus,
     }
@@ -691,8 +691,8 @@ pub mod stream {
         ///
         /// # Arguments
         ///
-        /// * `total_choices` - The total number of choices in the stream
-        /// * `choice_index` - The index of the choice this token belongs to
+        /// * `total_choices` - The total number of outputs in the stream
+        /// * `choice_index` - The index of the output this token belongs to
         /// * `reasoning_complete` - Whether the reasoning phase is complete
         /// * `content_complete` - Whether the content phase is complete
         ///
@@ -716,24 +716,24 @@ pub mod stream {
 
     /// Contextual information provided to completion callbacks.
     ///
-    /// `CompletionContext` provides metadata about which choice completed, allowing
-    /// completion callbacks to identify the specific choice that finished and understand
+    /// `CompletionContext` provides metadata about which output completed, allowing
+    /// completion callbacks to identify the specific output that finished and understand
     /// its position within the overall stream.
     ///
     /// This struct is passed to completion callbacks (`on_reasoning_complete` and
-    /// `on_content_complete`) to provide context about which choice completed.
+    /// `on_content_complete`) to provide context about which output completed.
     #[derive(Clone, Debug)]
     pub struct CompletionContext {
-        /// The total number of choices in this streaming response.
+        /// The total number of outputs in this streaming response.
         ///
-        /// When `n > 1` is specified in the request, multiple choices are generated
-        /// concurrently. This field indicates how many choices are being streamed.
+        /// When `n > 1` is specified in the request, multiple outputs are generated
+        /// concurrently. This field indicates how many outputs are being streamed.
         pub total_choices: usize,
 
-        /// The index of the choice that completed.
+        /// The index of the output that completed.
         ///
-        /// Choices are indexed starting from 0. Use this to distinguish which choice
-        /// completed when processing multi-choice streams.
+        /// Outputs are indexed starting from 0. Use this to distinguish which output
+        /// completed when processing multi-output streams.
         pub choice_index: usize,
     }
 
@@ -742,8 +742,8 @@ pub mod stream {
         ///
         /// # Arguments
         ///
-        /// * `total_choices` - The total number of choices in the stream
-        /// * `choice_index` - The index of the choice that completed
+        /// * `total_choices` - The total number of outputs in the stream
+        /// * `choice_index` - The index of the output that completed
         ///
         /// # Returns
         ///
