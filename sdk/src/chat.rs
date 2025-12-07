@@ -90,7 +90,8 @@ pub mod client {
 pub mod stream {
     use crate::export::{Status, Streaming};
     use crate::xai_api::{
-        Choice, CompletionMessage, FinishReason, GetChatCompletionChunk, GetChatCompletionResponse,
+        CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
+        GetChatCompletionResponse,
     };
     use std::collections::HashMap;
     use std::io::Write;
@@ -136,24 +137,24 @@ pub mod stream {
                         on_chunk(&chunk);
                     }
 
-                    // Handle each choice
-                    for choice in &chunk.choices {
-                        if let Some(delta) = &choice.delta {
+                    // Handle each output
+                    for output in &chunk.outputs {
+                        if let Some(delta) = &output.delta {
                             let reasoning_status = get_reasoning_status(
                                 &delta.reasoning_content,
                                 &delta.content,
-                                choice.finish_reason,
+                                output.finish_reason,
                             );
 
                             let content_status = get_content_status(
                                 &delta.reasoning_content,
                                 &delta.content,
-                                choice.finish_reason,
+                                output.finish_reason,
                             );
 
                             let token_ctx = TokenContext::new(
-                                chunk.choices.len(),
-                                choice.index as usize,
+                                chunk.outputs.len(),
+                                output.index as usize,
                                 reasoning_status.clone(),
                                 content_status.clone(),
                             );
@@ -168,16 +169,16 @@ pub mod stream {
                                 consumer.on_reasoning_complete
                             {
                                 let was_complete = reasoning_complete_flags
-                                    .get(&choice.index)
+                                    .get(&output.index)
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && reasoning_status == PhaseStatus::Complete {
                                     let completion_ctx = CompletionContext::new(
-                                        chunk.choices.len(),
-                                        choice.index as usize,
+                                        chunk.outputs.len(),
+                                        output.index as usize,
                                     );
                                     on_reasoning_complete(completion_ctx);
-                                    reasoning_complete_flags.insert(choice.index, true);
+                                    reasoning_complete_flags.insert(output.index, true);
                                 }
                             }
 
@@ -190,16 +191,16 @@ pub mod stream {
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
                             {
                                 let was_complete = content_complete_flags
-                                    .get(&choice.index)
+                                    .get(&output.index)
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && content_status == PhaseStatus::Complete {
                                     let completion_ctx = CompletionContext::new(
-                                        chunk.choices.len(),
-                                        choice.index as usize,
+                                        chunk.outputs.len(),
+                                        output.index as usize,
                                     );
                                     on_content_complete(completion_ctx);
-                                    content_complete_flags.insert(choice.index, true);
+                                    content_complete_flags.insert(output.index, true);
                                 }
                             }
                         }
@@ -300,59 +301,64 @@ pub mod stream {
         let first_chunk = &chunks[0];
         let last_chunk = &chunks[chunks.len() - 1];
 
-        // Group chunks by choice index to handle multiple choices
-        let mut choice_data: HashMap<i32, ChoiceData> = HashMap::new();
+        // Group chunks by output index to handle multiple outputs
+        let mut output_data: HashMap<i32, OutputData> = HashMap::new();
 
         for chunk in &chunks {
-            for choice_chunk in &chunk.choices {
-                let index = choice_chunk.index;
-                let choice_data = choice_data.entry(index).or_insert_with(|| ChoiceData {
+            for output_chunk in &chunk.outputs {
+                let index = output_chunk.index;
+                let output_data = output_data.entry(index).or_insert_with(|| OutputData {
                     content: String::new(),
                     reasoning_content: String::new(),
                     role: 0,
                     tool_calls: Vec::new(),
                     encrypted_content: String::new(),
-                    finish_reason: choice_chunk.finish_reason,
-                    logprobs: choice_chunk.logprobs.clone(),
+                    citations: Vec::new(),
+                    finish_reason: output_chunk.finish_reason,
+                    logprobs: output_chunk.logprobs.clone(),
                 });
 
                 // Accumulate content and reasoning from deltas
-                if let Some(delta) = &choice_chunk.delta {
-                    choice_data.content.push_str(&delta.content);
-                    choice_data
+                if let Some(delta) = &output_chunk.delta {
+                    output_data.content.push_str(&delta.content);
+                    output_data
                         .reasoning_content
                         .push_str(&delta.reasoning_content);
-                    choice_data
+                    output_data
                         .encrypted_content
                         .push_str(&delta.encrypted_content);
 
                     // Use the role from the delta (should be consistent)
                     if delta.role != 0 {
-                        choice_data.role = delta.role;
+                        output_data.role = delta.role;
                     }
 
                     // Accumulate tool calls
-                    choice_data.tool_calls.extend(delta.tool_calls.clone());
+                    output_data.tool_calls.extend(delta.tool_calls.clone());
+
+                    // Accumulate citations from delta
+                    output_data.citations.extend(delta.citations.clone());
                 }
 
                 // Update finish reason from the latest chunk
-                choice_data.finish_reason = choice_chunk.finish_reason;
-                choice_data.logprobs = choice_chunk.logprobs.clone();
+                output_data.finish_reason = output_chunk.finish_reason;
+                output_data.logprobs = output_chunk.logprobs.clone();
             }
         }
 
-        // Convert choice data to Choice objects
-        let mut choices = Vec::new();
-        for (index, data) in choice_data {
+        // Convert output data to CompletionOutput objects
+        let mut outputs = Vec::new();
+        for (index, data) in output_data {
             let message = CompletionMessage {
                 content: data.content,
                 reasoning_content: data.reasoning_content,
                 role: data.role,
                 tool_calls: data.tool_calls,
                 encrypted_content: data.encrypted_content,
+                citations: data.citations,
             };
 
-            choices.push(Choice {
+            outputs.push(CompletionOutput {
                 finish_reason: data.finish_reason,
                 index,
                 message: Some(message),
@@ -360,8 +366,8 @@ pub mod stream {
             });
         }
 
-        // Sort choices by index to maintain order
-        choices.sort_by_key(|c| c.index);
+        // Sort outputs by index to maintain order
+        outputs.sort_by_key(|o| o.index);
 
         // Use the last chunk's usage data (should have the final token counts)
         let usage = last_chunk.usage.clone();
@@ -371,24 +377,26 @@ pub mod stream {
 
         Some(GetChatCompletionResponse {
             id: first_chunk.id.clone(),
-            choices,
+            outputs,
             created: first_chunk.created.clone(),
             model: first_chunk.model.clone(),
             system_fingerprint: first_chunk.system_fingerprint.clone(),
             usage,
             citations,
-            settings: None, // Settings are not available in streaming responses
+            settings: None,     // Settings are not available in streaming responses
+            debug_output: None, // Debug output is not available in streaming responses
         })
     }
 
-    /// Helper struct to accumulate data for each choice during assembly
+    /// Helper struct to accumulate data for each output during assembly
     #[derive(Default)]
-    struct ChoiceData {
+    struct OutputData {
         content: String,
         reasoning_content: String,
         role: i32,
         tool_calls: Vec<crate::xai_api::ToolCall>,
         encrypted_content: String,
+        citations: Vec<crate::xai_api::InlineCitation>,
         finish_reason: i32,
         logprobs: Option<crate::xai_api::LogProbs>,
     }
@@ -523,23 +531,23 @@ pub mod stream {
                     let mut buffers = buffers_chunk.lock().unwrap();
                     let mut finished = finished_clone.lock().unwrap();
 
-                    for choice in &chunk.choices {
-                        let idx = choice.index;
+                    for output in &chunk.outputs {
+                        let idx = output.index;
 
-                        // Check if this choice just finished
-                        if choice.finish_reason != 0 && !finished.contains_key(&idx) {
+                        // Check if this output just finished
+                        if output.finish_reason != 0 && !finished.contains_key(&idx) {
                             finished.insert(idx, true);
 
-                            // Print the buffered content for this choice
+                            // Print the buffered content for this output
                             if let Some(choice_buf) = buffers.remove(&idx) {
-                                println!("\n--- Choice {idx} ---");
+                                println!("\n--- Output {idx} ---");
                                 if !choice_buf.reasoning.is_empty() {
                                     println!("Reasoning:\n{}\n", choice_buf.reasoning);
                                 }
                                 if !choice_buf.content.is_empty() {
                                     println!("Content:\n{}\n", choice_buf.content);
                                 }
-                                println!("Finish reason: {}\n", choice.finish_reason);
+                                println!("Finish reason: {}\n", output.finish_reason);
                                 std::io::stdout().flush().expect("Error flushing stdout");
                             }
                         }
