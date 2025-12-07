@@ -215,8 +215,78 @@ impl DeferredStatus {
         }
     }
 }
+/// Document search using a combination of keyword and semantic search.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HybridRetrieval {
+    /// Overfetch multiplier applied to the requested search limit.
+    /// When set, fetches (limit * search_multiplier) results from each retrieval method
+    /// before reranking, then returns the top `limit` results after reranking.
+    /// Valid range is \[1, 100\]. Defaults to 1 when unset.
+    #[prost(int32, optional, tag = "1")]
+    pub search_multiplier: ::core::option::Option<i32>,
+    /// Which reranker to use to limit results to the desired value.
+    #[prost(oneof = "hybrid_retrieval::Reranker", tags = "2, 3")]
+    pub reranker: ::core::option::Option<hybrid_retrieval::Reranker>,
+}
+/// Nested message and enum types in `HybridRetrieval`.
+pub mod hybrid_retrieval {
+    /// Which reranker to use to limit results to the desired value.
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Reranker {
+        /// Use a reranker model to perform the reranking.
+        #[prost(message, tag = "2")]
+        RerankerModel(super::RerankerModel),
+        /// Use RRF to perform the reranking.
+        #[prost(message, tag = "3")]
+        ReciprocalRankFusion(super::ReciprocalRankFusion),
+    }
+}
+/// Document search using keyword matching (sparse embeddings).
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct KeywordRetrieval {
+    /// Optional, but always used when doing search across multiple collections.
+    #[prost(message, optional, tag = "1")]
+    pub reranker: ::core::option::Option<RerankerModel>,
+}
+/// Document search using semantic similarity (dense embeddings).
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SemanticRetrieval {
+    /// Optional, but always used when doing search across multiple collections.
+    #[prost(message, optional, tag = "1")]
+    pub reranker: ::core::option::Option<RerankerModel>,
+}
+/// Configuration for reciprocal rank fusion (RRF) reranking.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct ReciprocalRankFusion {
+    /// The RRF constant k used in the reciprocal rank fusion formula. Defaults to 60.
+    #[prost(int32, optional, tag = "1")]
+    pub k: ::core::option::Option<i32>,
+    /// Weight for embedding (dense) search results. Should be between 0 and 1. Defaults to 0.5.
+    #[prost(float, tag = "3")]
+    pub embedding_weight: f32,
+    /// Weight for keyword (sparse) search results. Should be between 0 and 1. Defaults to 0.5.
+    #[prost(float, tag = "4")]
+    pub text_weight: f32,
+}
+/// Configuration for model-based reranking.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RerankerModel {
+    /// The model to use for reranking. Defaults to standard reranker model.
+    #[prost(string, optional, tag = "1")]
+    pub model: ::core::option::Option<::prost::alloc::string::String>,
+    /// Instructions for the reranking model. Defaults to generic reranking instructions.
+    #[prost(string, optional, tag = "2")]
+    pub instructions: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Message that contains settings needed to do a document search.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SearchRequest {
     /// The query to search for which will be embedded using the
     /// same embedding model as the one used for the source to query.
@@ -227,15 +297,33 @@ pub struct SearchRequest {
     pub source: ::core::option::Option<DocumentsSource>,
     /// The number of chunks to return.
     /// Will always return the top matching chunks.
-    /// Optional, defaults to 10
+    /// Optional, defaults to 10.
     #[prost(int32, optional, tag = "3")]
     pub limit: ::core::option::Option<i32>,
-    /// The ranking metric to use for the search. Defaults to RANK_METRIC_L2_DISTANCE.
-    #[prost(enumeration = "RankingMetric", optional, tag = "4")]
-    pub ranking_metric: ::core::option::Option<i32>,
     /// User-defined instructions to be included in the search query. Defaults to generic search instructions.
     #[prost(string, optional, tag = "5")]
     pub instructions: ::core::option::Option<::prost::alloc::string::String>,
+    /// Deprecated: Metric now comes from what is set during collection creation.
+    #[deprecated]
+    #[prost(enumeration = "RankingMetric", optional, tag = "4")]
+    pub ranking_metric: ::core::option::Option<i32>,
+    /// How to perform the document search. Defaults to HybridRetrieval
+    #[prost(oneof = "search_request::RetrievalMode", tags = "11, 12, 13")]
+    pub retrieval_mode: ::core::option::Option<search_request::RetrievalMode>,
+}
+/// Nested message and enum types in `SearchRequest`.
+pub mod search_request {
+    /// How to perform the document search. Defaults to HybridRetrieval
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum RetrievalMode {
+        #[prost(message, tag = "11")]
+        HybridRetrieval(super::HybridRetrieval),
+        #[prost(message, tag = "12")]
+        SemanticRetrieval(super::SemanticRetrieval),
+        #[prost(message, tag = "13")]
+        KeywordRetrieval(super::KeywordRetrieval),
+    }
 }
 /// SearchResponse message contains the results of a document search operation.
 /// It returns a collection of matching document chunks sorted by relevance score.
@@ -284,6 +372,7 @@ pub struct DocumentsSource {
     pub collection_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// RankingMetric is the metric to use for the search.
+/// Deprecated: Metric now comes from what is set in the collection creation.
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -705,7 +794,7 @@ pub mod image_client {
 /// Records the cost associated with a sampling request (both chat and sample
 /// endpoints).
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SamplingUsage {
     /// Total number of text completion tokens generated across all choices
     /// (in case of n>1).
@@ -735,6 +824,9 @@ pub struct SamplingUsage {
     /// If it returns citations from only X, this will be 1.
     #[prost(int32, tag = "8")]
     pub num_sources_used: i32,
+    /// List of server side tools called.
+    #[prost(enumeration = "ServerSideTool", repeated, tag = "9")]
+    pub server_side_tools_used: ::prost::alloc::vec::Vec<i32>,
 }
 /// Usage of embedding models.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -746,6 +838,54 @@ pub struct EmbeddingUsage {
     /// The number of feature vectors produced from image inputs.
     #[prost(int32, tag = "2")]
     pub num_image_embeddings: i32,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ServerSideTool {
+    Invalid = 0,
+    WebSearch = 1,
+    XSearch = 2,
+    CodeExecution = 3,
+    ViewImage = 4,
+    ViewXVideo = 5,
+    CollectionsSearch = 6,
+    Mcp = 7,
+    AttachmentSearch = 8,
+}
+impl ServerSideTool {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Invalid => "SERVER_SIDE_TOOL_INVALID",
+            Self::WebSearch => "SERVER_SIDE_TOOL_WEB_SEARCH",
+            Self::XSearch => "SERVER_SIDE_TOOL_X_SEARCH",
+            Self::CodeExecution => "SERVER_SIDE_TOOL_CODE_EXECUTION",
+            Self::ViewImage => "SERVER_SIDE_TOOL_VIEW_IMAGE",
+            Self::ViewXVideo => "SERVER_SIDE_TOOL_VIEW_X_VIDEO",
+            Self::CollectionsSearch => "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH",
+            Self::Mcp => "SERVER_SIDE_TOOL_MCP",
+            Self::AttachmentSearch => "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SERVER_SIDE_TOOL_INVALID" => Some(Self::Invalid),
+            "SERVER_SIDE_TOOL_WEB_SEARCH" => Some(Self::WebSearch),
+            "SERVER_SIDE_TOOL_X_SEARCH" => Some(Self::XSearch),
+            "SERVER_SIDE_TOOL_CODE_EXECUTION" => Some(Self::CodeExecution),
+            "SERVER_SIDE_TOOL_VIEW_IMAGE" => Some(Self::ViewImage),
+            "SERVER_SIDE_TOOL_VIEW_X_VIDEO" => Some(Self::ViewXVideo),
+            "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH" => Some(Self::CollectionsSearch),
+            "SERVER_SIDE_TOOL_MCP" => Some(Self::Mcp),
+            "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH" => Some(Self::AttachmentSearch),
+            _ => None,
+        }
+    }
 }
 /// Request to get a text completion response sampling.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -1088,6 +1228,7 @@ pub struct GetCompletionsRequest {
     /// The number of completions to create concurrently. A single completion will
     /// be generated if the parameter is unset. Each completion is charged at the
     /// same rate. You can generate at most 128 concurrent completions.
+    /// PLEASE NOTE: This field is deprecated and will be removed in the future.
     #[prost(int32, optional, tag = "8")]
     pub n: ::core::option::Option<i32>,
     /// The maximum number of tokens to sample. If unset, the model samples until
@@ -1190,6 +1331,17 @@ pub struct GetCompletionsRequest {
     /// Whether to use encrypted thinking for thinking trace rehydration.
     #[prost(bool, tag = "24")]
     pub use_encrypted_content: bool,
+    /// Maximum number of agentic tool calling turns allowed for this request.
+    /// If not set, defaults to the server's global cap.
+    /// The effective max_turns will be the min of the server's global cap and the request's max_turns.
+    /// This parameter will be ignored for any non-agentic requests.
+    /// With parallel tool calls, multiple tool calls can occur within a single turn,
+    /// so max_turns does not necessarily equal the total number of tool calls.
+    #[prost(int32, optional, tag = "25")]
+    pub max_turns: ::core::option::Option<i32>,
+    /// Allow the users to control what optional fields to be returned in the response.
+    #[prost(enumeration = "IncludeOption", repeated, tag = "26")]
+    pub include: ::prost::alloc::vec::Vec<i32>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1198,10 +1350,11 @@ pub struct GetChatCompletionResponse {
     /// and you can use it when contacting us regarding a specific request.
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    /// Completions in response to the input messages. The number of completions is
-    /// controlled via the `n` parameter on the request.
+    /// Model-generated outputs/responses to the input messages. Each output contains
+    /// the model's response including text content, reasoning traces, tool calls, and
+    /// metadata about the generation process.
     #[prost(message, repeated, tag = "2")]
-    pub choices: ::prost::alloc::vec::Vec<Choice>,
+    pub outputs: ::prost::alloc::vec::Vec<CompletionOutput>,
     /// A UNIX timestamp (UTC) indicating when the response object was created.
     /// The timestamp is taken when the model starts generating response.
     #[prost(message, optional, tag = "5")]
@@ -1226,6 +1379,9 @@ pub struct GetChatCompletionResponse {
     /// Settings used while generating the response.
     #[prost(message, optional, tag = "11")]
     pub settings: ::core::option::Option<RequestSettings>,
+    /// Debug output. Only available to trusted testers.
+    #[prost(message, optional, tag = "12")]
+    pub debug_output: ::core::option::Option<DebugOutput>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1234,9 +1390,10 @@ pub struct GetChatCompletionChunk {
     /// and you can use it when contacting us regarding a specific request.
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    /// The choices of the model.
+    /// Model-generated outputs/responses being streamed as they are generated.
+    /// Each output chunk contains incremental updates to the model's response.
     #[prost(message, repeated, tag = "2")]
-    pub choices: ::prost::alloc::vec::Vec<ChoiceChunk>,
+    pub outputs: ::prost::alloc::vec::Vec<CompletionOutputChunk>,
     /// A UNIX timestamp (UTC) indicating when the response object was created.
     /// The timestamp is taken when the model starts generating response.
     #[prost(message, optional, tag = "3")]
@@ -1257,9 +1414,12 @@ pub struct GetChatCompletionChunk {
     #[prost(message, optional, tag = "6")]
     pub usage: ::core::option::Option<SamplingUsage>,
     /// / List of all the external pages used by the model to answer. Only populated for the last chunk.
-    /// This is only present when live search is enabled, (That is `SearchParameters` have been defined in `GetCompletionsRequest`).
+    /// This is only present for requests that make use of live search or server-side search tools.
     #[prost(string, repeated, tag = "7")]
     pub citations: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Only available for teams that have debugging privileges.
+    #[prost(message, optional, tag = "10")]
+    pub debug_output: ::core::option::Option<DebugOutput>,
 }
 /// Response from GetDeferredCompletion, including the response if the completion
 /// request has been processed without error.
@@ -1276,12 +1436,12 @@ pub struct GetDeferredCompletionResponse {
 /// Contains the response generated by the model.
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Choice {
+pub struct CompletionOutput {
     /// Indicating why the model stopped sampling.
     #[prost(enumeration = "FinishReason", tag = "1")]
     pub finish_reason: i32,
-    /// The index of this choice in the list of choices. If you set `n > 1` on your
-    /// request, you will receive most than one choice in your response.
+    /// The index of this output in the list of outputs. When multiple outputs are
+    /// generated, each output is assigned a sequential index starting from 0.
     #[prost(int32, tag = "2")]
     pub index: i32,
     /// The actual message generated by the model.
@@ -1307,15 +1467,18 @@ pub struct CompletionMessage {
     /// The tools that the assistant wants to call.
     #[prost(message, repeated, tag = "3")]
     pub tool_calls: ::prost::alloc::vec::Vec<ToolCall>,
-    /// The encrypted thinking content.
+    /// The encrypted content.
     #[prost(string, tag = "5")]
     pub encrypted_content: ::prost::alloc::string::String,
+    /// The citations that the model used to answer the question.
+    #[prost(message, repeated, tag = "6")]
+    pub citations: ::prost::alloc::vec::Vec<InlineCitation>,
 }
 /// Holds the differences (deltas) that when concatenated make up the entire
 /// agent response.
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ChoiceChunk {
+pub struct CompletionOutputChunk {
     /// The actual text differences that need to be accumulated on the client.
     #[prost(message, optional, tag = "1")]
     pub delta: ::core::option::Option<Delta>,
@@ -1325,8 +1488,7 @@ pub struct ChoiceChunk {
     /// Indicating why the model stopped sampling.
     #[prost(enumeration = "FinishReason", tag = "3")]
     pub finish_reason: i32,
-    /// The index of this choice in the list of choices. If you set `n > 1` on your
-    /// request, you will receive most than one choice in your response.
+    /// The index of this output chunk in the list of output chunks.
     #[prost(int32, tag = "4")]
     pub index: i32,
 }
@@ -1347,9 +1509,89 @@ pub struct Delta {
     /// A list of tool calls if tool call is requested by the model.
     #[prost(message, repeated, tag = "3")]
     pub tool_calls: ::prost::alloc::vec::Vec<ToolCall>,
-    /// The encrypted thinking content.
+    /// The encrypted content.
     #[prost(string, tag = "5")]
     pub encrypted_content: ::prost::alloc::string::String,
+    /// The citations that the model used to answer the question.
+    #[prost(message, repeated, tag = "6")]
+    pub citations: ::prost::alloc::vec::Vec<InlineCitation>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InlineCitation {
+    /// The display number for this citation (e.g., "1", "2", "3").
+    /// This ID is reused when the same source is cited multiple times in a
+    /// response, ensuring consistent numbering (e.g., the same URL always shows as
+    /// \[1\]).
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    /// The character position in the response text where the citation markdown
+    /// link begins. This is the index of the first '\[' character in the citation
+    /// format [id](id)(url). Uses inclusive indexing (the character at this index is
+    /// part of the citation).
+    #[prost(int32, tag = "2")]
+    pub start_index: i32,
+    /// The character position in the response text immediately after the citation
+    /// markdown link ends. This is the index after the final '\]' character in the
+    /// citation format [id](id)(url). Uses exclusive indexing (the character at this
+    /// index is NOT part of the citation). Together with start_index,
+    /// text\[start_index:end_index\] extracts the full citation link.
+    #[prost(int32, tag = "6")]
+    pub end_index: i32,
+    /// The citation type.
+    #[prost(oneof = "inline_citation::Citation", tags = "3, 4, 5")]
+    pub citation: ::core::option::Option<inline_citation::Citation>,
+}
+/// Nested message and enum types in `InlineCitation`.
+pub mod inline_citation {
+    /// The citation type.
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Citation {
+        /// The citation returned from the web search tool.
+        #[prost(message, tag = "3")]
+        WebCitation(super::WebCitation),
+        /// The citation returned from the X search tool.
+        #[prost(message, tag = "4")]
+        XCitation(super::XCitation),
+        /// The citation returned from the collections search tool.
+        #[prost(message, tag = "5")]
+        CollectionsCitation(super::CollectionsCitation),
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebCitation {
+    /// The url of the web page that the citation is from.
+    #[prost(string, tag = "1")]
+    pub url: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct XCitation {
+    /// The url of the X post or profile that the citation is from.
+    /// The url is always a x.com url.
+    #[prost(string, tag = "1")]
+    pub url: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CollectionsCitation {
+    /// The id of the file that the citation is from.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
+    /// The id of the chunk that the citation is from.
+    #[prost(string, tag = "2")]
+    pub chunk_id: ::prost::alloc::string::String,
+    /// The content of the chunk that the citation is from.
+    #[prost(string, tag = "3")]
+    pub chunk_content: ::prost::alloc::string::String,
+    /// The relevance score of the citation.
+    #[prost(float, tag = "4")]
+    pub score: f32,
+    /// The ids of the collections that the citation is from.
+    #[prost(string, repeated, tag = "5")]
+    pub collection_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Holding the log probabilities of the sampling.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -1400,7 +1642,7 @@ pub struct TopLogProb {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Content {
-    #[prost(oneof = "content::Content", tags = "1, 2")]
+    #[prost(oneof = "content::Content", tags = "1, 2, 3")]
     pub content: ::core::option::Option<content::Content>,
 }
 /// Nested message and enum types in `Content`.
@@ -1414,7 +1656,19 @@ pub mod content {
         /// The content is a single image.
         #[prost(message, tag = "2")]
         ImageUrl(super::ImageUrlContent),
+        /// The content is a file attachment (PDF, document, etc.).
+        #[prost(message, tag = "3")]
+        File(super::FileContent),
     }
+}
+/// A file attachment in a message.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct FileContent {
+    /// The file ID returned by the Files API when a user uploads a file.
+    /// This ID is used to reference the uploaded file in chat conversations.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
 }
 /// A message in a conversation. This message is part of the model input. Each
 /// message originates from a "role", which indicates the entity type who sent
@@ -1442,7 +1696,7 @@ pub struct Message {
     /// The tools that the assistant wants to call.
     #[prost(message, repeated, tag = "4")]
     pub tool_calls: ::prost::alloc::vec::Vec<ToolCall>,
-    /// The encrypted thinking content.
+    /// The encrypted content.
     #[prost(string, tag = "6")]
     pub encrypted_content: ::prost::alloc::string::String,
 }
@@ -1466,15 +1720,15 @@ pub mod tool_choice {
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Tool {
-    #[prost(oneof = "tool::Tool", tags = "1, 3, 4")]
+    #[prost(oneof = "tool::Tool", tags = "1, 3, 4, 5, 6, 7, 8")]
     pub tool: ::core::option::Option<tool::Tool>,
 }
 /// Nested message and enum types in `Tool`.
 pub mod tool {
     #[derive(serde::Serialize, serde::Deserialize)]
-    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Tool {
         /// Tool Call defined by user
         #[prost(message, tag = "1")]
@@ -1485,14 +1739,147 @@ pub mod tool {
         /// Built in X search.
         #[prost(message, tag = "4")]
         XSearch(super::XSearch),
+        /// Built in code execution.
+        #[prost(message, tag = "5")]
+        CodeExecution(super::CodeExecution),
+        /// Built in collections search.
+        #[prost(message, tag = "6")]
+        CollectionsSearch(super::CollectionsSearch),
+        /// A remote MCP server to use.
+        #[prost(message, tag = "7")]
+        Mcp(super::Mcp),
+        /// Built in attachment search.
+        #[prost(message, tag = "8")]
+        AttachmentSearch(super::AttachmentSearch),
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Mcp {
+    /// A label for the server. if provided, this will be used to prefix tool calls.
+    #[prost(string, tag = "1")]
+    pub server_label: ::prost::alloc::string::String,
+    /// A description of the server.
+    #[prost(string, tag = "2")]
+    pub server_description: ::prost::alloc::string::String,
+    /// The URL of the MCP server.
+    #[prost(string, tag = "3")]
+    pub server_url: ::prost::alloc::string::String,
+    /// A list of tool names that are allowed to be called by the model. If empty, all tools are allowed.
+    #[prost(string, repeated, tag = "4")]
+    pub allowed_tool_names: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// An optional authorization token to use when calling the MCP server. This will be set as the Authorization header.
+    #[prost(string, optional, tag = "5")]
+    pub authorization: ::core::option::Option<::prost::alloc::string::String>,
+    /// Extra headers that will be included in the request to the MCP server.
+    #[prost(map = "string, string", tag = "6")]
+    pub extra_headers: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebSearch {
+    /// List of website domains (without protocol specification or subdomains) to exclude from search results (e.g., \["example.com"\]).
+    /// Use this to prevent results from unwanted sites. A maximum of 5 websites can be excluded.
+    /// This parameter cannot be set together with `allowed_domains`.
+    #[prost(string, repeated, tag = "1")]
+    pub excluded_domains: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// List of website domains (without protocol specification or subdomains)
+    /// to restrict search results to (e.g., \["example.com"\]). A maximum of 5 websites can be allowed.
+    /// Use this as a whitelist to limit results to only these specific sites; no other websites will
+    /// be considered. If no relevant information is found on these websites, the number of results
+    /// returned might be smaller than `max_search_results` set in `SearchParameters`. Note: This
+    /// parameter cannot be set together with `excluded_domains`.
+    #[prost(string, repeated, tag = "2")]
+    pub allowed_domains: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Enable image understanding in downstream tools (e.g. allow fetching and interpreting images).
+    /// When true, the server may add image viewing tools to the active MCP toolset.
+    #[prost(bool, optional, tag = "3")]
+    pub enable_image_understanding: ::core::option::Option<bool>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct XSearch {
+    /// Optional start date for search results in ISO-8601 YYYY-MM-DD format (e.g., "2024-05-24").
+    /// Only content after this date will be considered. Defaults to unset (no start date restriction).
+    /// See <https://en.wikipedia.org/wiki/ISO_8601> for format details.
+    #[prost(message, optional, tag = "1")]
+    pub from_date: ::core::option::Option<::prost_wkt_types::Timestamp>,
+    /// Optional end date for search results in ISO-8601 YYYY-MM-DD format (e.g., "2024-12-24").
+    /// Only content before this date will be considered. Defaults to unset (no end date restriction).
+    /// See <https://en.wikipedia.org/wiki/ISO_8601> for format details.
+    #[prost(message, optional, tag = "2")]
+    pub to_date: ::core::option::Option<::prost_wkt_types::Timestamp>,
+    /// Optional list of X usernames (without the '@' symbol) to limit search results to posts
+    /// from specific accounts (e.g., \["xai"\]). If set, only posts authored by these
+    /// handles will be considered in the agentic search.
+    /// This field can not be set together with `excluded_x_handles`.
+    /// Defaults to unset (no exclusions).
+    #[prost(string, repeated, tag = "3")]
+    pub allowed_x_handles: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Optional list of X usernames (without the '@' symbol) used to exclude posts from specific accounts.
+    /// If set, posts authored by these handles will be excluded from the agentic search results.
+    /// This field can not be set together with `allowed_x_handles`.
+    /// Defaults to unset (no exclusions).
+    #[prost(string, repeated, tag = "4")]
+    pub excluded_x_handles: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Enable image understanding in downstream tools (e.g. allow fetching and interpreting images).
+    /// When true, the server may add image viewing tools to the active MCP toolset.
+    #[prost(bool, optional, tag = "5")]
+    pub enable_image_understanding: ::core::option::Option<bool>,
+    /// Enable video understanding in downstream tools (e.g. allow fetching and interpreting videos).
+    /// When true, the server may add video viewing tools to the active MCP toolset.
+    #[prost(bool, optional, tag = "6")]
+    pub enable_video_understanding: ::core::option::Option<bool>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CodeExecution {}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CollectionsSearch {
+    /// The ID(s) of the source collection(s) within which the search should be performed.
+    /// A maximum of 10 collections IDs can be used for search.
+    #[prost(string, repeated, tag = "1")]
+    pub collection_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Optional number of chunks to be returned for each collections search.
+    /// Defaults to 10.
+    #[prost(int32, optional, tag = "2")]
+    pub limit: ::core::option::Option<i32>,
+    /// User-defined instructions to be included in the search query. Defaults to generic search
+    /// instructions used by the collections search backend if unset.
+    #[prost(string, optional, tag = "3")]
+    pub instructions: ::core::option::Option<::prost::alloc::string::String>,
+    /// How to perform the document search. Defaults to hybrid retrieval when unset.
+    #[prost(oneof = "collections_search::RetrievalMode", tags = "4, 5, 6")]
+    pub retrieval_mode: ::core::option::Option<collections_search::RetrievalMode>,
+}
+/// Nested message and enum types in `CollectionsSearch`.
+pub mod collections_search {
+    /// How to perform the document search. Defaults to hybrid retrieval when unset.
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum RetrievalMode {
+        /// Perform hybrid retrieval combining keyword and semantic search.
+        #[prost(message, tag = "4")]
+        HybridRetrieval(super::HybridRetrieval),
+        /// Perform pure semantic retrieval using dense embeddings.
+        #[prost(message, tag = "5")]
+        SemanticRetrieval(super::SemanticRetrieval),
+        /// Perform keyword-based retrieval using sparse embeddings.
+        #[prost(message, tag = "6")]
+        KeywordRetrieval(super::KeywordRetrieval),
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct WebSearch {}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct XSearch {}
+pub struct AttachmentSearch {
+    /// Optional number of files to limit the search to.
+    #[prost(int32, optional, tag = "2")]
+    pub limit: ::core::option::Option<i32>,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Function {
@@ -1516,6 +1903,16 @@ pub struct ToolCall {
     /// The ID of the tool call.
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
+    /// Information to indicate whether the tool call needs to be executed on client side or server side.
+    /// By default, it will be a client-side tool call if not specified.
+    #[prost(enumeration = "ToolCallType", tag = "2")]
+    pub r#type: i32,
+    /// Status of the tool call.
+    #[prost(enumeration = "ToolCallStatus", tag = "3")]
+    pub status: i32,
+    /// Error message if the tool call is failed.
+    #[prost(string, optional, tag = "4")]
+    pub error_message: ::core::option::Option<::prost::alloc::string::String>,
     /// Information regarding invoking the tool call.
     #[prost(oneof = "tool_call::Tool", tags = "10")]
     pub tool: ::core::option::Option<tool_call::Tool>,
@@ -1777,17 +2174,9 @@ pub struct RequestSettings {
     /// Whether to use encrypted thinking for thinking trace rehydration.
     #[prost(bool, tag = "13")]
     pub use_encrypted_content: bool,
-}
-/// History of a user's messages.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ResponseHistory {
-    /// The history of messages uptil (and including) the current response.
-    #[prost(message, repeated, tag = "1")]
-    pub messages: ::prost::alloc::vec::Vec<Message>,
-    /// The actual response.
-    #[prost(message, optional, tag = "2")]
-    pub response: ::core::option::Option<GetChatCompletionResponse>,
+    /// Allow the users to control what optional fields to be returned in the response.
+    #[prost(enumeration = "IncludeOption", repeated, tag = "14")]
+    pub include: ::prost::alloc::vec::Vec<i32>,
 }
 /// Request to retrieve a stored completion response.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -1812,6 +2201,119 @@ pub struct DeleteStoredCompletionResponse {
     /// The response id that was deleted.
     #[prost(string, tag = "1")]
     pub response_id: ::prost::alloc::string::String,
+}
+/// Holds debug information. Only available to trusted testers.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DebugOutput {
+    /// Number of attempts made to the model.
+    #[prost(int32, tag = "1")]
+    pub attempts: i32,
+    /// The request received from the user.
+    #[prost(string, tag = "2")]
+    pub request: ::prost::alloc::string::String,
+    /// The prompt sent to the model in text form.
+    #[prost(string, tag = "3")]
+    pub prompt: ::prost::alloc::string::String,
+    /// The JSON-serialized request sent to the inference engine.
+    #[prost(string, tag = "9")]
+    pub engine_request: ::prost::alloc::string::String,
+    /// The response(s) received from the model.
+    #[prost(string, repeated, tag = "4")]
+    pub responses: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// The raw chunks returned from the pipeline of samplers.
+    #[prost(string, repeated, tag = "12")]
+    pub chunks: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Number of cache reads
+    #[prost(uint32, tag = "5")]
+    pub cache_read_count: u32,
+    /// Size of cache read
+    #[prost(uint64, tag = "6")]
+    pub cache_read_input_bytes: u64,
+    /// Number of cache writes
+    #[prost(uint32, tag = "7")]
+    pub cache_write_count: u32,
+    /// Size of cache write
+    #[prost(uint64, tag = "8")]
+    pub cache_write_input_bytes: u64,
+    /// The lb address header
+    #[prost(string, tag = "10")]
+    pub lb_address: ::prost::alloc::string::String,
+    /// The tag of the sampler that served this request.
+    #[prost(string, tag = "11")]
+    pub sampler_tag: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum IncludeOption {
+    /// Default value / invalid option.
+    Invalid = 0,
+    /// Include the encrypted output from the web search tool in the response.
+    WebSearchCallOutput = 1,
+    /// Include the encrypted output from the X search tool in the response.
+    XSearchCallOutput = 2,
+    /// Include the plaintext output from the code execution tool in the response.
+    CodeExecutionCallOutput = 3,
+    /// Include the plaintext output from the collections search tool in the response.
+    CollectionsSearchCallOutput = 4,
+    /// Include the plaintext output from the attachment search tool in the response.
+    AttachmentSearchCallOutput = 5,
+    /// Include the plaintext output from the MCP tool in the response.
+    McpCallOutput = 6,
+    /// Include the inline citations in the final response.
+    InlineCitations = 7,
+    /// Stream back any chunks that are generated by the model or the agent tools
+    /// even if there is no user-visible content in the chunk, e.g. only the usage
+    /// statistics are being updated.
+    /// The chunks without user-visible content are not streamed to the client when
+    /// this option is not included by default.
+    /// This option is only available for streaming responses.
+    VerboseStreaming = 8,
+}
+impl IncludeOption {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Invalid => "INCLUDE_OPTION_INVALID",
+            Self::WebSearchCallOutput => "INCLUDE_OPTION_WEB_SEARCH_CALL_OUTPUT",
+            Self::XSearchCallOutput => "INCLUDE_OPTION_X_SEARCH_CALL_OUTPUT",
+            Self::CodeExecutionCallOutput => "INCLUDE_OPTION_CODE_EXECUTION_CALL_OUTPUT",
+            Self::CollectionsSearchCallOutput => {
+                "INCLUDE_OPTION_COLLECTIONS_SEARCH_CALL_OUTPUT"
+            }
+            Self::AttachmentSearchCallOutput => {
+                "INCLUDE_OPTION_ATTACHMENT_SEARCH_CALL_OUTPUT"
+            }
+            Self::McpCallOutput => "INCLUDE_OPTION_MCP_CALL_OUTPUT",
+            Self::InlineCitations => "INCLUDE_OPTION_INLINE_CITATIONS",
+            Self::VerboseStreaming => "INCLUDE_OPTION_VERBOSE_STREAMING",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INCLUDE_OPTION_INVALID" => Some(Self::Invalid),
+            "INCLUDE_OPTION_WEB_SEARCH_CALL_OUTPUT" => Some(Self::WebSearchCallOutput),
+            "INCLUDE_OPTION_X_SEARCH_CALL_OUTPUT" => Some(Self::XSearchCallOutput),
+            "INCLUDE_OPTION_CODE_EXECUTION_CALL_OUTPUT" => {
+                Some(Self::CodeExecutionCallOutput)
+            }
+            "INCLUDE_OPTION_COLLECTIONS_SEARCH_CALL_OUTPUT" => {
+                Some(Self::CollectionsSearchCallOutput)
+            }
+            "INCLUDE_OPTION_ATTACHMENT_SEARCH_CALL_OUTPUT" => {
+                Some(Self::AttachmentSearchCallOutput)
+            }
+            "INCLUDE_OPTION_MCP_CALL_OUTPUT" => Some(Self::McpCallOutput),
+            "INCLUDE_OPTION_INLINE_CITATIONS" => Some(Self::InlineCitations),
+            "INCLUDE_OPTION_VERBOSE_STREAMING" => Some(Self::VerboseStreaming),
+            _ => None,
+        }
+    }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -1961,6 +2463,102 @@ impl FormatType {
             "FORMAT_TYPE_TEXT" => Some(Self::Text),
             "FORMAT_TYPE_JSON_OBJECT" => Some(Self::JsonObject),
             "FORMAT_TYPE_JSON_SCHEMA" => Some(Self::JsonSchema),
+            _ => None,
+        }
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ToolCallType {
+    Invalid = 0,
+    /// Indicates the tool is a client-side tool, and should be executed on client side.
+    /// Maps to `function_call` type in OAI Responses API.
+    ClientSideTool = 1,
+    /// Indicates the tool is a server-side web_search tool, and client side won't need to execute.
+    /// Maps to `web_search_call` type in OAI Responses API.
+    WebSearchTool = 2,
+    /// Indicates the tool is a server-side x_search tool, and client side won't need to execute.
+    /// Maps to `x_search_call` type in OAI Responses API.
+    XSearchTool = 3,
+    /// Indicates the tool is a server-side code_execution tool, and client side won't need to execute.
+    /// Maps to `code_interpreter_call` type in OAI Responses API.
+    CodeExecutionTool = 4,
+    /// Indicates the tool is a server-side collections_search tool, and client side won't need to execute.
+    /// Maps to `file_search_call` type in OAI Responses API.
+    CollectionsSearchTool = 5,
+    /// Indicates the tool is a server-side mcp_tool, and client side won't need to execute.
+    /// Maps to `mcp_call` type in OAI Responses API.
+    McpTool = 6,
+    /// Indicates the tool is a server-side attachment_search tool, and client side won't need to execute.
+    /// Maps to `attachment_search_call` type in OAI Responses API.
+    AttachmentSearchTool = 7,
+}
+impl ToolCallType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Invalid => "TOOL_CALL_TYPE_INVALID",
+            Self::ClientSideTool => "TOOL_CALL_TYPE_CLIENT_SIDE_TOOL",
+            Self::WebSearchTool => "TOOL_CALL_TYPE_WEB_SEARCH_TOOL",
+            Self::XSearchTool => "TOOL_CALL_TYPE_X_SEARCH_TOOL",
+            Self::CodeExecutionTool => "TOOL_CALL_TYPE_CODE_EXECUTION_TOOL",
+            Self::CollectionsSearchTool => "TOOL_CALL_TYPE_COLLECTIONS_SEARCH_TOOL",
+            Self::McpTool => "TOOL_CALL_TYPE_MCP_TOOL",
+            Self::AttachmentSearchTool => "TOOL_CALL_TYPE_ATTACHMENT_SEARCH_TOOL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "TOOL_CALL_TYPE_INVALID" => Some(Self::Invalid),
+            "TOOL_CALL_TYPE_CLIENT_SIDE_TOOL" => Some(Self::ClientSideTool),
+            "TOOL_CALL_TYPE_WEB_SEARCH_TOOL" => Some(Self::WebSearchTool),
+            "TOOL_CALL_TYPE_X_SEARCH_TOOL" => Some(Self::XSearchTool),
+            "TOOL_CALL_TYPE_CODE_EXECUTION_TOOL" => Some(Self::CodeExecutionTool),
+            "TOOL_CALL_TYPE_COLLECTIONS_SEARCH_TOOL" => Some(Self::CollectionsSearchTool),
+            "TOOL_CALL_TYPE_MCP_TOOL" => Some(Self::McpTool),
+            "TOOL_CALL_TYPE_ATTACHMENT_SEARCH_TOOL" => Some(Self::AttachmentSearchTool),
+            _ => None,
+        }
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ToolCallStatus {
+    /// The tool call is in progress.
+    InProgress = 0,
+    /// The tool call is completed.
+    Completed = 1,
+    /// The tool call is incomplete.
+    Incomplete = 2,
+    /// The tool call is failed.
+    Failed = 3,
+}
+impl ToolCallStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::InProgress => "TOOL_CALL_STATUS_IN_PROGRESS",
+            Self::Completed => "TOOL_CALL_STATUS_COMPLETED",
+            Self::Incomplete => "TOOL_CALL_STATUS_INCOMPLETE",
+            Self::Failed => "TOOL_CALL_STATUS_FAILED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "TOOL_CALL_STATUS_IN_PROGRESS" => Some(Self::InProgress),
+            "TOOL_CALL_STATUS_COMPLETED" => Some(Self::Completed),
+            "TOOL_CALL_STATUS_INCOMPLETE" => Some(Self::Incomplete),
+            "TOOL_CALL_STATUS_FAILED" => Some(Self::Failed),
             _ => None,
         }
     }
