@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-12-22
+
+### Changed
+- **Client Type Aliases**: All client modules now export simplified type aliases for better ergonomics
+  - `auth::client::AuthClient` - Simplified alias for `AuthClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `billing::client::BillingClient` - Simplified alias for `UiSvcClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `chat::client::ChatClient` - Simplified alias for `ChatClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `documents::client::DocumentsClient` - Simplified alias for `DocumentsClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `embed::client::EmbedClient` - Simplified alias for `EmbedderClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `image::client::ImageClient` - Simplified alias for `ImageClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `models::client::ModelsClient` - Simplified alias for `ModelsClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `sample::client::SampleClient` - Simplified alias for `SampleClient<InterceptedService<Channel, ClientInterceptor>>`
+  - `tokenize::client::TokenizeClient` - Simplified alias for `TokenizeClient<InterceptedService<Channel, ClientInterceptor>>`
+  - All client creation functions (`new()`, `with_channel()`, `with_interceptor()`, `with_channel_and_interceptor()`) now return the simplified type aliases
+  - Function signatures are now much cleaner and easier to read
+- **Documentation Improvements**: Updated all Rust documentation to use simplified type names
+  - All doc comments now reference the clean type aliases instead of the full generic types
+  - Improved readability of API documentation
+  - Consistent documentation style across all client modules
+
+### Benefits
+- **Better Developer Experience**: Cleaner, more readable function signatures
+- **Easier Maintenance**: Type aliases centralize the generic type definition
+- **Backward Compatible**: Existing code continues to work unchanged
+- **Type Safety**: Same underlying types, just with convenient aliases
+
 ## [0.8.0] - 2025-12-08
 
 ### Added

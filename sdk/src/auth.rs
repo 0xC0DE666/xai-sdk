@@ -7,7 +7,9 @@ pub mod client {
     use crate::common::interceptor::ClientInterceptor;
     use crate::export::service::{Interceptor, interceptor::InterceptedService};
     use crate::export::transport::{Channel, Error};
-    use crate::xai_api::auth_client::AuthClient;
+    use crate::xai_api::auth_client::AuthClient as XAuthClient;
+
+    pub type AuthClient = XAuthClient<InterceptedService<Channel, ClientInterceptor>>;
 
     /// Creates a new AuthClient connected to the xAI API.
     ///
@@ -15,14 +17,12 @@ pub mod client {
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<AuthClient<InterceptedService<Channel, ClientInterceptor>>, Error>` - The connected client or connection error
+    /// * `Result<AuthClient, Error>` - The connected client or connection error
     ///
-    pub async fn new(
-        api_key: &str,
-    ) -> Result<AuthClient<InterceptedService<Channel, ClientInterceptor>>, Error> {
+    pub async fn new(api_key: &str) -> Result<AuthClient, Error> {
         let channel = common::channel::new().await?;
         let auth_intercept = common::interceptor::auth(api_key);
-        let client = AuthClient::with_interceptor(channel, auth_intercept);
+        let client = XAuthClient::with_interceptor(channel, auth_intercept);
 
         Ok(client)
     }
@@ -34,13 +34,10 @@ pub mod client {
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `AuthClient<InterceptedService<Channel, ClientInterceptor>>` - The connected client
-    pub fn with_channel(
-        channel: Channel,
-        api_key: &str,
-    ) -> AuthClient<InterceptedService<Channel, ClientInterceptor>> {
+    /// * `AuthClient` - The connected client
+    pub fn with_channel(channel: Channel, api_key: &str) -> AuthClient {
         let auth_intercept = common::interceptor::auth(api_key);
-        let client = AuthClient::with_interceptor(channel, auth_intercept);
+        let client = XAuthClient::with_interceptor(channel, auth_intercept);
 
         client
     }
@@ -53,14 +50,13 @@ pub mod client {
     /// * `interceptor` - Custom interceptor for request authentication/metadata
     ///
     /// # Returns
-    /// * `Result<AuthClient<InterceptedService<Channel, ClientInterceptor>>, tonic::transport::Error>`
-    ///   - The connected, intercepted client or a connection error
+    /// * `Result<AuthClient, Error>` - The connected, intercepted client or a connection error
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
-    ) -> Result<AuthClient<InterceptedService<Channel, ClientInterceptor>>, Error> {
+    ) -> Result<AuthClient, Error> {
         let channel = common::channel::new().await?;
-        let client = AuthClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
+        let client = XAuthClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
 
         Ok(client)
     }
@@ -72,11 +68,11 @@ pub mod client {
     /// * `interceptor` - Custom interceptor for request authentication/metadata
     ///
     /// # Returns
-    /// * `AuthClient<InterceptedService<Channel, ClientInterceptor>>` - The intercepted client
+    /// * `AuthClient` - The intercepted client
     pub fn with_channel_and_interceptor(
         channel: Channel,
         interceptor: impl Interceptor + Send + Sync + 'static,
-    ) -> AuthClient<InterceptedService<Channel, ClientInterceptor>> {
-        AuthClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
+    ) -> AuthClient {
+        XAuthClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
     }
 }

@@ -7,45 +7,42 @@ pub mod client {
     use crate::common::interceptor::ClientInterceptor;
     use crate::export::service::{Interceptor, interceptor::InterceptedService};
     use crate::export::transport::{Channel, Error};
-    use crate::xai_api::embedder_client::EmbedderClient;
+    use crate::xai_api::embedder_client::EmbedderClient as XEmbedderClient;
 
-    /// Creates a new EmbedderClient connected to the xAI API.
+    pub type EmbedClient = XEmbedderClient<InterceptedService<Channel, ClientInterceptor>>;
+
+    /// Creates a new EmbedClient connected to the xAI API.
     ///
     /// # Arguments
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<EmbedderClient<InterceptedService<Channel, ClientInterceptor>>, Error>` - The connected client or connection error
+    /// * `Result<EmbedClient, Error>` - The connected client or connection error
     ///
-    pub async fn new(
-        api_key: &str,
-    ) -> Result<EmbedderClient<InterceptedService<Channel, ClientInterceptor>>, Error> {
+    pub async fn new(api_key: &str) -> Result<EmbedClient, Error> {
         let channel = common::channel::new().await?;
         let auth_intercept = common::interceptor::auth(api_key);
-        let client = EmbedderClient::with_interceptor(channel, auth_intercept);
+        let client = XEmbedderClient::with_interceptor(channel, auth_intercept);
 
         Ok(client)
     }
 
-    /// Creates a new `EmbedderClient` with an existing channel.
+    /// Creates a new `EmbedClient` with an existing channel.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `api_key` - The xAI API key for authentication
     ///
     /// # Returns
-    /// * `EmbedderClient<InterceptedService<Channel, ClientInterceptor>>` - The connected client
-    pub fn with_channel(
-        channel: Channel,
-        api_key: &str,
-    ) -> EmbedderClient<InterceptedService<Channel, ClientInterceptor>> {
+    /// * `EmbedClient` - The connected client
+    pub fn with_channel(channel: Channel, api_key: &str) -> EmbedClient {
         let auth_intercept = common::interceptor::auth(api_key);
-        let client = EmbedderClient::with_interceptor(channel, auth_intercept);
+        let client = XEmbedderClient::with_interceptor(channel, auth_intercept);
 
         client
     }
 
-    /// Creates a new `EmbedderClient` using a provided interceptor.
+    /// Creates a new `EmbedClient` using a provided interceptor.
     ///
     /// Uses the same channel setup as [`new()`] but applies the custom interceptor.
     ///
@@ -53,29 +50,28 @@ pub mod client {
     /// * `interceptor` - Custom interceptor for request authentication/metadata
     ///
     /// # Returns
-    /// * `Result<EmbedderClient<InterceptedService<Channel, ClientInterceptor>>, tonic::transport::Error>`
-    ///   - The connected, intercepted client or a connection error
+    /// * `Result<EmbedClient, Error>` - The connected, intercepted client or a connection error
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
-    ) -> Result<EmbedderClient<InterceptedService<Channel, ClientInterceptor>>, Error> {
+    ) -> Result<EmbedClient, Error> {
         let channel = common::channel::new().await?;
-        let client = EmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
+        let client = XEmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
         Ok(client)
     }
 
-    /// Creates a new `EmbedderClient` with an existing channel and a provided interceptor.
+    /// Creates a new `EmbedClient` with an existing channel and a provided interceptor.
     ///
     /// # Arguments
     /// * `channel` - An existing gRPC channel
     /// * `interceptor` - Custom interceptor for request authentication/metadata
     ///
     /// # Returns
-    /// * `EmbedderClient<InterceptedService<Channel, ClientInterceptor>>` - The intercepted client
+    /// * `EmbedClient` - The intercepted client
     pub fn with_channel_and_interceptor(
         channel: Channel,
         interceptor: impl Interceptor + Send + Sync + 'static,
-    ) -> EmbedderClient<InterceptedService<Channel, ClientInterceptor>> {
-        EmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
+    ) -> EmbedClient {
+        XEmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
     }
 }
