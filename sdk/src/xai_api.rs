@@ -2328,6 +2328,7 @@ pub enum MessageRole {
     /// System role, typically for system instructions.
     RoleSystem = 3,
     /// Indicates a return from a tool call. Deprecated in favor of ROLE_TOOL.
+    #[deprecated]
     RoleFunction = 4,
     /// Indicates a return from a tool call.
     RoleTool = 5,
@@ -2343,6 +2344,7 @@ impl MessageRole {
             Self::RoleUser => "ROLE_USER",
             Self::RoleAssistant => "ROLE_ASSISTANT",
             Self::RoleSystem => "ROLE_SYSTEM",
+            #[allow(deprecated)]
             Self::RoleFunction => "ROLE_FUNCTION",
             Self::RoleTool => "ROLE_TOOL",
         }
@@ -2354,7 +2356,7 @@ impl MessageRole {
             "ROLE_USER" => Some(Self::RoleUser),
             "ROLE_ASSISTANT" => Some(Self::RoleAssistant),
             "ROLE_SYSTEM" => Some(Self::RoleSystem),
-            "ROLE_FUNCTION" => Some(Self::RoleFunction),
+            "ROLE_FUNCTION" => Some(#[allow(deprecated)] Self::RoleFunction),
             "ROLE_TOOL" => Some(Self::RoleTool),
             _ => None,
         }

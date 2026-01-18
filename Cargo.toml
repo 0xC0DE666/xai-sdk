@@ -11,6 +11,6 @@ repository = "https://github.com/0xC0DE666/xai-sdk"
 version = "0.8.0"
 edition = "2024"
 rust-version = "1.88"
-keywords = ["grpc", "async", "grok"]
+keywords = ["async", "grpc", "xai", "grok"]
 categories = ["web-programming", "asynchronous"]
 license = "MIT"
