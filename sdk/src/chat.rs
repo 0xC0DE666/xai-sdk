@@ -635,17 +635,17 @@ pub mod stream {
             }
         }
 
-        /// Builder method to set content token callback.
+        /// Builder method to set chunk callback.
         ///
-        /// The callback receives `(&OutputContext, token: &str)` parameters.
+        /// Called once per chunk received, before token callbacks are invoked.
         ///
         /// # Arguments
-        /// * `f` - Closure that receives `(&OutputContext, token: &str)`
-        pub fn on_content_token<F>(mut self, f: F) -> Self
+        /// * `f` - Closure that receives `&GetChatCompletionChunk`
+        pub fn on_chunk<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext, &str) + Send + Sync + 'static,
+            F: FnMut(&GetChatCompletionChunk) + Send + Sync + 'static,
         {
-            self.on_content_token = Some(Box::new(f));
+            self.on_chunk = Some(Box::new(f));
             self
         }
 
@@ -663,20 +663,6 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set chunk callback.
-        ///
-        /// Called once per chunk received, before token callbacks are invoked.
-        ///
-        /// # Arguments
-        /// * `f` - Closure that receives `&GetChatCompletionChunk`
-        pub fn on_chunk<F>(mut self, f: F) -> Self
-        where
-            F: FnMut(&GetChatCompletionChunk) + Send + Sync + 'static,
-        {
-            self.on_chunk = Some(Box::new(f));
-            self
-        }
-
         /// Builder method to set reasoning completion callback.
         ///
         /// Called once when the reasoning phase completes for an output.
@@ -689,6 +675,20 @@ pub mod stream {
             F: FnMut(&OutputContext) + Send + Sync + 'static,
         {
             self.on_reasoning_complete = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set content token callback.
+        ///
+        /// The callback receives `(&OutputContext, token: &str)` parameters.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `(&OutputContext, token: &str)`
+        pub fn on_content_token<F>(mut self, f: F) -> Self
+        where
+            F: FnMut(&OutputContext, &str) + Send + Sync + 'static,
+        {
+            self.on_content_token = Some(Box::new(f));
             self
         }
 
