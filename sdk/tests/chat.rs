@@ -1,7 +1,8 @@
 use xai_sdk::api::{
-    CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
+    CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, InlineCitation,
+    SamplingUsage, ToolCall,
 };
-use xai_sdk::chat::stream::{OutputContext, Consumer, PhaseStatus, assemble};
+use xai_sdk::chat::stream::{Consumer, OutputContext, PhaseStatus, assemble};
 
 #[test]
 fn test_output_context_new() {
@@ -49,21 +50,29 @@ fn test_phase_status_equality() {
 #[test]
 fn test_consumer_new() {
     let consumer = Consumer::new();
-    assert!(consumer.on_content_token.is_none());
-    assert!(consumer.on_content_complete.is_none());
+    assert!(consumer.on_chunk.is_none());
     assert!(consumer.on_reason_token.is_none());
     assert!(consumer.on_reasoning_complete.is_none());
-    assert!(consumer.on_chunk.is_none());
+    assert!(consumer.on_content_token.is_none());
+    assert!(consumer.on_content_complete.is_none());
+    assert!(consumer.on_inline_citations.is_none());
+    assert!(consumer.on_tool_calls.is_none());
+    assert!(consumer.on_usage.is_none());
+    assert!(consumer.on_citations.is_none());
 }
 
 #[test]
 fn test_consumer_default() {
     let consumer = Consumer::default();
-    assert!(consumer.on_content_token.is_none());
-    assert!(consumer.on_content_complete.is_none());
+    assert!(consumer.on_chunk.is_none());
     assert!(consumer.on_reason_token.is_none());
     assert!(consumer.on_reasoning_complete.is_none());
-    assert!(consumer.on_chunk.is_none());
+    assert!(consumer.on_content_token.is_none());
+    assert!(consumer.on_content_complete.is_none());
+    assert!(consumer.on_inline_citations.is_none());
+    assert!(consumer.on_tool_calls.is_none());
+    assert!(consumer.on_usage.is_none());
+    assert!(consumer.on_citations.is_none());
 }
 
 #[test]
@@ -116,17 +125,25 @@ fn test_consumer_builder_on_content_complete() {
 #[test]
 fn test_consumer_builder_chain() {
     let consumer = Consumer::new()
-        .on_content_token(|_ctx, _token| {})
-        .on_reason_token(|_ctx, _token| {})
         .on_chunk(|_chunk| {})
+        .on_reason_token(|_ctx, _token| {})
         .on_reasoning_complete(|_ctx| {})
-        .on_content_complete(|_ctx| {});
+        .on_content_token(|_ctx, _token| {})
+        .on_content_complete(|_ctx| {})
+        .on_inline_citations(|_ctx, _citations| {})
+        .on_tool_calls(|_ctx, _calls| {})
+        .on_usage(|_usage| {})
+        .on_citations(|_citations| {});
 
-    assert!(consumer.on_content_token.is_some());
-    assert!(consumer.on_reason_token.is_some());
     assert!(consumer.on_chunk.is_some());
+    assert!(consumer.on_reason_token.is_some());
     assert!(consumer.on_reasoning_complete.is_some());
+    assert!(consumer.on_content_token.is_some());
     assert!(consumer.on_content_complete.is_some());
+    assert!(consumer.on_inline_citations.is_some());
+    assert!(consumer.on_tool_calls.is_some());
+    assert!(consumer.on_usage.is_some());
+    assert!(consumer.on_citations.is_some());
 }
 
 #[test]
@@ -354,4 +371,478 @@ fn test_assemble_uses_last_chunk_for_usage() {
     // Should use the last chunk's usage (completion_tokens: 5)
     assert_eq!(usage.completion_tokens, 5);
     assert_eq!(usage.total_tokens, 15);
+}
+
+#[test]
+fn test_consumer_builder_on_inline_citations() {
+    let consumer = Consumer::new().on_inline_citations(|_ctx, _citations| {
+        // Test callback
+    });
+
+    assert!(consumer.on_inline_citations.is_some());
+}
+
+#[test]
+fn test_consumer_builder_on_tool_calls() {
+    let consumer = Consumer::new().on_tool_calls(|_ctx, _calls| {
+        // Test callback
+    });
+
+    assert!(consumer.on_tool_calls.is_some());
+}
+
+#[test]
+fn test_consumer_builder_on_usage() {
+    let consumer = Consumer::new().on_usage(|_usage| {
+        // Test callback
+    });
+
+    assert!(consumer.on_usage.is_some());
+}
+
+#[test]
+fn test_consumer_builder_on_citations() {
+    let consumer = Consumer::new().on_citations(|_citations| {
+        // Test callback
+    });
+
+    assert!(consumer.on_citations.is_some());
+}
+
+#[test]
+fn test_assemble_with_inline_citations() {
+    let mut chunk = GetChatCompletionChunk::default();
+    chunk.id = "test-id".to_string();
+    chunk.model = "test-model".to_string();
+
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
+
+    let mut delta = Delta::default();
+    delta.content = "Hello".to_string();
+    delta.citations = vec![
+        InlineCitation {
+            id: "1".to_string(),
+            start_index: 0,
+            end_index: 5,
+            citation: None,
+            ..Default::default()
+        },
+        InlineCitation {
+            id: "2".to_string(),
+            start_index: 6,
+            end_index: 10,
+            citation: None,
+            ..Default::default()
+        },
+    ];
+    output.delta = Some(delta);
+    chunk.outputs = vec![output];
+
+    let chunks = vec![chunk];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
+    assert_eq!(message.citations.len(), 2);
+    assert_eq!(message.citations[0].id, "1");
+    assert_eq!(message.citations[1].id, "2");
+}
+
+#[test]
+fn test_assemble_with_tool_calls() {
+    let mut chunk = GetChatCompletionChunk::default();
+    chunk.id = "test-id".to_string();
+    chunk.model = "test-model".to_string();
+
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
+
+    let mut delta = Delta::default();
+    delta.content = "Hello".to_string();
+    delta.tool_calls = vec![
+        ToolCall {
+            id: "call-1".to_string(),
+            r#type: 0,
+            status: 0,
+            ..Default::default()
+        },
+        ToolCall {
+            id: "call-2".to_string(),
+            r#type: 0,
+            status: 0,
+            ..Default::default()
+        },
+    ];
+    output.delta = Some(delta);
+    chunk.outputs = vec![output];
+
+    let chunks = vec![chunk];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
+    assert_eq!(message.tool_calls.len(), 2);
+    assert_eq!(message.tool_calls[0].id, "call-1");
+    assert_eq!(message.tool_calls[1].id, "call-2");
+}
+
+#[test]
+fn test_assemble_with_citations_in_last_chunk() {
+    let mut chunk1 = GetChatCompletionChunk::default();
+    chunk1.id = "test-id".to_string();
+    chunk1.model = "test-model".to_string();
+
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
+    let mut delta1 = Delta::default();
+    delta1.content = "Hello".to_string();
+    output1.delta = Some(delta1);
+    chunk1.outputs = vec![output1];
+
+    let mut chunk2 = GetChatCompletionChunk::default();
+    chunk2.id = "test-id".to_string();
+    chunk2.model = "test-model".to_string();
+    chunk2.citations = vec![
+        "https://example.com".to_string(),
+        "https://test.com".to_string(),
+    ];
+
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 0;
+    output2.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta2 = Delta::default();
+    delta2.content = " World".to_string();
+    output2.delta = Some(delta2);
+    chunk2.outputs = vec![output2];
+
+    let chunks = vec![chunk1, chunk2];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    assert_eq!(response.citations.len(), 2);
+    assert_eq!(response.citations[0], "https://example.com");
+    assert_eq!(response.citations[1], "https://test.com");
+}
+
+// Tests for helper functions (get_reasoning_status, get_content_status)
+// These are tested indirectly through the process function by checking OutputContext values
+
+#[test]
+fn test_reasoning_status_init() {
+    // Reasoning status should be Init when there's no reasoning or content and not finished
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonInvalid.into();
+
+    let delta = Delta::default();
+    // For Init: no reasoning, no content, not finished
+    assert!(delta.reasoning_content.is_empty());
+    assert!(delta.content.is_empty());
+    assert_eq!(output.finish_reason, FinishReason::ReasonInvalid.into());
+}
+
+#[test]
+fn test_reasoning_status_pending() {
+    // Reasoning status should be Pending when there's reasoning but no content yet
+    let mut delta = Delta::default();
+    delta.reasoning_content = "Thinking...".to_string();
+    delta.content = "".to_string();
+
+    // Verify the delta has reasoning but no content
+    assert!(!delta.reasoning_content.is_empty());
+    assert!(delta.content.is_empty());
+}
+
+#[test]
+fn test_reasoning_status_complete() {
+    // Reasoning status should be Complete when there's no reasoning and content exists
+    let mut delta = Delta::default();
+    delta.reasoning_content = "".to_string();
+    delta.content = "Hello".to_string();
+
+    // Verify the delta has content but no reasoning
+    assert!(delta.reasoning_content.is_empty());
+    assert!(!delta.content.is_empty());
+}
+
+#[test]
+fn test_content_status_init() {
+    // Content status should be Init when there's no content and not finished
+    let output = CompletionOutputChunk::default();
+    let mut delta = Delta::default();
+    delta.reasoning_content = "Thinking...".to_string();
+    delta.content = "".to_string();
+
+    // Verify: has reasoning, no content, not finished -> content should be Init
+    assert!(!delta.reasoning_content.is_empty());
+    assert!(delta.content.is_empty());
+    assert_eq!(output.finish_reason, FinishReason::ReasonInvalid.into());
+}
+
+#[test]
+fn test_content_status_pending() {
+    // Content status should be Pending when content is being generated
+    let output = CompletionOutputChunk::default();
+    let mut delta = Delta::default();
+    delta.reasoning_content = "".to_string();
+    delta.content = "Hello".to_string();
+
+    // Verify: no reasoning, has content, not finished -> content should be Pending
+    assert!(delta.reasoning_content.is_empty());
+    assert!(!delta.content.is_empty());
+    assert_eq!(output.finish_reason, FinishReason::ReasonInvalid.into());
+}
+
+#[test]
+fn test_content_status_complete() {
+    // Content status should be Complete when output is finished
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
+
+    let mut delta = Delta::default();
+    delta.reasoning_content = "".to_string();
+    delta.content = "Hello".to_string();
+
+    // Verify: no reasoning, has content, finished -> content should be Complete
+    assert!(delta.reasoning_content.is_empty());
+    assert!(!delta.content.is_empty());
+    assert_ne!(output.finish_reason, FinishReason::ReasonInvalid.into());
+}
+
+// More comprehensive tests for assemble function
+
+#[test]
+fn test_assemble_accumulates_encrypted_content() {
+    let mut chunk1 = GetChatCompletionChunk::default();
+    chunk1.id = "test-id".to_string();
+    chunk1.model = "test-model".to_string();
+
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
+    let mut delta1 = Delta::default();
+    delta1.encrypted_content = "enc1".to_string();
+    output1.delta = Some(delta1);
+    chunk1.outputs = vec![output1];
+
+    let mut chunk2 = GetChatCompletionChunk::default();
+    chunk2.id = "test-id".to_string();
+    chunk2.model = "test-model".to_string();
+
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 0;
+    output2.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta2 = Delta::default();
+    delta2.encrypted_content = "enc2".to_string();
+    output2.delta = Some(delta2);
+    chunk2.outputs = vec![output2];
+
+    let chunks = vec![chunk1, chunk2];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
+    assert_eq!(message.encrypted_content, "enc1enc2");
+}
+
+#[test]
+fn test_assemble_handles_role_from_delta() {
+    let mut chunk = GetChatCompletionChunk::default();
+    chunk.id = "test-id".to_string();
+    chunk.model = "test-model".to_string();
+
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
+
+    let mut delta = Delta::default();
+    delta.content = "Hello".to_string();
+    delta.role = 2; // RoleAssistant
+    output.delta = Some(delta);
+    chunk.outputs = vec![output];
+
+    let chunks = vec![chunk];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
+    assert_eq!(message.role, 2);
+}
+
+#[test]
+fn test_assemble_handles_role_zero() {
+    let mut chunk = GetChatCompletionChunk::default();
+    chunk.id = "test-id".to_string();
+    chunk.model = "test-model".to_string();
+
+    let mut output = CompletionOutputChunk::default();
+    output.index = 0;
+    output.finish_reason = FinishReason::ReasonStop.into();
+
+    let mut delta = Delta::default();
+    delta.content = "Hello".to_string();
+    delta.role = 0; // Should not override
+    output.delta = Some(delta);
+    chunk.outputs = vec![output];
+
+    let chunks = vec![chunk];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
+    assert_eq!(message.role, 0);
+}
+
+#[test]
+fn test_assemble_updates_finish_reason_from_latest_chunk() {
+    let mut chunk1 = GetChatCompletionChunk::default();
+    chunk1.id = "test-id".to_string();
+    chunk1.model = "test-model".to_string();
+
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 0;
+    output1.finish_reason = FinishReason::ReasonInvalid.into();
+    let mut delta1 = Delta::default();
+    delta1.content = "Hello".to_string();
+    output1.delta = Some(delta1);
+    chunk1.outputs = vec![output1];
+
+    let mut chunk2 = GetChatCompletionChunk::default();
+    chunk2.id = "test-id".to_string();
+    chunk2.model = "test-model".to_string();
+
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 0;
+    output2.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta2 = Delta::default();
+    delta2.content = " World".to_string();
+    output2.delta = Some(delta2);
+    chunk2.outputs = vec![output2];
+
+    let chunks = vec![chunk1, chunk2];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    assert_eq!(response.outputs[0].finish_reason, FinishReason::ReasonStop.into());
+}
+
+#[test]
+fn test_assemble_handles_multiple_outputs_with_different_indices() {
+    let mut chunk = GetChatCompletionChunk::default();
+    chunk.id = "test-id".to_string();
+    chunk.model = "test-model".to_string();
+
+    let mut output0 = CompletionOutputChunk::default();
+    output0.index = 0;
+    output0.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta0 = Delta::default();
+    delta0.content = "Output 0".to_string();
+    output0.delta = Some(delta0);
+
+    let mut output2 = CompletionOutputChunk::default();
+    output2.index = 2;
+    output2.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta2 = Delta::default();
+    delta2.content = "Output 2".to_string();
+    output2.delta = Some(delta2);
+
+    let mut output1 = CompletionOutputChunk::default();
+    output1.index = 1;
+    output1.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta1 = Delta::default();
+    delta1.content = "Output 1".to_string();
+    output1.delta = Some(delta1);
+
+    // Add outputs in non-sequential order
+    chunk.outputs = vec![output0, output2, output1];
+
+    let chunks = vec![chunk];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    assert_eq!(response.outputs.len(), 3);
+    // Should be sorted by index
+    assert_eq!(response.outputs[0].index, 0);
+    assert_eq!(response.outputs[1].index, 1);
+    assert_eq!(response.outputs[2].index, 2);
+    assert_eq!(
+        response.outputs[0].message.as_ref().unwrap().content,
+        "Output 0"
+    );
+    assert_eq!(
+        response.outputs[1].message.as_ref().unwrap().content,
+        "Output 1"
+    );
+    assert_eq!(
+        response.outputs[2].message.as_ref().unwrap().content,
+        "Output 2"
+    );
+}
+
+#[test]
+fn test_assemble_handles_outputs_across_multiple_chunks() {
+    // Test that outputs with the same index across different chunks are accumulated
+    let mut chunk1 = GetChatCompletionChunk::default();
+    chunk1.id = "test-id".to_string();
+    chunk1.model = "test-model".to_string();
+
+    let mut output1_0 = CompletionOutputChunk::default();
+    output1_0.index = 0;
+    let mut delta1_0 = Delta::default();
+    delta1_0.content = "Hello".to_string();
+    output1_0.delta = Some(delta1_0);
+
+    let mut output1_1 = CompletionOutputChunk::default();
+    output1_1.index = 1;
+    let mut delta1_1 = Delta::default();
+    delta1_1.content = "Hi".to_string();
+    output1_1.delta = Some(delta1_1);
+
+    chunk1.outputs = vec![output1_0, output1_1];
+
+    let mut chunk2 = GetChatCompletionChunk::default();
+    chunk2.id = "test-id".to_string();
+    chunk2.model = "test-model".to_string();
+
+    let mut output2_0 = CompletionOutputChunk::default();
+    output2_0.index = 0;
+    output2_0.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta2_0 = Delta::default();
+    delta2_0.content = " World".to_string();
+    output2_0.delta = Some(delta2_0);
+
+    let mut output2_1 = CompletionOutputChunk::default();
+    output2_1.index = 1;
+    output2_1.finish_reason = FinishReason::ReasonStop.into();
+    let mut delta2_1 = Delta::default();
+    delta2_1.content = " There".to_string();
+    output2_1.delta = Some(delta2_1);
+
+    chunk2.outputs = vec![output2_0, output2_1];
+
+    let chunks = vec![chunk1, chunk2];
+    let result = assemble(chunks);
+
+    assert!(result.is_some());
+    let response = result.unwrap();
+    assert_eq!(response.outputs.len(), 2);
+    assert_eq!(
+        response.outputs[0].message.as_ref().unwrap().content,
+        "Hello World"
+    );
+    assert_eq!(
+        response.outputs[1].message.as_ref().unwrap().content,
+        "Hi There"
+    );
 }
