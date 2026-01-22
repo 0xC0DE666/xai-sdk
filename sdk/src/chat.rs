@@ -104,12 +104,31 @@ pub mod stream {
     ///
     /// # Arguments
     /// * `stream` - The gRPC streaming response containing chat completion chunks
-    /// * `consumer` - A [`Consumer`] that defines callback functions for handling different types of data
+    /// * `consumer` - A [`Consumer`] that defines callback functions for handling different types of data.
+    ///   The consumer's lifetime is inferred from its callbacks - if callbacks capture local variables,
+    ///   the consumer must live at least as long as those variables.
     ///
     /// # Returns
     /// * `Ok(Vec<GetChatCompletionChunk>)` - All collected chunks from the stream
     /// * `Err(Status)` - Any gRPC error that occurred during streaming
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use xai_sdk::chat::stream::{Consumer, process};
+    ///
+    /// // With static consumer
+    /// let consumer = Consumer::with_stdout();
+    /// // process(stream, consumer).await?;
+    ///
+    /// // With scoped consumer that captures local state
+    /// let mut is_thinking = true;
+    /// let consumer = Consumer::new()
+    ///     .on_reasoning_complete(|_ctx| {
+    ///         is_thinking = false;
+    ///     });
+    /// // process(stream, consumer).await?;
+    /// ```
     pub async fn process(
         mut stream: Streaming<GetChatCompletionChunk>,
         mut consumer: Consumer<'_>,
@@ -440,6 +459,13 @@ pub mod stream {
     /// methods or by using the pre-configured [`with_stdout()`](Consumer::with_stdout) or
     /// [`with_buffered_stdout()`](Consumer::with_buffered_stdout) constructors.
     ///
+    /// # Lifetime
+    ///
+    /// The lifetime parameter `'a` is inferred by the compiler based on how the `Consumer` is used.
+    /// If your callbacks capture local variables, the lifetime will be scoped to that context.
+    /// If your callbacks only capture owned data or have no captures, the lifetime can be `'static`,
+    /// allowing the consumer to be stored anywhere for the duration of the program.
+    ///
     /// # Callback Signatures (ordered by execution order)
     /// - `on_chunk`: Called once per complete chunk received
     /// - `on_reason_token`: Called for each reasoning token with `(&OutputContext, token: &str)`
@@ -450,6 +476,22 @@ pub mod stream {
     /// - `on_tool_calls`: Called when tool calls are present in the last delta per output with `(&OutputContext, &[ToolCall])`
     /// - `on_usage`: Called once on the last chunk with `&SamplingUsage`
     /// - `on_citations`: Called once on the last chunk with `&[String]` (citation URLs)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use xai_sdk::chat::stream::Consumer;
+    ///
+    /// // Consumer with static lifetime (no local captures)
+    /// let consumer = Consumer::with_stdout();
+    ///
+    /// // Consumer that captures local variables (scoped lifetime)
+    /// let mut is_thinking = true;
+    /// let consumer = Consumer::new()
+    ///     .on_reasoning_complete(|_ctx| {
+    ///         is_thinking = false;
+    ///     });
+    /// ```
     pub struct Consumer<'a> {
         /// Callback invoked once per complete chunk received.
         ///
@@ -518,6 +560,25 @@ pub mod stream {
 
     impl<'a> Consumer<'a> {
         /// Create a new empty `Consumer` with no callbacks set.
+        ///
+        /// The lifetime `'a` will be inferred from the callbacks you add using the builder methods.
+        /// If you add callbacks that capture local variables, the consumer will be scoped to that context.
+        ///
+        /// # Examples
+        ///
+        /// ```no_run
+        /// use xai_sdk::chat::stream::Consumer;
+        ///
+        /// // Empty consumer
+        /// let consumer = Consumer::new();
+        ///
+        /// // Consumer with callbacks that capture local state
+        /// let mut counter = 0;
+        /// let consumer = Consumer::new()
+        ///     .on_content_token(|_ctx, _token| {
+        ///         counter += 1;
+        ///     });
+        /// ```
         pub fn new() -> Self {
             Self {
                 on_chunk: None,
@@ -537,6 +598,25 @@ pub mod stream {
         /// This consumer only prints tokens from the first output (index 0) to avoid
         /// output mangling when multiple outputs are requested. For multi-output
         /// streaming, use [`with_buffered_stdout()`](Consumer::with_buffered_stdout) instead.
+        ///
+        /// The returned consumer has a `'static` lifetime since it doesn't capture any local variables.
+        /// You can still add additional callbacks using builder methods, but those callbacks must also
+        /// be `'static` (not capture local variables).
+        ///
+        /// # Examples
+        ///
+        /// ```no_run
+        /// use xai_sdk::chat::stream::Consumer;
+        ///
+        /// // Basic usage
+        /// let consumer = Consumer::with_stdout();
+        ///
+        /// // Can still add static callbacks
+        /// let consumer = Consumer::with_stdout()
+        ///     .on_usage(|usage| {
+        ///         println!("Tokens used: {}", usage.total_tokens);
+        ///     });
+        /// ```
         pub fn with_stdout() -> Self {
             Self {
                 on_chunk: None,
@@ -574,6 +654,19 @@ pub mod stream {
         /// This prevents output mangling when streaming multiple outputs by buffering tokens
         /// until an output finishes (has a finish_reason), then printing that output's complete content
         /// in a clean labeled block.
+        ///
+        /// The returned consumer has a `'static` lifetime since it doesn't capture any local variables.
+        /// You can still add additional callbacks using builder methods, but those callbacks must also
+        /// be `'static` (not capture local variables).
+        ///
+        /// # Examples
+        ///
+        /// ```no_run
+        /// use xai_sdk::chat::stream::Consumer;
+        ///
+        /// // For multiple outputs, this prevents interleaved output
+        /// let consumer = Consumer::with_buffered_stdout();
+        /// ```
         pub fn with_buffered_stdout() -> Self {
             #[derive(Default)]
             struct ChoiceBuffer {
@@ -771,10 +864,17 @@ pub mod stream {
         }
     }
 
+    /// Represents the status of a phase (reasoning or content) in a streaming response.
+    ///
+    /// This enum is used in [`OutputContext`] to track the progress of reasoning and content
+    /// generation phases for each output in a multi-output stream.
     #[derive(Clone, Debug, PartialEq)]
     pub enum PhaseStatus {
+        /// Initial state - the phase has not started yet.
         Init,
+        /// The phase is currently in progress.
         Pending,
+        /// The phase has completed.
         Complete,
     }
 
@@ -802,22 +902,25 @@ pub mod stream {
         /// different outputs when processing multi-output streams.
         pub output_index: usize,
 
-        /// Indicates whether the reasoning phase is complete for this output.
+        /// The current status of the reasoning phase for this output.
         ///
-        /// This is `true` when:
-        /// - The reasoning content has finished (no more reasoning tokens), and
-        /// - Either content tokens have started appearing, or the output has finished
+        /// - `PhaseStatus::Init`: Initial state, no reasoning content yet
+        /// - `PhaseStatus::Pending`: Reasoning content is being generated
+        /// - `PhaseStatus::Complete`: Reasoning phase is complete (no more reasoning tokens,
+        ///   and either content has started or the output has finished)
         ///
-        /// Use this flag to detect when the model has finished its reasoning phase
+        /// Use this to detect when the model has finished its reasoning phase
         /// and moved on to generating the final answer.
         pub reasoning_status: PhaseStatus,
 
-        /// Indicates whether the content phase is complete for this output.
+        /// The current status of the content phase for this output.
         ///
-        /// This is `true` when the output has finished (i.e., `finish_reason != 0`),
-        /// meaning no more tokens will be generated for this output.
+        /// - `PhaseStatus::Init`: Initial state, no content yet (reasoning may still be active)
+        /// - `PhaseStatus::Pending`: Content tokens are being generated
+        /// - `PhaseStatus::Complete`: Content phase is complete (output has finished,
+        ///   i.e., `finish_reason != 0`)
         ///
-        /// Use this flag to detect when an output has completed and perform any
+        /// Use this to detect when an output has completed and perform any
         /// final processing or cleanup.
         pub content_status: PhaseStatus,
     }
