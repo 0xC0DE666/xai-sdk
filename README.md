@@ -194,21 +194,17 @@ The SDK provides powerful utilities for working with streaming responses:
 
 ### Stream Consumer
 A flexible callback system for processing streaming data:
-- **`on_content_token(TokenContext, token: &str)`** - Called for each piece of response content
-- **`on_content_complete(CompletionContext)`** - Called once when the content phase completes for an output
-- **`on_reason_token(TokenContext, token: &str)`** - Called for each piece of reasoning content
-- **`on_reasoning_complete(CompletionContext)`** - Called once when the reasoning phase completes for an output
+- **`on_content_token(&OutputContext, token: &str)`** - Called for each piece of response content
+- **`on_content_complete(&OutputContext)`** - Called once when the content phase completes for an output
+- **`on_reason_token(&OutputContext, token: &str)`** - Called for each piece of reasoning content
+- **`on_reasoning_complete(&OutputContext)`** - Called once when the reasoning phase completes for an output
 - **`on_chunk(chunk)`** - Called for each complete chunk received
 
-The `TokenContext` provides:
-- `total_choices` - Total number of outputs in the stream
-- `choice_index` - Index of the output this token belongs to
+The `OutputContext` provides:
+- `total_outputs` - Total number of outputs in the stream
+- `output_index` - Index of the output this context belongs to
 - `reasoning_status` - Current status of the reasoning phase (`Init`, `Pending`, or `Complete`)
 - `content_status` - Current status of the content phase (`Init`, `Pending`, or `Complete`)
-
-The `CompletionContext` provides:
-- `total_choices` - Total number of outputs in the stream
-- `choice_index` - Index of the output that completed
 
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks

@@ -99,7 +99,7 @@ pub mod stream {
     /// and processes each chunk as it arrives. It calls user-defined callbacks for content tokens,
     /// reasoning tokens, and complete chunks, allowing for real-time processing of AI responses.
     ///
-    /// The token callbacks receive `(TokenContext, token: &str)` to properly handle
+    /// The token callbacks receive `(&OutputContext, token: &str)` to properly handle
     /// multiple concurrent outputs in a single stream.
     ///
     /// # Arguments
@@ -398,10 +398,10 @@ pub mod stream {
     ///
     /// # Callback Signatures
     /// - `on_chunk`: Called once per complete chunk received
-    /// - `on_reason_token`: Called for each reasoning token with `(TokenContext, token: &str)`
-    /// - `on_reasoning_complete`: Called once when reasoning phase completes for an output with `CompletionContext`
-    /// - `on_content_token`: Called for each content token with `(TokenContext, token: &str)`
-    /// - `on_content_complete`: Called once when content phase completes for an output with `CompletionContext`
+    /// - `on_reason_token`: Called for each reasoning token with `(&OutputContext, token: &str)`
+    /// - `on_reasoning_complete`: Called once when reasoning phase completes for an output with `&OutputContext`
+    /// - `on_content_token`: Called for each content token with `(&OutputContext, token: &str)`
+    /// - `on_content_complete`: Called once when content phase completes for an output with `&OutputContext`
     pub struct Consumer {
         /// Callback invoked once per complete chunk received.
         ///
@@ -410,7 +410,7 @@ pub mod stream {
 
         /// Callback invoked for each reasoning token in the stream.
         ///
-        /// Receives `(TokenContext, token: &str)`
+        /// Receives `(&OutputContext, token: &str)`
         pub on_reason_token: Option<Box<dyn FnMut(&OutputContext, &str) + Send + Sync>>,
 
         /// Callback invoked once when the reasoning phase completes for an output.
@@ -418,12 +418,12 @@ pub mod stream {
         /// This callback is called only once per output when the reasoning phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
         ///
-        /// Receives `CompletionContext` with information about which output completed.
+        /// Receives `&OutputContext` with information about which output completed.
         pub on_reasoning_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync>>,
 
         /// Callback invoked for each content token in the stream.
         ///
-        /// Receives `(TokenContext, token: &str)`
+        /// Receives `(&OutputContext, token: &str)`
         pub on_content_token: Option<Box<dyn FnMut(&OutputContext, &str) + Send + Sync>>,
 
         /// Callback invoked once when the content phase completes for an output.
@@ -431,7 +431,7 @@ pub mod stream {
         /// This callback is called only once per output when the content phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when content generation finishes.
         ///
-        /// Receives `CompletionContext` with information about which output completed.
+        /// Receives `&OutputContext` with information about which output completed.
         pub on_content_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync>>,
     }
 
@@ -547,10 +547,10 @@ pub mod stream {
 
         /// Builder method to set content token callback.
         ///
-        /// The callback receives `(TokenContext, token: &str)` parameters.
+        /// The callback receives `(&OutputContext, token: &str)` parameters.
         ///
         /// # Arguments
-        /// * `f` - Closure that receives `(TokenContext, token: &str)`
+        /// * `f` - Closure that receives `(&OutputContext, token: &str)`
         pub fn on_content_token<F>(mut self, f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) + Send + Sync + 'static,
@@ -561,10 +561,10 @@ pub mod stream {
 
         /// Builder method to set reason token callback.
         ///
-        /// The callback receives `(TokenContext, token: &str)` parameters.
+        /// The callback receives `(&OutputContext, token: &str)` parameters.
         ///
         /// # Arguments
-        /// * `f` - Closure that receives `(TokenContext, token: &str)`
+        /// * `f` - Closure that receives `(&OutputContext, token: &str)`
         pub fn on_reason_token<F>(mut self, f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) + Send + Sync + 'static,
@@ -593,7 +593,7 @@ pub mod stream {
         /// This callback is invoked only once per output when reasoning transitions to Complete.
         ///
         /// # Arguments
-        /// * `f` - Closure that receives `CompletionContext` and is called when reasoning completes
+        /// * `f` - Closure that receives `&OutputContext` and is called when reasoning completes
         pub fn on_reasoning_complete<F>(mut self, f: F) -> Self
         where
             F: FnMut(&OutputContext) + Send + Sync + 'static,
@@ -608,7 +608,7 @@ pub mod stream {
         /// This callback is invoked only once per output when content transitions to Complete.
         ///
         /// # Arguments
-        /// * `f` - Closure that receives `CompletionContext` and is called when content completes
+        /// * `f` - Closure that receives `&OutputContext` and is called when content completes
         pub fn on_content_complete<F>(mut self, f: F) -> Self
         where
             F: FnMut(&OutputContext) + Send + Sync + 'static,
@@ -631,15 +631,15 @@ pub mod stream {
         Complete,
     }
 
-    /// Contextual information about a token in a streaming chat completion response.
+    /// Contextual information about an output in a streaming chat completion response.
     ///
-    /// `TokenContext` provides metadata about the current token being processed, including
+    /// `OutputContext` provides metadata about the current output being processed, including
     /// which output it belongs to, how many total outputs are in the stream, and completion
     /// status flags for reasoning and content phases.
     ///
     /// This struct is passed to token callbacks (`on_content_token` and `on_reason_token`)
-    /// to provide context about the token's position in the stream and the state of the
-    /// response generation.
+    /// and completion callbacks (`on_content_complete` and `on_reasoning_complete`) to provide
+    /// context about the output's position in the stream and the state of the response generation.
     ///
     #[derive(Clone, Debug)]
     pub struct OutputContext {
@@ -676,18 +676,18 @@ pub mod stream {
     }
 
     impl OutputContext {
-        /// Creates a new `TokenContext` with the specified values.
+        /// Creates a new `OutputContext` with the specified values.
         ///
         /// # Arguments
         ///
-        /// * `total_choices` - The total number of outputs in the stream
-        /// * `choice_index` - The index of the output this token belongs to
-        /// * `reasoning_complete` - Whether the reasoning phase is complete
-        /// * `content_complete` - Whether the content phase is complete
+        /// * `total_outputs` - The total number of outputs in the stream
+        /// * `output_index` - The index of the output this context belongs to
+        /// * `reasoning_status` - The current status of the reasoning phase
+        /// * `content_status` - The current status of the content phase
         ///
         /// # Returns
         ///
-        /// A new `TokenContext` instance with the provided values.
+        /// A new `OutputContext` instance with the provided values.
         pub fn new(
             total_outputs: usize,
             output_index: usize,
