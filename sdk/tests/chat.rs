@@ -1,40 +1,40 @@
 use xai_sdk::api::{
     CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
 };
-use xai_sdk::chat::stream::{CompletionContext, Consumer, PhaseStatus, TokenContext, assemble};
+use xai_sdk::chat::stream::{OutputContext, Consumer, PhaseStatus, assemble};
 
 #[test]
-fn test_token_context_new() {
-    let ctx = TokenContext::new(2, 1, PhaseStatus::Pending, PhaseStatus::Init);
-    assert_eq!(ctx.total_choices, 2);
-    assert_eq!(ctx.choice_index, 1);
+fn test_output_context_new() {
+    let ctx = OutputContext::new(2, 1, PhaseStatus::Pending, PhaseStatus::Init);
+    assert_eq!(ctx.total_outputs, 2);
+    assert_eq!(ctx.output_index, 1);
     assert_eq!(ctx.reasoning_status, PhaseStatus::Pending);
     assert_eq!(ctx.content_status, PhaseStatus::Init);
 }
 
 #[test]
-fn test_token_context_clone() {
-    let ctx = TokenContext::new(1, 0, PhaseStatus::Complete, PhaseStatus::Complete);
+fn test_output_context_clone() {
+    let ctx = OutputContext::new(1, 0, PhaseStatus::Complete, PhaseStatus::Complete);
     let cloned = ctx.clone();
-    assert_eq!(cloned.total_choices, ctx.total_choices);
-    assert_eq!(cloned.choice_index, ctx.choice_index);
+    assert_eq!(cloned.total_outputs, ctx.total_outputs);
+    assert_eq!(cloned.output_index, ctx.output_index);
     assert_eq!(cloned.reasoning_status, ctx.reasoning_status);
     assert_eq!(cloned.content_status, ctx.content_status);
 }
 
 #[test]
-fn test_completion_context_new() {
-    let ctx = CompletionContext::new(3, 2);
-    assert_eq!(ctx.total_choices, 3);
-    assert_eq!(ctx.choice_index, 2);
+fn test_output_context_with_complete_phases() {
+    let ctx = OutputContext::new(3, 2, PhaseStatus::Complete, PhaseStatus::Complete);
+    assert_eq!(ctx.total_outputs, 3);
+    assert_eq!(ctx.output_index, 2);
 }
 
 #[test]
-fn test_completion_context_clone() {
-    let ctx = CompletionContext::new(2, 1);
+fn test_output_context_with_complete_phases_clone() {
+    let ctx = OutputContext::new(2, 1, PhaseStatus::Complete, PhaseStatus::Complete);
     let cloned = ctx.clone();
-    assert_eq!(cloned.total_choices, ctx.total_choices);
-    assert_eq!(cloned.choice_index, ctx.choice_index);
+    assert_eq!(cloned.total_outputs, ctx.total_outputs);
+    assert_eq!(cloned.output_index, ctx.output_index);
 }
 
 #[test]
