@@ -117,6 +117,8 @@ pub mod stream {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
         let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
+        let mut tool_calls_flags: HashMap<i32, bool> = HashMap::new();
+        let mut last_chunk: Option<GetChatCompletionChunk> = None;
 
         loop {
             // Process each chunk as it arrives
@@ -191,12 +193,54 @@ pub mod stream {
                                     content_complete_flags.insert(output.index, true);
                                 }
                             }
+
+                            // Inline citations
+                            if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
+                                && !delta.citations.is_empty()
+                            {
+                                on_inline_citations(&output_ctx, &delta.citations);
+                            }
+
+                            // Tool calls (last delta per output)
+                            if let Some(ref mut on_tool_calls) = consumer.on_tool_calls {
+                                if !delta.tool_calls.is_empty() {
+                                    // Check if this is the last delta for this output (output is finished)
+                                    let is_last_delta =
+                                        output.finish_reason != FinishReason::ReasonInvalid.into();
+                                    let was_called = tool_calls_flags
+                                        .get(&output.index)
+                                        .copied()
+                                        .unwrap_or(false);
+
+                                    // Call on the last delta per output that contains tool calls
+                                    if is_last_delta && !was_called {
+                                        on_tool_calls(&output_ctx, &delta.tool_calls);
+                                        tool_calls_flags.insert(output.index, true);
+                                    }
+                                }
+                            }
                         }
                     }
+                    last_chunk = Some(chunk.clone());
                     chunks.push(chunk);
                 }
                 Err(status) => {
                     return Err(status);
+                }
+            }
+        }
+
+        // Call usage and citations callbacks on the last chunk
+        if let Some(ref last_chunk) = last_chunk {
+            if let Some(ref mut on_usage) = consumer.on_usage {
+                if let Some(ref usage) = last_chunk.usage {
+                    on_usage(usage);
+                }
+            }
+
+            if let Some(ref mut on_citations) = consumer.on_citations {
+                if !last_chunk.citations.is_empty() {
+                    on_citations(&last_chunk.citations);
                 }
             }
         }
@@ -396,12 +440,16 @@ pub mod stream {
     /// methods or by using the pre-configured [`with_stdout()`](Consumer::with_stdout) or
     /// [`with_buffered_stdout()`](Consumer::with_buffered_stdout) constructors.
     ///
-    /// # Callback Signatures
+    /// # Callback Signatures (ordered by execution order)
     /// - `on_chunk`: Called once per complete chunk received
     /// - `on_reason_token`: Called for each reasoning token with `(&OutputContext, token: &str)`
     /// - `on_reasoning_complete`: Called once when reasoning phase completes for an output with `&OutputContext`
     /// - `on_content_token`: Called for each content token with `(&OutputContext, token: &str)`
     /// - `on_content_complete`: Called once when content phase completes for an output with `&OutputContext`
+    /// - `on_inline_citations`: Called when inline citations are present in a delta with `(&OutputContext, &[InlineCitation])`
+    /// - `on_tool_calls`: Called when tool calls are present in the last delta per output with `(&OutputContext, &[ToolCall])`
+    /// - `on_usage`: Called once on the last chunk with `&SamplingUsage`
+    /// - `on_citations`: Called once on the last chunk with `&[String]` (citation URLs)
     pub struct Consumer {
         /// Callback invoked once per complete chunk received.
         ///
@@ -433,17 +481,53 @@ pub mod stream {
         ///
         /// Receives `&OutputContext` with information about which output completed.
         pub on_content_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync>>,
+
+        /// Callback invoked when inline citations are present in a delta.
+        ///
+        /// This callback is called whenever a delta contains inline citations for an output.
+        ///
+        /// Receives `(&OutputContext, &[InlineCitation])` with the output context and citations.
+        pub on_inline_citations:
+            Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync>>,
+
+        /// Callback invoked when tool calls are present in the last delta per output.
+        ///
+        /// This callback is called when tool calls appear in a delta, typically in the last delta
+        /// for an output before it completes.
+        ///
+        /// Receives `(&OutputContext, &[ToolCall])` with the output context and tool calls.
+        pub on_tool_calls:
+            Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync>>,
+
+        /// Callback invoked once on the last chunk with usage statistics.
+        ///
+        /// This callback is called once when the stream completes, providing final usage statistics.
+        ///
+        /// Receives `&SamplingUsage` with token usage information.
+        pub on_usage: Option<Box<dyn FnMut(&crate::xai_api::SamplingUsage) + Send + Sync>>,
+
+        /// Callback invoked once on the last chunk with citations.
+        ///
+        /// This callback is called once when the stream completes, providing all citations
+        /// from the final chunk.
+        ///
+        /// Receives `&[String]` with all citation URLs from the last chunk.
+        pub on_citations: Option<Box<dyn FnMut(&[String]) + Send + Sync>>,
     }
 
     impl Consumer {
         /// Create a new empty `Consumer` with no callbacks set.
         pub fn new() -> Self {
             Self {
-                on_content_token: None,
-                on_content_complete: None,
+                on_chunk: None,
                 on_reason_token: None,
                 on_reasoning_complete: None,
-                on_chunk: None,
+                on_content_token: None,
+                on_content_complete: None,
+                on_inline_citations: None,
+                on_tool_calls: None,
+                on_usage: None,
+                on_citations: None,
             }
         }
 
@@ -454,18 +538,7 @@ pub mod stream {
         /// streaming, use [`with_buffered_stdout()`](Consumer::with_buffered_stdout) instead.
         pub fn with_stdout() -> Self {
             Self {
-                on_content_token: Some(Box::new(|ctx: &OutputContext, token: &str| {
-                    if ctx.output_index != 0 {
-                        return;
-                    }
-
-                    print!("{token}");
-                    std::io::stdout().flush().expect("Error flushing stdout");
-                })),
-                on_content_complete: Some(Box::new(|_ctx: &OutputContext| {
-                    println!("\n");
-                })),
-
+                on_chunk: None,
                 on_reason_token: Some(Box::new(|ctx: &OutputContext, token: &str| {
                     if ctx.output_index != 0 {
                         return;
@@ -477,8 +550,21 @@ pub mod stream {
                 on_reasoning_complete: Some(Box::new(|_ctx: &OutputContext| {
                     println!("\n");
                 })),
+                on_content_token: Some(Box::new(|ctx: &OutputContext, token: &str| {
+                    if ctx.output_index != 0 {
+                        return;
+                    }
 
-                on_chunk: None,
+                    print!("{token}");
+                    std::io::stdout().flush().expect("Error flushing stdout");
+                })),
+                on_content_complete: Some(Box::new(|_ctx: &OutputContext| {
+                    println!("\n");
+                })),
+                on_inline_citations: None,
+                on_tool_calls: None,
+                on_usage: None,
+                on_citations: None,
             }
         }
 
@@ -504,18 +590,6 @@ pub mod stream {
             let finished_clone = finished.clone();
 
             Self {
-                on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
-                    let mut buffers = buffers_content.lock().unwrap();
-                    let output_buf = buffers.entry(ctx.output_index as i32).or_default();
-                    output_buf.content.push_str(token);
-                })),
-                on_content_complete: None,
-                on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
-                    let mut buffers = buffers_reason.lock().unwrap();
-                    let output_buf = buffers.entry(ctx.output_index as i32).or_default();
-                    output_buf.reasoning.push_str(token);
-                })),
-                on_reasoning_complete: None,
                 on_chunk: Some(Box::new(move |chunk: &GetChatCompletionChunk| {
                     let mut buffers = buffers_chunk.lock().unwrap();
                     let mut finished = finished_clone.lock().unwrap();
@@ -542,6 +616,22 @@ pub mod stream {
                         }
                     }
                 })),
+                on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                    let mut buffers = buffers_reason.lock().unwrap();
+                    let output_buf = buffers.entry(ctx.output_index as i32).or_default();
+                    output_buf.reasoning.push_str(token);
+                })),
+                on_reasoning_complete: None,
+                on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                    let mut buffers = buffers_content.lock().unwrap();
+                    let output_buf = buffers.entry(ctx.output_index as i32).or_default();
+                    output_buf.content.push_str(token);
+                })),
+                on_content_complete: None,
+                on_inline_citations: None,
+                on_tool_calls: None,
+                on_usage: None,
+                on_citations: None,
             }
         }
 
@@ -614,6 +704,62 @@ pub mod stream {
             F: FnMut(&OutputContext) + Send + Sync + 'static,
         {
             self.on_content_complete = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set inline citations callback.
+        ///
+        /// Called when inline citations are present in a delta for an output.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `(&OutputContext, &[InlineCitation])` and is called when citations are present
+        pub fn on_inline_citations<F>(mut self, f: F) -> Self
+        where
+            F: FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync + 'static,
+        {
+            self.on_inline_citations = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set tool calls callback.
+        ///
+        /// Called when tool calls are present in a delta, typically in the last delta per output.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `(&OutputContext, &[ToolCall])` and is called when tool calls are present
+        pub fn on_tool_calls<F>(mut self, f: F) -> Self
+        where
+            F: FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'static,
+        {
+            self.on_tool_calls = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set usage callback.
+        ///
+        /// Called once on the last chunk with final usage statistics.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `&SamplingUsage` and is called on the last chunk
+        pub fn on_usage<F>(mut self, f: F) -> Self
+        where
+            F: FnMut(&crate::xai_api::SamplingUsage) + Send + Sync + 'static,
+        {
+            self.on_usage = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set citations callback.
+        ///
+        /// Called once on the last chunk with all citations.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `&[String]` and is called on the last chunk
+        pub fn on_citations<F>(mut self, f: F) -> Self
+        where
+            F: FnMut(&[String]) + Send + Sync + 'static,
+        {
+            self.on_citations = Some(Box::new(f));
             self
         }
     }
