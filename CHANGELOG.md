@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-01-22
+
+### Added
+- **New Stream Consumer Callbacks**: Added four new optional callbacks to `chat::stream::Consumer` for comprehensive stream processing
+  - `on_inline_citations(&OutputContext, &[InlineCitation])` - Called when inline citations are present in a delta
+  - `on_tool_calls(&OutputContext, &[ToolCall])` - Called when tool calls are present in the last delta per output
+  - `on_usage(&SamplingUsage)` - Called once on the last chunk with final usage statistics
+  - `on_citations(&[String])` - Called once on the last chunk with all citation URLs
+  - All new callbacks have corresponding builder methods for fluent API construction
+- **Comprehensive Test Suite**: Expanded test coverage for utilities and helper functions
+  - Added tests for phase status helper functions (`get_reasoning_status`, `get_content_status`)
+  - Added edge case tests for `assemble()` function (encrypted content, role handling, multiple outputs, cross-chunk accumulation)
+  - Added complete test suite for `utils::enums` Display and FromStr implementations (25 tests covering all 12 enum types)
+  - Added round-trip tests for Display ↔ FromStr conversions
+  - Total test count increased from 27 to 39 in chat tests, plus 25 new utils tests
+
+### Changed
+- **BREAKING**: Unified context types in streaming API
+  - Merged `TokenContext` and `CompletionContext` into a single `OutputContext` type
+  - All callbacks now use `&OutputContext` instead of separate context types
+  - Simplified API surface while maintaining all functionality
+- **BREAKING**: Renamed context fields for clarity
+  - `total_choices` → `total_outputs` (more accurate terminology)
+  - `choice_index` → `output_index` (consistent with "outputs" terminology)
+  - Updated all documentation and examples
+- **BREAKING**: Changed callback signatures to use references
+  - All token and completion callbacks now receive `&OutputContext` instead of owned `OutputContext`
+  - Improves performance by avoiding unnecessary clones in hot paths
+  - Callback signatures: `(&OutputContext, token: &str)` for token callbacks, `&OutputContext` for completion callbacks
+- **Consumer Field Ordering**: Reordered `Consumer` struct fields to match execution order
+  - Fields now ordered: `on_chunk`, `on_reason_token`, `on_reasoning_complete`, `on_content_token`, `on_content_complete`, `on_inline_citations`, `on_tool_calls`, `on_usage`, `on_citations`
+  - Improves code readability and matches the actual execution flow
+- **Documentation Updates**: Comprehensive documentation updates throughout the codebase
+  - Updated all Rust doc comments to reflect new `OutputContext` type and field names
+  - Updated README.md to use unified `OutputContext` terminology
+  - Updated callback signature documentation in all relevant places
+  - Fixed all references to old `TokenContext` and `CompletionContext` types
+
+### Fixed
+- Fixed compilation errors in test suite after refactoring
+- Fixed duplicate import in test file
+- Fixed test function names to match new context type naming
+- Fixed borrow checker issues in test code
+
 ## [0.8.0] - 2025-12-22
 
 ### Changed
