@@ -112,7 +112,7 @@ pub mod stream {
     ///
     pub async fn process(
         mut stream: Streaming<GetChatCompletionChunk>,
-        mut consumer: Consumer,
+        mut consumer: Consumer<'_>,
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
@@ -450,16 +450,16 @@ pub mod stream {
     /// - `on_tool_calls`: Called when tool calls are present in the last delta per output with `(&OutputContext, &[ToolCall])`
     /// - `on_usage`: Called once on the last chunk with `&SamplingUsage`
     /// - `on_citations`: Called once on the last chunk with `&[String]` (citation URLs)
-    pub struct Consumer {
+    pub struct Consumer<'a> {
         /// Callback invoked once per complete chunk received.
         ///
         /// Receives `&GetChatCompletionChunk`
-        pub on_chunk: Option<Box<dyn FnMut(&GetChatCompletionChunk) + Send + Sync>>,
+        pub on_chunk: Option<Box<dyn FnMut(&GetChatCompletionChunk) + Send + Sync + 'a>>,
 
         /// Callback invoked for each reasoning token in the stream.
         ///
         /// Receives `(&OutputContext, token: &str)`
-        pub on_reason_token: Option<Box<dyn FnMut(&OutputContext, &str) + Send + Sync>>,
+        pub on_reason_token: Option<Box<dyn FnMut(&OutputContext, &str) + Send + Sync + 'a>>,
 
         /// Callback invoked once when the reasoning phase completes for an output.
         ///
@@ -467,12 +467,12 @@ pub mod stream {
         /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
         ///
         /// Receives `&OutputContext` with information about which output completed.
-        pub on_reasoning_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync>>,
+        pub on_reasoning_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync + 'a>>,
 
         /// Callback invoked for each content token in the stream.
         ///
         /// Receives `(&OutputContext, token: &str)`
-        pub on_content_token: Option<Box<dyn FnMut(&OutputContext, &str) + Send + Sync>>,
+        pub on_content_token: Option<Box<dyn FnMut(&OutputContext, &str) + Send + Sync + 'a>>,
 
         /// Callback invoked once when the content phase completes for an output.
         ///
@@ -480,15 +480,16 @@ pub mod stream {
         /// to `Complete`. Useful for performing cleanup or formatting when content generation finishes.
         ///
         /// Receives `&OutputContext` with information about which output completed.
-        pub on_content_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync>>,
+        pub on_content_complete: Option<Box<dyn FnMut(&OutputContext) + Send + Sync + 'a>>,
 
         /// Callback invoked when inline citations are present in a delta.
         ///
         /// This callback is called whenever a delta contains inline citations for an output.
         ///
         /// Receives `(&OutputContext, &[InlineCitation])` with the output context and citations.
-        pub on_inline_citations:
-            Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync>>,
+        pub on_inline_citations: Option<
+            Box<dyn FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync + 'a>,
+        >,
 
         /// Callback invoked when tool calls are present in the last delta per output.
         ///
@@ -497,14 +498,14 @@ pub mod stream {
         ///
         /// Receives `(&OutputContext, &[ToolCall])` with the output context and tool calls.
         pub on_tool_calls:
-            Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync>>,
+            Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'a>>,
 
         /// Callback invoked once on the last chunk with usage statistics.
         ///
         /// This callback is called once when the stream completes, providing final usage statistics.
         ///
         /// Receives `&SamplingUsage` with token usage information.
-        pub on_usage: Option<Box<dyn FnMut(&crate::xai_api::SamplingUsage) + Send + Sync>>,
+        pub on_usage: Option<Box<dyn FnMut(&crate::xai_api::SamplingUsage) + Send + Sync + 'a>>,
 
         /// Callback invoked once on the last chunk with citations.
         ///
@@ -512,10 +513,10 @@ pub mod stream {
         /// from the final chunk.
         ///
         /// Receives `&[String]` with all citation URLs from the last chunk.
-        pub on_citations: Option<Box<dyn FnMut(&[String]) + Send + Sync>>,
+        pub on_citations: Option<Box<dyn FnMut(&[String]) + Send + Sync + 'a>>,
     }
 
-    impl Consumer {
+    impl<'a> Consumer<'a> {
         /// Create a new empty `Consumer` with no callbacks set.
         pub fn new() -> Self {
             Self {
@@ -643,7 +644,7 @@ pub mod stream {
         /// * `f` - Closure that receives `&GetChatCompletionChunk`
         pub fn on_chunk<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&GetChatCompletionChunk) + Send + Sync + 'static,
+            F: FnMut(&GetChatCompletionChunk) + Send + Sync + 'a,
         {
             self.on_chunk = Some(Box::new(f));
             self
@@ -657,7 +658,7 @@ pub mod stream {
         /// * `f` - Closure that receives `(&OutputContext, token: &str)`
         pub fn on_reason_token<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext, &str) + Send + Sync + 'static,
+            F: FnMut(&OutputContext, &str) + Send + Sync + 'a,
         {
             self.on_reason_token = Some(Box::new(f));
             self
@@ -672,7 +673,7 @@ pub mod stream {
         /// * `f` - Closure that receives `&OutputContext` and is called when reasoning completes
         pub fn on_reasoning_complete<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext) + Send + Sync + 'static,
+            F: FnMut(&OutputContext) + Send + Sync + 'a,
         {
             self.on_reasoning_complete = Some(Box::new(f));
             self
@@ -686,7 +687,7 @@ pub mod stream {
         /// * `f` - Closure that receives `(&OutputContext, token: &str)`
         pub fn on_content_token<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext, &str) + Send + Sync + 'static,
+            F: FnMut(&OutputContext, &str) + Send + Sync + 'a,
         {
             self.on_content_token = Some(Box::new(f));
             self
@@ -701,7 +702,7 @@ pub mod stream {
         /// * `f` - Closure that receives `&OutputContext` and is called when content completes
         pub fn on_content_complete<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext) + Send + Sync + 'static,
+            F: FnMut(&OutputContext) + Send + Sync + 'a,
         {
             self.on_content_complete = Some(Box::new(f));
             self
@@ -715,7 +716,7 @@ pub mod stream {
         /// * `f` - Closure that receives `(&OutputContext, &[InlineCitation])` and is called when citations are present
         pub fn on_inline_citations<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync + 'static,
+            F: FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync + 'a,
         {
             self.on_inline_citations = Some(Box::new(f));
             self
@@ -729,7 +730,7 @@ pub mod stream {
         /// * `f` - Closure that receives `(&OutputContext, &[ToolCall])` and is called when tool calls are present
         pub fn on_tool_calls<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'static,
+            F: FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'a,
         {
             self.on_tool_calls = Some(Box::new(f));
             self
@@ -743,7 +744,7 @@ pub mod stream {
         /// * `f` - Closure that receives `&SamplingUsage` and is called on the last chunk
         pub fn on_usage<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&crate::xai_api::SamplingUsage) + Send + Sync + 'static,
+            F: FnMut(&crate::xai_api::SamplingUsage) + Send + Sync + 'a,
         {
             self.on_usage = Some(Box::new(f));
             self
@@ -757,14 +758,14 @@ pub mod stream {
         /// * `f` - Closure that receives `&[String]` and is called on the last chunk
         pub fn on_citations<F>(mut self, f: F) -> Self
         where
-            F: FnMut(&[String]) + Send + Sync + 'static,
+            F: FnMut(&[String]) + Send + Sync + 'a,
         {
             self.on_citations = Some(Box::new(f));
             self
         }
     }
 
-    impl Default for Consumer {
+    impl<'a> Default for Consumer<'a> {
         fn default() -> Self {
             Self::new()
         }
