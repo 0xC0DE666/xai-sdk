@@ -1,8 +1,8 @@
-Upgrade to latest protos.
+(DONE) Upgrade to latest protos.
 
-Everything that says 'choice' in stream should be 'output'.
+(DONE) Everything that says 'choice' in stream should be 'output'.
 
-Replace TokenContext and CompletionContext with OutputContext
+(DONE) Replace TokenContext and CompletionContext with OutputContext
     OutputContext {
         pub total_outputs: usize,
         pub output_index: usize,
@@ -10,7 +10,7 @@ Replace TokenContext and CompletionContext with OutputContext
         pub content_status: PhaseStatus,
     }
 
-Add following to StreamConsumer
+Add following to chat::stream::Consumer
 * order functions by execution order
     on_chunk(&chunk)  -- on all chunks
 

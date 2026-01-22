@@ -506,14 +506,14 @@ pub mod stream {
             Self {
                 on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
                     let mut buffers = buffers_content.lock().unwrap();
-                    let choice_buf = buffers.entry(ctx.output_index as i32).or_default();
-                    choice_buf.content.push_str(token);
+                    let output_buf = buffers.entry(ctx.output_index as i32).or_default();
+                    output_buf.content.push_str(token);
                 })),
                 on_content_complete: None,
                 on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
                     let mut buffers = buffers_reason.lock().unwrap();
-                    let choice_buf = buffers.entry(ctx.output_index as i32).or_default();
-                    choice_buf.reasoning.push_str(token);
+                    let output_buf = buffers.entry(ctx.output_index as i32).or_default();
+                    output_buf.reasoning.push_str(token);
                 })),
                 on_reasoning_complete: None,
                 on_chunk: Some(Box::new(move |chunk: &GetChatCompletionChunk| {
@@ -528,13 +528,13 @@ pub mod stream {
                             finished.insert(idx, true);
 
                             // Print the buffered content for this output
-                            if let Some(choice_buf) = buffers.remove(&idx) {
+                            if let Some(output_buf) = buffers.remove(&idx) {
                                 println!("\n--- Output {idx} ---");
-                                if !choice_buf.reasoning.is_empty() {
-                                    println!("Reasoning:\n{}\n", choice_buf.reasoning);
+                                if !output_buf.reasoning.is_empty() {
+                                    println!("Reasoning:\n{}\n", output_buf.reasoning);
                                 }
-                                if !choice_buf.content.is_empty() {
-                                    println!("Content:\n{}\n", choice_buf.content);
+                                if !output_buf.content.is_empty() {
+                                    println!("Content:\n{}\n", output_buf.content);
                                 }
                                 println!("Finish reason: {}\n", output.finish_reason);
                                 std::io::stdout().flush().expect("Error flushing stdout");
