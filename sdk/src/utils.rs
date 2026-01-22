@@ -153,6 +153,7 @@ pub mod enums {
                 MessageRole::RoleSystem => "system",
                 MessageRole::RoleFunction => "function",
                 MessageRole::RoleTool => "tool",
+                MessageRole::RoleDeveloper => "developer",
             };
             f.write_str(s)
         }
@@ -169,6 +170,7 @@ pub mod enums {
                 "system" => Ok(MessageRole::RoleSystem),
                 "function" => Ok(MessageRole::RoleFunction),
                 "tool" => Ok(MessageRole::RoleTool),
+                "developer" => Ok(MessageRole::RoleDeveloper),
                 _ => MessageRole::from_str_name(s.to_ascii_uppercase().as_str())
                     .ok_or_else(|| format!("Invalid message role: '{s}'")),
             }

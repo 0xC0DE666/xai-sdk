@@ -1699,6 +1699,9 @@ pub struct Message {
     /// The encrypted content.
     #[prost(string, tag = "6")]
     pub encrypted_content: ::prost::alloc::string::String,
+    /// The ID associating this tool response with a prior invocation (for role = ROLE_TOOL).
+    #[prost(string, optional, tag = "7")]
+    pub tool_call_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1798,6 +1801,28 @@ pub struct WebSearch {
     /// When true, the server may add image viewing tools to the active MCP toolset.
     #[prost(bool, optional, tag = "3")]
     pub enable_image_understanding: ::core::option::Option<bool>,
+    /// The user location to use for a preference on the search results.
+    /// Setting this will make the agentic search results more relevant to the specified location,
+    /// which is useful for geolocation-based search results refinement.
+    #[prost(message, optional, tag = "4")]
+    pub user_location: ::core::option::Option<WebSearchUserLocation>,
+}
+/// The user location to use for a preference on the search results.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebSearchUserLocation {
+    /// Two-letter ISO 3166-1 alpha-2 country code, like US, GB, etc.
+    #[prost(string, optional, tag = "1")]
+    pub country: ::core::option::Option<::prost::alloc::string::String>,
+    /// Free text string for the city.
+    #[prost(string, optional, tag = "2")]
+    pub city: ::core::option::Option<::prost::alloc::string::String>,
+    /// Free text string for the region.
+    #[prost(string, optional, tag = "3")]
+    pub region: ::core::option::Option<::prost::alloc::string::String>,
+    /// IANA timezone like America/Chicago, Europe/London, etc.
+    #[prost(string, optional, tag = "4")]
+    pub timezone: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2332,6 +2357,8 @@ pub enum MessageRole {
     RoleFunction = 4,
     /// Indicates a return from a tool call.
     RoleTool = 5,
+    /// Developer role, typically for developer instructions, e.g. tool usage instructions.
+    RoleDeveloper = 6,
 }
 impl MessageRole {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2347,6 +2374,7 @@ impl MessageRole {
             #[allow(deprecated)]
             Self::RoleFunction => "ROLE_FUNCTION",
             Self::RoleTool => "ROLE_TOOL",
+            Self::RoleDeveloper => "ROLE_DEVELOPER",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2358,6 +2386,7 @@ impl MessageRole {
             "ROLE_SYSTEM" => Some(Self::RoleSystem),
             "ROLE_FUNCTION" => Some(#[allow(deprecated)] Self::RoleFunction),
             "ROLE_TOOL" => Some(Self::RoleTool),
+            "ROLE_DEVELOPER" => Some(Self::RoleDeveloper),
             _ => None,
         }
     }
