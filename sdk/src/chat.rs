@@ -136,7 +136,6 @@ pub mod stream {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
         let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
-        let mut tool_calls_flags: HashMap<i32, bool> = HashMap::new();
         let mut last_chunk: Option<GetChatCompletionChunk> = None;
 
         loop {
@@ -222,23 +221,11 @@ pub mod stream {
                                 on_inline_citations(&output_ctx, &delta.citations);
                             }
 
-                            // Tool calls (last delta per output)
-                            if let Some(ref mut on_tool_calls) = consumer.on_tool_calls {
-                                if !delta.tool_calls.is_empty() {
-                                    // Check if this is the last delta for this output (output is finished)
-                                    // let is_last_delta =
-                                    //     output.finish_reason != FinishReason::ReasonInvalid.into();
-                                    // let was_called = tool_calls_flags
-                                    //     .get(&output.index)
-                                    //     .copied()
-                                    //     .unwrap_or(false);
-
-                                    // Call on the last delta per output that contains tool calls
-                                    // if is_last_delta && !was_called {
-                                    on_tool_calls(&output_ctx, &delta.tool_calls);
-                                    // tool_calls_flags.insert(output.index, true);
-                                    // }
-                                }
+                            // Tool calls
+                            if let Some(ref mut on_tool_calls) = consumer.on_tool_calls
+                                && !delta.tool_calls.is_empty()
+                            {
+                                on_tool_calls(&output_ctx, &delta.tool_calls);
                             }
                         }
                     }
