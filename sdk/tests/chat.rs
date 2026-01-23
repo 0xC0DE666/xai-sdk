@@ -56,7 +56,8 @@ fn test_consumer_new() {
     assert!(consumer.on_content_token.is_none());
     assert!(consumer.on_content_complete.is_none());
     assert!(consumer.on_inline_citations.is_none());
-    assert!(consumer.on_tool_calls.is_none());
+    assert!(consumer.on_client_tool_calls.is_none());
+    assert!(consumer.on_server_tool_calls.is_none());
     assert!(consumer.on_usage.is_none());
     assert!(consumer.on_citations.is_none());
 }
@@ -70,7 +71,8 @@ fn test_consumer_default() {
     assert!(consumer.on_content_token.is_none());
     assert!(consumer.on_content_complete.is_none());
     assert!(consumer.on_inline_citations.is_none());
-    assert!(consumer.on_tool_calls.is_none());
+    assert!(consumer.on_client_tool_calls.is_none());
+    assert!(consumer.on_server_tool_calls.is_none());
     assert!(consumer.on_usage.is_none());
     assert!(consumer.on_citations.is_none());
 }
@@ -131,7 +133,8 @@ fn test_consumer_builder_chain() {
         .on_content_token(|_ctx, _token| {})
         .on_content_complete(|_ctx| {})
         .on_inline_citations(|_ctx, _citations| {})
-        .on_tool_calls(|_ctx, _calls| {})
+        .on_client_tool_calls(|_ctx, _calls| {})
+        .on_server_tool_calls(|_ctx, _calls| {})
         .on_usage(|_usage| {})
         .on_citations(|_citations| {});
 
@@ -141,7 +144,8 @@ fn test_consumer_builder_chain() {
     assert!(consumer.on_content_token.is_some());
     assert!(consumer.on_content_complete.is_some());
     assert!(consumer.on_inline_citations.is_some());
-    assert!(consumer.on_tool_calls.is_some());
+    assert!(consumer.on_client_tool_calls.is_some());
+    assert!(consumer.on_server_tool_calls.is_some());
     assert!(consumer.on_usage.is_some());
     assert!(consumer.on_citations.is_some());
 }
@@ -383,12 +387,21 @@ fn test_consumer_builder_on_inline_citations() {
 }
 
 #[test]
-fn test_consumer_builder_on_tool_calls() {
-    let consumer = Consumer::new().on_tool_calls(|_ctx, _calls| {
+fn test_consumer_builder_on_client_tool_calls() {
+    let consumer = Consumer::new().on_client_tool_calls(|_ctx, _calls| {
         // Test callback
     });
 
-    assert!(consumer.on_tool_calls.is_some());
+    assert!(consumer.on_client_tool_calls.is_some());
+}
+
+#[test]
+fn test_consumer_builder_on_server_tool_calls() {
+    let consumer = Consumer::new().on_server_tool_calls(|_ctx, _calls| {
+        // Test callback
+    });
+
+    assert!(consumer.on_server_tool_calls.is_some());
 }
 
 #[test]

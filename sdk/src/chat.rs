@@ -87,7 +87,7 @@ pub mod stream {
     use crate::export::{Status, Streaming};
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
-        GetChatCompletionResponse,
+        GetChatCompletionResponse, ToolCallType,
     };
     use std::collections::HashMap;
     use std::io::Write;
@@ -221,13 +221,35 @@ pub mod stream {
                                 on_inline_citations(&output_ctx, &delta.citations);
                             }
 
-                            // Tool calls
-                            // server tool calls are usually first in the stream
-                            // client tool calls are usually last in the stream
-                            if let Some(ref mut on_tool_calls) = consumer.on_tool_calls
-                                && !delta.tool_calls.is_empty()
-                            {
-                                on_tool_calls(&output_ctx, &delta.tool_calls);
+                            // Tool calls - filter by type and call appropriate callbacks
+                            if !delta.tool_calls.is_empty() {
+                                // Separate client-side and server-side tool calls
+                                let mut client_tool_calls = Vec::new();
+                                let mut server_tool_calls = Vec::new();
+
+                                for tool_call in &delta.tool_calls {
+                                    if tool_call.r#type == ToolCallType::ClientSideTool.into() {
+                                        client_tool_calls.push(tool_call.clone());
+                                    } else {
+                                        server_tool_calls.push(tool_call.clone());
+                                    }
+                                }
+
+                                // Call client-side tool calls callback
+                                if let Some(ref mut on_client_tool_calls) =
+                                    consumer.on_client_tool_calls
+                                    && !client_tool_calls.is_empty()
+                                {
+                                    on_client_tool_calls(&output_ctx, &client_tool_calls);
+                                }
+
+                                // Call server-side tool calls callback
+                                if let Some(ref mut on_server_tool_calls) =
+                                    consumer.on_server_tool_calls
+                                    && !server_tool_calls.is_empty()
+                                {
+                                    on_server_tool_calls(&output_ctx, &server_tool_calls);
+                                }
                             }
                         }
                     }
@@ -464,7 +486,9 @@ pub mod stream {
     /// - `on_content_token`: Called for each content token with `(&OutputContext, token: &str)`
     /// - `on_content_complete`: Called once when content phase completes for an output with `&OutputContext`
     /// - `on_inline_citations`: Called when inline citations are present in a delta with `(&OutputContext, &[InlineCitation])`
-    /// - `on_tool_calls`: Called when tool calls are present in the last delta per output with `(&OutputContext, &[ToolCall])`
+    /// - `on_tool_calls`: Called when tool calls are present in a delta with `(&OutputContext, &[ToolCall])` (all tool calls)
+    /// - `on_client_tool_calls`: Called when client-side tool calls are present with `(&OutputContext, &[ToolCall])`
+    /// - `on_server_tool_calls`: Called when server-side tool calls are present with `(&OutputContext, &[ToolCall])`
     /// - `on_usage`: Called once on the last chunk with `&SamplingUsage`
     /// - `on_citations`: Called once on the last chunk with `&[String]` (citation URLs)
     ///
@@ -524,13 +548,22 @@ pub mod stream {
             Box<dyn FnMut(&OutputContext, &[crate::xai_api::InlineCitation]) + Send + Sync + 'a>,
         >,
 
-        /// Callback invoked when tool calls are present in the last delta per output.
+        /// Callback invoked when client-side tool calls are present.
         ///
-        /// This callback is called when tool calls appear in a delta, typically in the last delta
-        /// for an output before it completes.
+        /// This callback is called when client-side tool calls (functions that need to be executed
+        /// by the client) appear in a delta.
         ///
-        /// Receives `(&OutputContext, &[ToolCall])` with the output context and tool calls.
-        pub on_tool_calls:
+        /// Receives `(&OutputContext, &[ToolCall])` with the output context and client-side tool calls.
+        pub on_client_tool_calls:
+            Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'a>>,
+
+        /// Callback invoked when server-side tool calls are present.
+        ///
+        /// This callback is called when server-side tool calls (XSearch, WebSearch, CodeExecution, etc.)
+        /// appear in a delta.
+        ///
+        /// Receives `(&OutputContext, &[ToolCall])` with the output context and server-side tool calls.
+        pub on_server_tool_calls:
             Option<Box<dyn FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'a>>,
 
         /// Callback invoked once on the last chunk with usage statistics.
@@ -578,7 +611,8 @@ pub mod stream {
                 on_content_token: None,
                 on_content_complete: None,
                 on_inline_citations: None,
-                on_tool_calls: None,
+                on_client_tool_calls: None,
+                on_server_tool_calls: None,
                 on_usage: None,
                 on_citations: None,
             }
@@ -634,7 +668,8 @@ pub mod stream {
                     println!("\n");
                 })),
                 on_inline_citations: None,
-                on_tool_calls: None,
+                on_client_tool_calls: None,
+                on_server_tool_calls: None,
                 on_usage: None,
                 on_citations: None,
             }
@@ -714,7 +749,8 @@ pub mod stream {
                 })),
                 on_content_complete: None,
                 on_inline_citations: None,
-                on_tool_calls: None,
+                on_client_tool_calls: None,
+                on_server_tool_calls: None,
                 on_usage: None,
                 on_citations: None,
             }
@@ -806,17 +842,33 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set tool calls callback.
+        /// Builder method to set client-side tool calls callback.
         ///
-        /// Called when tool calls are present in a delta, typically in the last delta per output.
+        /// Called when client-side tool calls (functions that need to be executed by the client)
+        /// are present in a delta.
         ///
         /// # Arguments
-        /// * `f` - Closure that receives `(&OutputContext, &[ToolCall])` and is called when tool calls are present
-        pub fn on_tool_calls<F>(mut self, f: F) -> Self
+        /// * `f` - Closure that receives `(&OutputContext, &[ToolCall])` and is called when client-side tool calls are present
+        pub fn on_client_tool_calls<F>(mut self, f: F) -> Self
         where
             F: FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'a,
         {
-            self.on_tool_calls = Some(Box::new(f));
+            self.on_client_tool_calls = Some(Box::new(f));
+            self
+        }
+
+        /// Builder method to set server-side tool calls callback.
+        ///
+        /// Called when server-side tool calls (XSearch, WebSearch, CodeExecution, etc.)
+        /// are present in a delta.
+        ///
+        /// # Arguments
+        /// * `f` - Closure that receives `(&OutputContext, &[ToolCall])` and is called when server-side tool calls are present
+        pub fn on_server_tool_calls<F>(mut self, f: F) -> Self
+        where
+            F: FnMut(&OutputContext, &[crate::xai_api::ToolCall]) + Send + Sync + 'a,
+        {
+            self.on_server_tool_calls = Some(Box::new(f));
             self
         }
 

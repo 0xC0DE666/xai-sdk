@@ -1,15 +1,18 @@
 use anyhow::{Context, Result};
+use serde_json::json;
 use std::env;
-use std::fs;
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use xai_sdk::api::{
-    Content, GetChatCompletionChunk, GetCompletionsRequest, InlineCitation, Message, MessageRole,
-    Tool, ToolCall, ToolCallStatus, ToolCallType, XSearch, content,
+    Content, Function, GetChatCompletionChunk, GetCompletionsRequest, InlineCitation, Message,
+    MessageRole, Tool, ToolCall, ToolCallStatus, ToolCallType, XSearch, content,
 };
 use xai_sdk::chat;
 use xai_sdk::chat::stream::{Consumer, OutputContext};
 use xai_sdk::{Request, Streaming};
+
+const WRITE_FILE: &str = "write_file";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,8 +23,7 @@ async fn main() -> Result<()> {
     // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
-    let prompt =
-        "What are the last two tweets from @elonmusk and @tsoding?";
+    let prompt = "What are the last two tweets from @elonmusk and @tsoding? Write a poem about it to 'poem.txt'";
     let model = "grok-4-latest";
 
     let mut cntnt = Content::default();
@@ -37,10 +39,13 @@ async fn main() -> Result<()> {
         tool: Some(xai_sdk::api::tool::Tool::XSearch(xsearch)),
     };
 
+    // Create write_file tool
+    let write_file_tool = write_file_tool();
+
     let request = Request::new(GetCompletionsRequest {
         model: model.to_string(),
         messages,
-        tools: vec![xsearch_tool],
+        tools: vec![xsearch_tool, write_file_tool],
         parallel_tool_calls: Some(true),
         ..Default::default()
     });
@@ -133,8 +138,13 @@ async fn main() -> Result<()> {
                         "on_inline_citations -------------------------------------------------\n"
                     );
                 })
-                // on_tool_calls: Show tool call details in real-time
-                .on_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
+                .on_client_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
+                    dbg!(ctx);
+                    dbg!(tool_calls);
+                    println!("on_client_tool_calls -------------------------------------------------\n");
+                })
+                // on_server_tool_calls: Show server tool call details in real-time
+                .on_server_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
                     dbg!(ctx);
                     println!("\n🔧 Tool Call(s) Detected:");
                     for tool_call in tool_calls {
@@ -178,7 +188,7 @@ async fn main() -> Result<()> {
                         }
                         println!("  └─");
                     }
-                    println!("on_tool_calls -------------------------------------------------\n");
+                    println!("on_server_tool_calls -------------------------------------------------\n");
                 })
                 // on_usage: Show final statistics
                 .on_usage(move |usage: &xai_sdk::api::SamplingUsage| {
@@ -211,7 +221,7 @@ async fn main() -> Result<()> {
 
                     // Write all chunks to chunks.txt in dbg format
                     let chunks_debug = format!("{:#?}", chunks);
-                    fs::write("chunks.txt", chunks_debug)
+                    write_file(PathBuf::from("chunks.txt"), chunks_debug)
                         .context("Failed to write chunks to chunks.txt")?;
                     println!("📝 All chunks written to chunks.txt");
 
@@ -231,4 +241,38 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Writes content to a file at the specified path.
+fn write_file(path: PathBuf, content: String) -> Result<()> {
+    std::fs::write(&path, content).context(format!("Failed to write file: {:?}", path))?;
+    Ok(())
+}
+
+/// Creates a tool definition for the write_file function.
+fn write_file_tool() -> Tool {
+    let def = Function {
+        name: WRITE_FILE.into(),
+        description: "Write a file to disk.".into(),
+        parameters: json!({
+            "type": "object",
+            "properties": json!({
+                "name": json!({
+                    "description": "The name of the file.",
+                    "type": "string",
+                }),
+                "content": json!({
+                    "description": "The content to be written.",
+                    "type": "string",
+                })
+            }),
+            "required": json!(["name", "content"]),
+        })
+        .to_string(),
+        strict: true,
+    };
+
+    Tool {
+        tool: Some(xai_sdk::api::tool::Tool::Function(def)),
+    }
 }
