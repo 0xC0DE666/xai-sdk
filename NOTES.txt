@@ -1,3 +1,8 @@
+For grok-skd:
+	Maybe add
+		on_client_side_tool_calls(&ctx, &calls)
+		on_server_side_tool_calls(&ctx, &calls)
+
 For grok-cli:
 	Build a tool execution engine that is built on a HashMap<String, Job> as primary data struct and a Vec<String> as the execution queue.
 	I'm thinking of building the engine like a "service" that other services send jobs to via a channel.
