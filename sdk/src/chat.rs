@@ -176,9 +176,10 @@ pub mod stream {
                             );
 
                             // Reasoning
-                            if let Some(ref mut on_reason_token) = consumer.on_reason_token {
-                                let reason_token = &delta.reasoning_content;
-                                on_reason_token(&output_ctx, reason_token);
+                            if let Some(ref mut on_reason_token) = consumer.on_reason_token
+                                && !delta.reasoning_content.is_empty()
+                            {
+                                on_reason_token(&output_ctx, &delta.reasoning_content);
                             }
 
                             if let Some(ref mut on_reasoning_complete) =
@@ -189,16 +190,16 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && reasoning_status == PhaseStatus::Complete {
-                                    // if reasoning_status == PhaseStatus::Complete {
                                     on_reasoning_complete(&output_ctx);
                                     reasoning_complete_flags.insert(output.index, true);
                                 }
                             }
 
                             // Content
-                            if let Some(ref mut on_content_token) = consumer.on_content_token {
-                                let content_token = &delta.content;
-                                on_content_token(&output_ctx, content_token);
+                            if let Some(ref mut on_content_token) = consumer.on_content_token
+                                && !delta.content.is_empty()
+                            {
+                                on_content_token(&output_ctx, &delta.content);
                             }
 
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
@@ -208,7 +209,6 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && content_status == PhaseStatus::Complete {
-                                    // if content_status == PhaseStatus::Complete {
                                     on_content_complete(&output_ctx);
                                     content_complete_flags.insert(output.index, true);
                                 }
@@ -222,6 +222,8 @@ pub mod stream {
                             }
 
                             // Tool calls
+                            // server tool calls are usually first in the stream
+                            // client tool calls are usually last in the stream
                             if let Some(ref mut on_tool_calls) = consumer.on_tool_calls
                                 && !delta.tool_calls.is_empty()
                             {
