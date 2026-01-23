@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
+use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use xai_sdk::api::{
@@ -19,9 +20,8 @@ async fn main() -> Result<()> {
     // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
-    // Create the request asking for Elon Musk's latest tweets
     let prompt =
-        "What are Elon Musk's 2 latest tweets? Please provide the tweet text and timestamps.";
+        "What are the last two tweets from @elonmusk and @tsoding?";
     let model = "grok-4-latest";
 
     let mut cntnt = Content::default();
@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         model: model.to_string(),
         messages,
         tools: vec![xsearch_tool],
-        n: Some(1),
+        parallel_tool_calls: Some(true),
         ..Default::default()
     });
 
@@ -100,22 +100,22 @@ async fn main() -> Result<()> {
                 .on_content_token({
                     let is_thinking = is_thinking.clone();
                     move |ctx: &OutputContext, token: &str| {
-                        if ctx.output_index == 0 {
-                            // Clear thinking indicator if still showing
-                            let mut thinking = is_thinking.lock().unwrap();
-                            if *thinking {
-                                *thinking = false;
-                                println!("\n");
-                            }
-                            print!("{token}");
-                            io::stdout().flush().unwrap();
+                        // Clear thinking indicator if still showing
+                        let mut thinking = is_thinking.lock().unwrap();
+                        if *thinking {
+                            *thinking = false;
+                            println!("\n");
                         }
+                        print!("{token}");
+                        io::stdout().flush().unwrap();
                     }
                 })
                 // on_content_complete: New line after content
                 .on_content_complete(move |ctx: &OutputContext| {
                     dbg!(ctx);
-                    println!("on_content_complete +++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                    println!(
+                        "on_content_complete -------------------------------------------------\n"
+                    );
                 })
                 // on_inline_citations: Show citations inline
                 .on_inline_citations(move |ctx: &OutputContext, citations: &[InlineCitation]| {
@@ -129,6 +129,9 @@ async fn main() -> Result<()> {
                             }
                         }
                     }
+                    println!(
+                        "on_inline_citations -------------------------------------------------\n"
+                    );
                 })
                 // on_tool_calls: Show tool call details in real-time
                 .on_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
@@ -184,6 +187,9 @@ async fn main() -> Result<()> {
                     println!("  Completion: {} tokens", usage.completion_tokens);
                     println!("  Reasoning: {} tokens", usage.reasoning_tokens);
                     println!("  Total: {} tokens", usage.total_tokens);
+                    println!(
+                        "on_usage -------------------------------------------------\n"
+                    );
                 })
                 // on_citations: Show final citations
                 .on_citations(move |citations: &[String]| {
@@ -193,12 +199,22 @@ async fn main() -> Result<()> {
                             println!("  {}. {}", i + 1, citation);
                         }
                     }
+                    println!(
+                        "on_citations -------------------------------------------------\n"
+                    );
                 });
 
             // Process the stream
             match chat::stream::process(stream, consumer).await {
                 Ok(chunks) => {
                     println!("\n✅ Stream completed ({} chunks processed)", chunks.len());
+
+                    // Write all chunks to chunks.txt in dbg format
+                    let chunks_debug = format!("{:#?}", chunks);
+                    fs::write("chunks.txt", chunks_debug)
+                        .context("Failed to write chunks to chunks.txt")?;
+                    println!("📝 All chunks written to chunks.txt");
+
                     let res = chat::stream::assemble(chunks);
                     dbg!(res);
                 }

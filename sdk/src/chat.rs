@@ -170,7 +170,7 @@ pub mod stream {
                             );
 
                             let output_ctx = OutputContext::new(
-                                chunk.outputs.len(),
+                                (output.index + 1) as usize,
                                 output.index as usize,
                                 reasoning_status.clone(),
                                 content_status.clone(),
@@ -204,14 +204,14 @@ pub mod stream {
 
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
                             {
-                                // let was_complete = content_complete_flags
-                                //     .get(&output.index)
-                                //     .copied()
-                                //     .unwrap_or(false);
-                                // if !was_complete && content_status == PhaseStatus::Complete {
-                                if content_status == PhaseStatus::Complete {
+                                let was_complete = content_complete_flags
+                                    .get(&output.index)
+                                    .copied()
+                                    .unwrap_or(false);
+                                if !was_complete && content_status == PhaseStatus::Complete {
+                                    // if content_status == PhaseStatus::Complete {
                                     on_content_complete(&output_ctx);
-                                    // content_complete_flags.insert(output.index, true);
+                                    content_complete_flags.insert(output.index, true);
                                 }
                             }
 
