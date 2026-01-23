@@ -144,12 +144,12 @@ pub mod stream {
             match stream.message().await {
                 Ok(chunk) => {
                     // Stream complete
-                    if chunk.is_none() {
-                        break;
-                    }
+                    let chunk = match chunk {
+                        Some(c) => c,
+                        None => break,
+                    };
 
                     // Handle the chunk
-                    let chunk = chunk.unwrap();
                     if let Some(ref mut on_chunk) = consumer.on_chunk {
                         on_chunk(&chunk);
                     }
@@ -190,6 +190,7 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && reasoning_status == PhaseStatus::Complete {
+                                    // if reasoning_status == PhaseStatus::Complete {
                                     on_reasoning_complete(&output_ctx);
                                     reasoning_complete_flags.insert(output.index, true);
                                 }
@@ -203,13 +204,14 @@ pub mod stream {
 
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
                             {
-                                let was_complete = content_complete_flags
-                                    .get(&output.index)
-                                    .copied()
-                                    .unwrap_or(false);
-                                if !was_complete && content_status == PhaseStatus::Complete {
+                                // let was_complete = content_complete_flags
+                                //     .get(&output.index)
+                                //     .copied()
+                                //     .unwrap_or(false);
+                                // if !was_complete && content_status == PhaseStatus::Complete {
+                                if content_status == PhaseStatus::Complete {
                                     on_content_complete(&output_ctx);
-                                    content_complete_flags.insert(output.index, true);
+                                    // content_complete_flags.insert(output.index, true);
                                 }
                             }
 
@@ -224,18 +226,18 @@ pub mod stream {
                             if let Some(ref mut on_tool_calls) = consumer.on_tool_calls {
                                 if !delta.tool_calls.is_empty() {
                                     // Check if this is the last delta for this output (output is finished)
-                                    let is_last_delta =
-                                        output.finish_reason != FinishReason::ReasonInvalid.into();
-                                    let was_called = tool_calls_flags
-                                        .get(&output.index)
-                                        .copied()
-                                        .unwrap_or(false);
+                                    // let is_last_delta =
+                                    //     output.finish_reason != FinishReason::ReasonInvalid.into();
+                                    // let was_called = tool_calls_flags
+                                    //     .get(&output.index)
+                                    //     .copied()
+                                    //     .unwrap_or(false);
 
                                     // Call on the last delta per output that contains tool calls
-                                    if is_last_delta && !was_called {
-                                        on_tool_calls(&output_ctx, &delta.tool_calls);
-                                        tool_calls_flags.insert(output.index, true);
-                                    }
+                                    // if is_last_delta && !was_called {
+                                    on_tool_calls(&output_ctx, &delta.tool_calls);
+                                    // tool_calls_flags.insert(output.index, true);
+                                    // }
                                 }
                             }
                         }

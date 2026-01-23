@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
 
     // Create the request asking for Elon Musk's latest tweets
     let prompt =
-        "What are Elon Musk's 5 latest tweets? Please provide the tweet text and timestamps.";
+        "What are Elon Musk's 2 latest tweets? Please provide the tweet text and timestamps.";
     let model = "grok-4-latest";
 
     let mut cntnt = Content::default();
@@ -61,6 +61,9 @@ async fn main() -> Result<()> {
 
             let consumer = Consumer::new()
                 // on_reason_token: Show "Thinking..." indicator
+                // .on_chunk(|chunk| {
+                //     dbg!(chunk);
+                // })
                 .on_reason_token({
                     let is_thinking = is_thinking.clone();
                     let reasoning_started = reasoning_started.clone();
@@ -83,12 +86,14 @@ async fn main() -> Result<()> {
                 // on_reasoning_complete: Clear thinking indicator
                 .on_reasoning_complete({
                     let is_thinking = is_thinking.clone();
-                    move |_ctx: &OutputContext| {
+                    move |ctx: &OutputContext| {
                         let mut thinking = is_thinking.lock().unwrap();
                         if *thinking {
                             *thinking = false;
                             println!("\n");
                         }
+                        dbg!(ctx);
+                        println!("on_reasoning_complete -------------------------------------------------\n");
                     }
                 })
                 // on_content_token: Print content in real-time
@@ -108,12 +113,13 @@ async fn main() -> Result<()> {
                     }
                 })
                 // on_content_complete: New line after content
-                .on_content_complete(move |_ctx: &OutputContext| {
-                    println!("\n");
+                .on_content_complete(move |ctx: &OutputContext| {
+                    dbg!(ctx);
+                    println!("on_content_complete +++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 })
                 // on_inline_citations: Show citations inline
                 .on_inline_citations(move |ctx: &OutputContext, citations: &[InlineCitation]| {
-                    if ctx.output_index == 0 && !citations.is_empty() {
+                    if !citations.is_empty() {
                         println!("\n📚 Found {} inline citation(s):", citations.len());
                         for citation in citations {
                             if let Some(ref citation_data) = citation.citation {
@@ -126,50 +132,50 @@ async fn main() -> Result<()> {
                 })
                 // on_tool_calls: Show tool call details in real-time
                 .on_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
-                    if ctx.output_index == 0 {
-                        println!("\n🔧 Tool Call(s) Detected:");
-                        for tool_call in tool_calls {
-                            let tool_type = match ToolCallType::try_from(tool_call.r#type) {
-                                Ok(ToolCallType::XSearchTool) => "XSearch (Twitter/X)",
-                                Ok(ToolCallType::WebSearchTool) => "WebSearch",
-                                Ok(ToolCallType::CodeExecutionTool) => "CodeExecution",
-                                Ok(ToolCallType::CollectionsSearchTool) => "CollectionsSearch",
-                                Ok(ToolCallType::McpTool) => "MCP",
-                                Ok(ToolCallType::AttachmentSearchTool) => "AttachmentSearch",
-                                Ok(ToolCallType::ClientSideTool) => "Client-Side Function",
-                                _ => "Unknown",
-                            };
+                    dbg!(ctx);
+                    println!("\n🔧 Tool Call(s) Detected:");
+                    for tool_call in tool_calls {
+                        let tool_type = match ToolCallType::try_from(tool_call.r#type) {
+                            Ok(ToolCallType::XSearchTool) => "XSearch (Twitter/X)",
+                            Ok(ToolCallType::WebSearchTool) => "WebSearch",
+                            Ok(ToolCallType::CodeExecutionTool) => "CodeExecution",
+                            Ok(ToolCallType::CollectionsSearchTool) => "CollectionsSearch",
+                            Ok(ToolCallType::McpTool) => "MCP",
+                            Ok(ToolCallType::AttachmentSearchTool) => "AttachmentSearch",
+                            Ok(ToolCallType::ClientSideTool) => "Client-Side Function",
+                            _ => "Unknown",
+                        };
 
-                            let status = match ToolCallStatus::try_from(tool_call.status) {
-                                Ok(ToolCallStatus::InProgress) => "⏳ In Progress",
-                                Ok(ToolCallStatus::Completed) => "✅ Completed",
-                                Ok(ToolCallStatus::Incomplete) => "⚠️  Incomplete",
-                                Ok(ToolCallStatus::Failed) => "❌ Failed",
-                                _ => "❓ Unknown",
-                            };
+                        let status = match ToolCallStatus::try_from(tool_call.status) {
+                            Ok(ToolCallStatus::InProgress) => "⏳ In Progress",
+                            Ok(ToolCallStatus::Completed) => "✅ Completed",
+                            Ok(ToolCallStatus::Incomplete) => "⚠️  Incomplete",
+                            Ok(ToolCallStatus::Failed) => "❌ Failed",
+                            _ => "❓ Unknown",
+                        };
 
-                            println!("  ┌─ Tool: {}", tool_type);
-                            println!("  │  ID: {}", tool_call.id);
-                            println!("  │  Status: {}", status);
+                        println!("  ┌─ Tool: {}", tool_type);
+                        println!("  │  ID: {}", tool_call.id);
+                        println!("  │  Status: {}", status);
 
-                            // Extract tool call details if it's a function call
-                            if let Some(xai_sdk::api::tool_call::Tool::Function(function_call)) =
-                                &tool_call.tool
-                            {
-                                println!("  │  Function: {}", function_call.name);
-                                if !function_call.arguments.is_empty() {
-                                    // Truncate long arguments for display
-                                    let args_display = if function_call.arguments.len() > 100 {
-                                        format!("{}...", &function_call.arguments[..100])
-                                    } else {
-                                        function_call.arguments.clone()
-                                    };
-                                    println!("  │  Arguments: {}", args_display);
-                                }
+                        // Extract tool call details if it's a function call
+                        if let Some(xai_sdk::api::tool_call::Tool::Function(function_call)) =
+                            &tool_call.tool
+                        {
+                            println!("  │  Function: {}", function_call.name);
+                            if !function_call.arguments.is_empty() {
+                                // Truncate long arguments for display
+                                let args_display = if function_call.arguments.len() > 100 {
+                                    format!("{}...", &function_call.arguments[..100])
+                                } else {
+                                    function_call.arguments.clone()
+                                };
+                                println!("  │  Arguments: {}", args_display);
                             }
-                            println!("  └─");
                         }
+                        println!("  └─");
                     }
+                    println!("on_tool_calls -------------------------------------------------\n");
                 })
                 // on_usage: Show final statistics
                 .on_usage(move |usage: &xai_sdk::api::SamplingUsage| {
@@ -193,6 +199,8 @@ async fn main() -> Result<()> {
             match chat::stream::process(stream, consumer).await {
                 Ok(chunks) => {
                     println!("\n✅ Stream completed ({} chunks processed)", chunks.len());
+                    let res = chat::stream::assemble(chunks);
+                    dbg!(res);
                 }
                 Err(e) => {
                     eprintln!("\n❌ Error processing stream: {}", e);
