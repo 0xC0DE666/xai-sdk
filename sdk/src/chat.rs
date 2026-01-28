@@ -631,12 +631,12 @@ pub mod stream {
         /// // Empty consumer
         /// let consumer = Consumer::new();
         ///
-    /// // Consumer with callbacks that capture local state
-    /// let mut counter = 0;
-    /// let consumer = Consumer::new()
-    ///     .on_content_token(|_ctx, _token| async move {
-    ///         counter += 1;
-    ///     });
+        /// // Consumer with callbacks that capture local state
+        /// let mut counter = 0;
+        /// let consumer = Consumer::new()
+        ///     .on_content_token(|_ctx, _token| async move {
+        ///         counter += 1;
+        ///     });
         /// ```
         pub fn new() -> Self {
             Self {
@@ -671,14 +671,14 @@ pub mod stream {
         /// // Basic usage
         /// let consumer = Consumer::with_stdout();
         ///
-    /// // Can still add static callbacks
-    /// let consumer = Consumer::with_stdout()
-    ///     .on_usage(|usage| {
-    ///         let total_tokens = usage.total_tokens;
-    ///         async move {
-    ///             println!("Tokens used: {}", total_tokens);
-    ///         }
-    ///     });
+        /// // Can still add static callbacks
+        /// let consumer = Consumer::with_stdout()
+        ///     .on_usage(|usage| {
+        ///         let total_tokens = usage.total_tokens;
+        ///         async move {
+        ///             println!("Tokens used: {}", total_tokens);
+        ///         }
+        ///     });
         /// ```
         pub fn with_stdout() -> Self {
             Self {
