@@ -87,7 +87,7 @@ pub mod stream {
     use crate::export::{Status, Streaming};
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
-        GetChatCompletionResponse, ToolCallType,
+        GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
     use std::collections::HashMap;
     use std::future::Future;
@@ -469,11 +469,11 @@ pub mod stream {
         content: String,
         reasoning_content: String,
         role: i32,
-        tool_calls: Vec<crate::xai_api::ToolCall>,
+        tool_calls: Vec<ToolCall>,
         encrypted_content: String,
-        citations: Vec<crate::xai_api::InlineCitation>,
+        citations: Vec<InlineCitation>,
         finish_reason: i32,
-        logprobs: Option<crate::xai_api::LogProbs>,
+        logprobs: Option<LogProbs>,
     }
 
     /// A callback-based consumer for processing streaming chat completion responses.
@@ -561,12 +561,7 @@ pub mod stream {
         ///
         /// Receives `(OutputContext, Vec<InlineCitation>)` with the output context and citations.
         pub on_inline_citations: Option<
-            Box<
-                dyn FnMut(OutputContext, Vec<crate::xai_api::InlineCitation>) -> BoxFuture<'a>
-                    + Send
-                    + Sync
-                    + 'a,
-            >,
+            Box<dyn FnMut(OutputContext, Vec<InlineCitation>) -> BoxFuture<'a> + Send + Sync + 'a>,
         >,
 
         /// Callback invoked when client-side tool calls are present.
@@ -576,12 +571,7 @@ pub mod stream {
         ///
         /// Receives `(OutputContext, Vec<ToolCall>)` with the output context and client-side tool calls.
         pub on_client_tool_calls: Option<
-            Box<
-                dyn FnMut(OutputContext, Vec<crate::xai_api::ToolCall>) -> BoxFuture<'a>
-                    + Send
-                    + Sync
-                    + 'a,
-            >,
+            Box<dyn FnMut(OutputContext, Vec<ToolCall>) -> BoxFuture<'a> + Send + Sync + 'a>,
         >,
 
         /// Callback invoked when server-side tool calls are present.
@@ -591,12 +581,7 @@ pub mod stream {
         ///
         /// Receives `(OutputContext, Vec<ToolCall>)` with the output context and server-side tool calls.
         pub on_server_tool_calls: Option<
-            Box<
-                dyn FnMut(OutputContext, Vec<crate::xai_api::ToolCall>) -> BoxFuture<'a>
-                    + Send
-                    + Sync
-                    + 'a,
-            >,
+            Box<dyn FnMut(OutputContext, Vec<ToolCall>) -> BoxFuture<'a> + Send + Sync + 'a>,
         >,
 
         /// Callback invoked once on the last chunk with usage statistics.
@@ -604,9 +589,7 @@ pub mod stream {
         /// This callback is called once when the stream completes, providing final usage statistics.
         ///
         /// Receives `&SamplingUsage` with token usage information.
-        pub on_usage: Option<
-            Box<dyn FnMut(&crate::xai_api::SamplingUsage) -> BoxFuture<'a> + Send + Sync + 'a>,
-        >,
+        pub on_usage: Option<Box<dyn FnMut(&SamplingUsage) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked once on the last chunk with citations.
         ///
@@ -901,7 +884,7 @@ pub mod stream {
         /// * `f` - Async closure that receives `(OutputContext, Vec<InlineCitation>)` and returns a `Future<Output = ()>`
         pub fn on_inline_citations<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, Vec<crate::xai_api::InlineCitation>) -> Fut + Send + Sync + 'a,
+            F: FnMut(OutputContext, Vec<InlineCitation>) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + 'a,
         {
             self.on_inline_citations =
@@ -918,7 +901,7 @@ pub mod stream {
         /// * `f` - Async closure that receives `(OutputContext, Vec<ToolCall>)` and returns a `Future<Output = ()>`
         pub fn on_client_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, Vec<crate::xai_api::ToolCall>) -> Fut + Send + Sync + 'a,
+            F: FnMut(OutputContext, Vec<ToolCall>) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + 'a,
         {
             self.on_client_tool_calls = Some(Box::new(move |ctx, calls| Box::pin(f(ctx, calls))));
@@ -934,7 +917,7 @@ pub mod stream {
         /// * `f` - Async closure that receives `(OutputContext, Vec<ToolCall>)` and returns a `Future<Output = ()>`
         pub fn on_server_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, Vec<crate::xai_api::ToolCall>) -> Fut + Send + Sync + 'a,
+            F: FnMut(OutputContext, Vec<ToolCall>) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + 'a,
         {
             self.on_server_tool_calls = Some(Box::new(move |ctx, calls| Box::pin(f(ctx, calls))));
@@ -949,7 +932,7 @@ pub mod stream {
         /// * `f` - Async closure that receives `&SamplingUsage` and returns a `Future<Output = ()>`
         pub fn on_usage<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(&crate::xai_api::SamplingUsage) -> Fut + Send + Sync + 'a,
+            F: FnMut(&SamplingUsage) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + 'a,
         {
             self.on_usage = Some(Box::new(move |usage| Box::pin(f(usage))));
