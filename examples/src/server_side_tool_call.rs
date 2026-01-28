@@ -65,10 +65,6 @@ async fn main() -> Result<()> {
             let reasoning_started = Arc::new(Mutex::new(false));
 
             let consumer = Consumer::new()
-                // on_reason_token: Show "Thinking..." indicator
-                // .on_chunk(|chunk| {
-                //     dbg!(chunk);
-                // })
                 .on_reason_token({
                     let is_thinking = is_thinking.clone();
                     let reasoning_started = reasoning_started.clone();
@@ -88,7 +84,6 @@ async fn main() -> Result<()> {
                         }
                     }
                 })
-                // on_reasoning_complete: Clear thinking indicator
                 .on_reasoning_complete({
                     let is_thinking = is_thinking.clone();
                     move |ctx: &OutputContext| {
@@ -221,8 +216,8 @@ async fn main() -> Result<()> {
 
                     // Write all chunks to chunks.txt in dbg format
                     let chunks_debug = format!("{:#?}", chunks);
-                    write_file(PathBuf::from("chunks.txt"), chunks_debug)
-                        .context("Failed to write chunks to chunks.txt")?;
+                    // write_file(PathBuf::from("chunks.txt"), chunks_debug)
+                    //     .context("Failed to write chunks to chunks.txt")?;
                     println!("📝 All chunks written to chunks.txt");
 
                     let res = chat::stream::assemble(chunks);
