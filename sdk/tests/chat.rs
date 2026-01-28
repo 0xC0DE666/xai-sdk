@@ -79,18 +79,14 @@ fn test_consumer_default() {
 
 #[test]
 fn test_consumer_builder_on_content_token() {
-    let mut content_tokens = Vec::new();
-    let consumer = Consumer::new().on_content_token(move |_ctx, token| {
-        content_tokens.push(token.to_string());
-    });
-
+    let consumer = Consumer::new().on_content_token(async move |_ctx, _token| {});
     // Consumer should have the callback set
     assert!(consumer.on_content_token.is_some());
 }
 
 #[test]
 fn test_consumer_builder_on_reason_token() {
-    let consumer = Consumer::new().on_reason_token(|_ctx, _token| {
+    let consumer = Consumer::new().on_reason_token(|_ctx, _token| async move {
         // Test callback
     });
 
@@ -99,7 +95,7 @@ fn test_consumer_builder_on_reason_token() {
 
 #[test]
 fn test_consumer_builder_on_chunk() {
-    let consumer = Consumer::new().on_chunk(|_chunk| {
+    let consumer = Consumer::new().on_chunk(|_chunk| async move {
         // Test callback
     });
 
@@ -108,7 +104,7 @@ fn test_consumer_builder_on_chunk() {
 
 #[test]
 fn test_consumer_builder_on_reasoning_complete() {
-    let consumer = Consumer::new().on_reasoning_complete(|_ctx| {
+    let consumer = Consumer::new().on_reasoning_complete(|_ctx| async move {
         // Test callback
     });
 
@@ -117,7 +113,7 @@ fn test_consumer_builder_on_reasoning_complete() {
 
 #[test]
 fn test_consumer_builder_on_content_complete() {
-    let consumer = Consumer::new().on_content_complete(|_ctx| {
+    let consumer = Consumer::new().on_content_complete(|_ctx| async move {
         // Test callback
     });
 
@@ -127,16 +123,16 @@ fn test_consumer_builder_on_content_complete() {
 #[test]
 fn test_consumer_builder_chain() {
     let consumer = Consumer::new()
-        .on_chunk(|_chunk| {})
-        .on_reason_token(|_ctx, _token| {})
-        .on_reasoning_complete(|_ctx| {})
-        .on_content_token(|_ctx, _token| {})
-        .on_content_complete(|_ctx| {})
-        .on_inline_citations(|_ctx, _citations| {})
-        .on_client_tool_calls(|_ctx, _calls| {})
-        .on_server_tool_calls(|_ctx, _calls| {})
-        .on_usage(|_usage| {})
-        .on_citations(|_citations| {});
+        .on_chunk(|_chunk| async move {})
+        .on_reason_token(|_ctx, _token| async move {})
+        .on_reasoning_complete(|_ctx| async move {})
+        .on_content_token(|_ctx, _token| async move {})
+        .on_content_complete(|_ctx| async move {})
+        .on_inline_citations(|_ctx, _citations| async move {})
+        .on_client_tool_calls(|_ctx, _calls| async move {})
+        .on_server_tool_calls(|_ctx, _calls| async move {})
+        .on_usage(|_usage| async move {})
+        .on_citations(|_citations| async move {});
 
     assert!(consumer.on_chunk.is_some());
     assert!(consumer.on_reason_token.is_some());
@@ -379,7 +375,7 @@ fn test_assemble_uses_last_chunk_for_usage() {
 
 #[test]
 fn test_consumer_builder_on_inline_citations() {
-    let consumer = Consumer::new().on_inline_citations(|_ctx, _citations| {
+    let consumer = Consumer::new().on_inline_citations(|_ctx, _citations| async move {
         // Test callback
     });
 
@@ -388,7 +384,7 @@ fn test_consumer_builder_on_inline_citations() {
 
 #[test]
 fn test_consumer_builder_on_client_tool_calls() {
-    let consumer = Consumer::new().on_client_tool_calls(|_ctx, _calls| {
+    let consumer = Consumer::new().on_client_tool_calls(|_ctx, _calls| async move {
         // Test callback
     });
 
@@ -397,7 +393,7 @@ fn test_consumer_builder_on_client_tool_calls() {
 
 #[test]
 fn test_consumer_builder_on_server_tool_calls() {
-    let consumer = Consumer::new().on_server_tool_calls(|_ctx, _calls| {
+    let consumer = Consumer::new().on_server_tool_calls(|_ctx, _calls| async move {
         // Test callback
     });
 
@@ -406,7 +402,7 @@ fn test_consumer_builder_on_server_tool_calls() {
 
 #[test]
 fn test_consumer_builder_on_usage() {
-    let consumer = Consumer::new().on_usage(|_usage| {
+    let consumer = Consumer::new().on_usage(|_usage| async move {
         // Test callback
     });
 
@@ -415,7 +411,7 @@ fn test_consumer_builder_on_usage() {
 
 #[test]
 fn test_consumer_builder_on_citations() {
-    let consumer = Consumer::new().on_citations(|_citations| {
+    let consumer = Consumer::new().on_citations(|_citations| async move {
         // Test callback
     });
 
@@ -746,7 +742,10 @@ fn test_assemble_updates_finish_reason_from_latest_chunk() {
 
     assert!(result.is_some());
     let response = result.unwrap();
-    assert_eq!(response.outputs[0].finish_reason, FinishReason::ReasonStop.into());
+    assert_eq!(
+        response.outputs[0].finish_reason,
+        FinishReason::ReasonStop.into()
+    );
 }
 
 #[test]
