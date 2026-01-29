@@ -95,10 +95,6 @@ pub mod stream {
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
 
-    /// Boxed future for async callbacks. Does not require `Send` so callbacks can
-    /// take references; futures are awaited immediately in the same task.
-    pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + 'a>>;
-
     /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.
     ///
     /// This function takes a gRPC streaming response containing `GetChatCompletionChunk` objects
@@ -471,6 +467,10 @@ pub mod stream {
         logprobs: Option<LogProbs>,
     }
 
+    /// Boxed future for async callbacks. Does not require `Send` so callbacks can
+    /// take references; futures are awaited immediately in the same task.
+    pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + Sync + 'a>>;
+
     /// A callback-based consumer for processing streaming chat completion responses.
     ///
     /// The `Consumer` allows you to define custom callbacks that are invoked as chunks
@@ -807,7 +807,7 @@ pub mod stream {
         pub fn on_chunk<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&GetChatCompletionChunk) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_chunk = Some(Box::new(move |chunk| Box::pin(f(chunk))));
             self
@@ -819,7 +819,7 @@ pub mod stream {
         pub fn on_reason_token<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_reason_token = Some(Box::new(move |ctx, token| Box::pin(f(ctx, token))));
             self
@@ -832,7 +832,7 @@ pub mod stream {
         pub fn on_reasoning_complete<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_reasoning_complete = Some(Box::new(move |ctx| Box::pin(f(ctx))));
             self
@@ -844,7 +844,7 @@ pub mod stream {
         pub fn on_content_token<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_content_token = Some(Box::new(move |ctx, token| Box::pin(f(ctx, token))));
             self
@@ -857,7 +857,7 @@ pub mod stream {
         pub fn on_content_complete<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_content_complete = Some(Box::new(move |ctx| Box::pin(f(ctx))));
             self
@@ -869,7 +869,7 @@ pub mod stream {
         pub fn on_inline_citations<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &[InlineCitation]) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_inline_citations =
                 Some(Box::new(move |ctx, citations| Box::pin(f(ctx, citations))));
@@ -882,7 +882,7 @@ pub mod stream {
         pub fn on_client_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_client_tool_calls = Some(Box::new(move |ctx, calls| Box::pin(f(ctx, calls))));
             self
@@ -894,7 +894,7 @@ pub mod stream {
         pub fn on_server_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_server_tool_calls = Some(Box::new(move |ctx, calls| Box::pin(f(ctx, calls))));
             self
@@ -906,7 +906,7 @@ pub mod stream {
         pub fn on_usage<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&SamplingUsage) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_usage = Some(Box::new(move |usage| Box::pin(f(usage))));
             self
@@ -918,7 +918,7 @@ pub mod stream {
         pub fn on_citations<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&[String]) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_citations = Some(Box::new(move |citations| Box::pin(f(citations))));
             self
