@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
-    let prompt = "What are the last two tweets from @elonmusk and @tsoding? Write a poem about it to 'poem.txt'";
+    let prompt = "What are the last two tweets from @elonmusk and @tsoding?";
     let model = "grok-4-latest";
 
     let mut cntnt = Content::default();
@@ -70,24 +70,26 @@ async fn main() -> Result<()> {
             let is_thinking_ct = is_thinking.clone();
 
             let consumer = Consumer::new()
-                .on_reason_token(move |ctx: &OutputContext, _token: &str| {
+                .on_reason_token(move |ctx: &OutputContext, token: &str| {
                     let is_thinking = is_thinking_rt.clone();
                     let reasoning_started = reasoning_started_rt.clone();
                     let output_index = ctx.output_index;
+                    let token = token.to_string();
                     async move {
-                        if output_index == 0 {
-                            let mut started = reasoning_started.lock().unwrap();
-                            let mut thinking = is_thinking.lock().unwrap();
-                            if !*started {
-                                *started = true;
-                                *thinking = true;
-                                print!("\n💭 Thinking");
-                                io::stdout().flush().unwrap();
-                            } else if *thinking {
-                                print!(".");
-                                io::stdout().flush().unwrap();
-                            }
-                        }
+                        print!("{token}");
+                        io::stdout().flush().unwrap();
+
+                        // let mut started = reasoning_started.lock().unwrap();
+                        // let mut thinking = is_thinking.lock().unwrap();
+                        // if !*started {
+                        //     *started = true;
+                        //     *thinking = true;
+                        //     print!("\n💭 Thinking");
+                        //     io::stdout().flush().unwrap();
+                        // } else if *thinking {
+                        //     print!(".");
+                        //     io::stdout().flush().unwrap();
+                        // }
                     }
                 })
                 .on_reasoning_complete(move |ctx: &OutputContext| {
@@ -151,8 +153,8 @@ async fn main() -> Result<()> {
                     let output_index = ctx.output_index;
                     let tool_calls = tool_calls.to_vec();
                     async move {
-                        dbg!(output_index);
-                        dbg!(&tool_calls);
+                        // dbg!(output_index);
+                        // dbg!(&tool_calls);
                         println!("on_client_tool_calls -------------------------------------------------\n");
                     }
                 })
@@ -251,8 +253,8 @@ async fn main() -> Result<()> {
                     //     .context("Failed to write chunks to chunks.txt")?;
                     // println!("📝 All chunks written to chunks.txt");
 
-                    let res = chat::stream::assemble(chunks);
-                    dbg!(res);
+                    // let res = chat::stream::assemble(chunks);
+                    // dbg!(res);
                 }
                 Err(e) => {
                     eprintln!("\n❌ Error processing stream: {}", e);
