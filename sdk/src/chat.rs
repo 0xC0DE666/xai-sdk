@@ -469,7 +469,7 @@ pub mod stream {
 
     /// Boxed future for async callbacks. Does not require `Send` so callbacks can
     /// take references; futures are awaited immediately in the same task.
-    pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + Sync + 'a>>;
+    pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
     /// A callback-based consumer for processing streaming chat completion responses.
     ///
