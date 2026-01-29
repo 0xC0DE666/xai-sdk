@@ -659,13 +659,9 @@ pub mod stream {
         pub fn with_stdout() -> Self {
             Self {
                 on_chunk: None,
-                on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
-                    let output_index = ctx.output_index;
+                on_reason_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
-                        if output_index != 0 {
-                            return;
-                        }
                         print!("{token}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     })
@@ -675,13 +671,9 @@ pub mod stream {
                         println!("\n");
                     })
                 })),
-                on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
-                    let output_index = ctx.output_index;
+                on_content_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
-                        if output_index != 0 {
-                            return;
-                        }
                         print!("{token}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     })
