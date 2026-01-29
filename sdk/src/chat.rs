@@ -95,7 +95,9 @@ pub mod stream {
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
 
-    pub type BoxFuture<'a, T = ()> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+    /// Boxed future for async callbacks. Does not require `Send` so callbacks can
+    /// take references; futures are awaited immediately in the same task.
+    pub type BoxFuture<'a, T = ()> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
     /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.
     ///
@@ -103,8 +105,8 @@ pub mod stream {
     /// and processes each chunk as it arrives. It calls user-defined callbacks for content tokens,
     /// reasoning tokens, and complete chunks, allowing for real-time processing of AI responses.
     ///
-    /// The token callbacks receive `(OutputContext, token: String)` to properly handle
-    /// multiple concurrent outputs in a single stream. All callbacks are async and will be awaited.
+    /// The token callbacks receive `(&OutputContext, token: &str)` so no cloning is needed.
+    /// All callbacks are async and will be awaited in the same task.
     ///
     /// # Arguments
     /// * `stream` - The gRPC streaming response containing chat completion chunks
@@ -183,11 +185,7 @@ pub mod stream {
                             if let Some(ref mut on_reason_token) = consumer.on_reason_token
                                 && !delta.reasoning_content.is_empty()
                             {
-                                on_reason_token(
-                                    output_ctx.clone(),
-                                    delta.reasoning_content.clone(),
-                                )
-                                .await;
+                                on_reason_token(&output_ctx, &delta.reasoning_content).await;
                             }
 
                             if let Some(ref mut on_reasoning_complete) =
@@ -198,7 +196,7 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && reasoning_status == PhaseStatus::Complete {
-                                    on_reasoning_complete(output_ctx.clone()).await;
+                                    on_reasoning_complete(&output_ctx).await;
                                     reasoning_complete_flags.insert(output.index, true);
                                 }
                             }
@@ -207,7 +205,7 @@ pub mod stream {
                             if let Some(ref mut on_content_token) = consumer.on_content_token
                                 && !delta.content.is_empty()
                             {
-                                on_content_token(output_ctx.clone(), delta.content.clone()).await;
+                                on_content_token(&output_ctx, &delta.content).await;
                             }
 
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
@@ -217,7 +215,7 @@ pub mod stream {
                                     .copied()
                                     .unwrap_or(false);
                                 if !was_complete && content_status == PhaseStatus::Complete {
-                                    on_content_complete(output_ctx.clone()).await;
+                                    on_content_complete(&output_ctx).await;
                                     content_complete_flags.insert(output.index, true);
                                 }
                             }
@@ -226,8 +224,7 @@ pub mod stream {
                             if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
                                 && !delta.citations.is_empty()
                             {
-                                on_inline_citations(output_ctx.clone(), delta.citations.clone())
-                                    .await;
+                                on_inline_citations(&output_ctx, &delta.citations).await;
                             }
 
                             // Tool calls - filter by type and call appropriate callbacks
@@ -249,8 +246,7 @@ pub mod stream {
                                     consumer.on_client_tool_calls
                                     && !client_tool_calls.is_empty()
                                 {
-                                    on_client_tool_calls(output_ctx.clone(), client_tool_calls)
-                                        .await;
+                                    on_client_tool_calls(&output_ctx, &client_tool_calls).await;
                                 }
 
                                 // Call server-side tool calls callback
@@ -258,8 +254,7 @@ pub mod stream {
                                     consumer.on_server_tool_calls
                                     && !server_tool_calls.is_empty()
                                 {
-                                    on_server_tool_calls(output_ctx.clone(), server_tool_calls)
-                                        .await;
+                                    on_server_tool_calls(&output_ctx, &server_tool_calls).await;
                                 }
                             }
                         }
@@ -491,17 +486,17 @@ pub mod stream {
     /// allowing the consumer to be stored anywhere for the duration of the program.
     ///
     /// # Callback Signatures (ordered by execution order)
-    /// All callbacks are async and return `Future<Output = ()>`.
-    /// - `on_chunk`: Called once per complete chunk received with `&GetChatCompletionChunk`
-    /// - `on_reason_token`: Called for each reasoning token with `(OutputContext, token: String)`
-    /// - `on_reasoning_complete`: Called once when reasoning phase completes for an output with `OutputContext`
-    /// - `on_content_token`: Called for each content token with `(OutputContext, token: String)`
-    /// - `on_content_complete`: Called once when content phase completes for an output with `OutputContext`
-    /// - `on_inline_citations`: Called when inline citations are present in a delta with `(OutputContext, Vec<InlineCitation>)`
-    /// - `on_client_tool_calls`: Called when client-side tool calls are present with `(OutputContext, Vec<ToolCall>)`
-    /// - `on_server_tool_calls`: Called when server-side tool calls are present with `(OutputContext, Vec<ToolCall>)`
-    /// - `on_usage`: Called once on the last chunk with `&SamplingUsage`
-    /// - `on_citations`: Called once on the last chunk with `&[String]` (citation URLs)
+    /// All callbacks are async and return `Future<Output = ()>`. Parameters use references so no cloning.
+    /// - `on_chunk`: `&GetChatCompletionChunk`
+    /// - `on_reason_token`: `(&OutputContext, token: &str)`
+    /// - `on_reasoning_complete`: `&OutputContext`
+    /// - `on_content_token`: `(&OutputContext, token: &str)`
+    /// - `on_content_complete`: `&OutputContext`
+    /// - `on_inline_citations`: `(&OutputContext, &[InlineCitation])`
+    /// - `on_client_tool_calls`: `(&OutputContext, &[ToolCall])`
+    /// - `on_server_tool_calls`: `(&OutputContext, &[ToolCall])`
+    /// - `on_usage`: `&SamplingUsage`
+    /// - `on_citations`: `&[String]`
     ///
     /// # Examples
     ///
@@ -527,41 +522,41 @@ pub mod stream {
 
         /// Callback invoked for each reasoning token in the stream.
         ///
-        /// Receives `(OutputContext, token: String)`
+        /// Receives `(&OutputContext, token: &str)` — no cloning.
         pub on_reason_token:
-            Option<Box<dyn FnMut(OutputContext, String) -> BoxFuture<'a> + Send + Sync + 'a>>,
+            Option<Box<dyn FnMut(&OutputContext, &str) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked once when the reasoning phase completes for an output.
         ///
         /// This callback is called only once per output when the reasoning phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when reasoning finishes.
         ///
-        /// Receives `OutputContext` with information about which output completed.
+        /// Receives `&OutputContext`.
         pub on_reasoning_complete:
-            Option<Box<dyn FnMut(OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
+            Option<Box<dyn FnMut(&OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked for each content token in the stream.
         ///
-        /// Receives `(OutputContext, token: String)`
+        /// Receives `(&OutputContext, token: &str)` — no cloning.
         pub on_content_token:
-            Option<Box<dyn FnMut(OutputContext, String) -> BoxFuture<'a> + Send + Sync + 'a>>,
+            Option<Box<dyn FnMut(&OutputContext, &str) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked once when the content phase completes for an output.
         ///
         /// This callback is called only once per output when the content phase transitions
         /// to `Complete`. Useful for performing cleanup or formatting when content generation finishes.
         ///
-        /// Receives `OutputContext` with information about which output completed.
+        /// Receives `&OutputContext`.
         pub on_content_complete:
-            Option<Box<dyn FnMut(OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
+            Option<Box<dyn FnMut(&OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked when inline citations are present in a delta.
         ///
         /// This callback is called whenever a delta contains inline citations for an output.
         ///
-        /// Receives `(OutputContext, Vec<InlineCitation>)` with the output context and citations.
+        /// Receives `(&OutputContext, &[InlineCitation])`.
         pub on_inline_citations: Option<
-            Box<dyn FnMut(OutputContext, Vec<InlineCitation>) -> BoxFuture<'a> + Send + Sync + 'a>,
+            Box<dyn FnMut(&OutputContext, &[InlineCitation]) -> BoxFuture<'a> + Send + Sync + 'a>,
         >,
 
         /// Callback invoked when client-side tool calls are present.
@@ -569,20 +564,18 @@ pub mod stream {
         /// This callback is called when client-side tool calls (functions that need to be executed
         /// by the client) appear in a delta.
         ///
-        /// Receives `(OutputContext, Vec<ToolCall>)` with the output context and client-side tool calls.
-        pub on_client_tool_calls: Option<
-            Box<dyn FnMut(OutputContext, Vec<ToolCall>) -> BoxFuture<'a> + Send + Sync + 'a>,
-        >,
+        /// Receives `(&OutputContext, &[ToolCall])`.
+        pub on_client_tool_calls:
+            Option<Box<dyn FnMut(&OutputContext, &[ToolCall]) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked when server-side tool calls are present.
         ///
         /// This callback is called when server-side tool calls (XSearch, WebSearch, CodeExecution, etc.)
         /// appear in a delta.
         ///
-        /// Receives `(OutputContext, Vec<ToolCall>)` with the output context and server-side tool calls.
-        pub on_server_tool_calls: Option<
-            Box<dyn FnMut(OutputContext, Vec<ToolCall>) -> BoxFuture<'a> + Send + Sync + 'a>,
-        >,
+        /// Receives `(&OutputContext, &[ToolCall])`.
+        pub on_server_tool_calls:
+            Option<Box<dyn FnMut(&OutputContext, &[ToolCall]) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked once on the last chunk with usage statistics.
         ///
@@ -666,32 +659,34 @@ pub mod stream {
         pub fn with_stdout() -> Self {
             Self {
                 on_chunk: None,
-                on_reason_token: Some(Box::new(move |ctx: OutputContext, token: String| {
+                on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                    let output_index = ctx.output_index;
+                    let token = token.to_string();
                     Box::pin(async move {
-                        if ctx.output_index != 0 {
+                        if output_index != 0 {
                             return;
                         }
-
                         print!("{token}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     })
                 })),
-                on_reasoning_complete: Some(Box::new(move |_ctx: OutputContext| {
+                on_reasoning_complete: Some(Box::new(move |_ctx: &OutputContext| {
                     Box::pin(async move {
                         println!("\n");
                     })
                 })),
-                on_content_token: Some(Box::new(move |ctx: OutputContext, token: String| {
+                on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                    let output_index = ctx.output_index;
+                    let token = token.to_string();
                     Box::pin(async move {
-                        if ctx.output_index != 0 {
+                        if output_index != 0 {
                             return;
                         }
-
                         print!("{token}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     })
                 })),
-                on_content_complete: Some(Box::new(move |_ctx: OutputContext| {
+                on_content_complete: Some(Box::new(move |_ctx: &OutputContext| {
                     Box::pin(async move {
                         println!("\n");
                     })
@@ -773,20 +768,24 @@ pub mod stream {
                         }
                     })
                 })),
-                on_reason_token: Some(Box::new(move |ctx: OutputContext, token: String| {
+                on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                    let output_index = ctx.output_index as i32;
+                    let token = token.to_string();
                     let buffers_reason = buffers_reason_clone.clone();
                     Box::pin(async move {
                         let mut buffers = buffers_reason.lock().unwrap();
-                        let output_buf = buffers.entry(ctx.output_index as i32).or_default();
+                        let output_buf = buffers.entry(output_index).or_default();
                         output_buf.reasoning.push_str(&token);
                     })
                 })),
                 on_reasoning_complete: None,
-                on_content_token: Some(Box::new(move |ctx: OutputContext, token: String| {
+                on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                    let output_index = ctx.output_index as i32;
+                    let token = token.to_string();
                     let buffers_content = buffers_content_clone.clone();
                     Box::pin(async move {
                         let mut buffers = buffers_content.lock().unwrap();
-                        let output_buf = buffers.entry(ctx.output_index as i32).or_default();
+                        let output_buf = buffers.entry(output_index).or_default();
                         output_buf.content.push_str(&token);
                     })
                 })),
@@ -808,7 +807,7 @@ pub mod stream {
         pub fn on_chunk<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&GetChatCompletionChunk) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_chunk = Some(Box::new(move |chunk| Box::pin(f(chunk))));
             self
@@ -816,14 +815,11 @@ pub mod stream {
 
         /// Builder method to set reason token callback.
         ///
-        /// The callback receives `(OutputContext, token: String)` parameters.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `(OutputContext, String)`
+        /// The callback receives `(&OutputContext, token: &str)` — no cloning.
         pub fn on_reason_token<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, String) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_reason_token = Some(Box::new(move |ctx, token| Box::pin(f(ctx, token))));
             self
@@ -832,14 +828,11 @@ pub mod stream {
         /// Builder method to set reasoning completion callback.
         ///
         /// Called once when the reasoning phase completes for an output.
-        /// This callback is invoked only once per output when reasoning transitions to Complete.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `OutputContext` and returns a `Future<Output = ()>`
+        /// Receives `&OutputContext`.
         pub fn on_reasoning_complete<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_reasoning_complete = Some(Box::new(move |ctx| Box::pin(f(ctx))));
             self
@@ -847,14 +840,11 @@ pub mod stream {
 
         /// Builder method to set content token callback.
         ///
-        /// The callback receives `(OutputContext, token: String)` parameters.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `(OutputContext, String)`
+        /// The callback receives `(&OutputContext, token: &str)` — no cloning.
         pub fn on_content_token<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, String) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_content_token = Some(Box::new(move |ctx, token| Box::pin(f(ctx, token))));
             self
@@ -863,14 +853,11 @@ pub mod stream {
         /// Builder method to set content completion callback.
         ///
         /// Called once when the content phase completes for an output.
-        /// This callback is invoked only once per output when content transitions to Complete.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `OutputContext` and returns a `Future<Output = ()>`
+        /// Receives `&OutputContext`.
         pub fn on_content_complete<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_content_complete = Some(Box::new(move |ctx| Box::pin(f(ctx))));
             self
@@ -878,14 +865,11 @@ pub mod stream {
 
         /// Builder method to set inline citations callback.
         ///
-        /// Called when inline citations are present in a delta for an output.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `(OutputContext, Vec<InlineCitation>)` and returns a `Future<Output = ()>`
+        /// Receives `(&OutputContext, &[InlineCitation])`.
         pub fn on_inline_citations<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, Vec<InlineCitation>) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext, &[InlineCitation]) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_inline_citations =
                 Some(Box::new(move |ctx, citations| Box::pin(f(ctx, citations))));
@@ -894,15 +878,11 @@ pub mod stream {
 
         /// Builder method to set client-side tool calls callback.
         ///
-        /// Called when client-side tool calls (functions that need to be executed by the client)
-        /// are present in a delta.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `(OutputContext, Vec<ToolCall>)` and returns a `Future<Output = ()>`
+        /// Receives `(&OutputContext, &[ToolCall])`.
         pub fn on_client_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, Vec<ToolCall>) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_client_tool_calls = Some(Box::new(move |ctx, calls| Box::pin(f(ctx, calls))));
             self
@@ -910,15 +890,11 @@ pub mod stream {
 
         /// Builder method to set server-side tool calls callback.
         ///
-        /// Called when server-side tool calls (XSearch, WebSearch, CodeExecution, etc.)
-        /// are present in a delta.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `(OutputContext, Vec<ToolCall>)` and returns a `Future<Output = ()>`
+        /// Receives `(&OutputContext, &[ToolCall])`.
         pub fn on_server_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
-            F: FnMut(OutputContext, Vec<ToolCall>) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_server_tool_calls = Some(Box::new(move |ctx, calls| Box::pin(f(ctx, calls))));
             self
@@ -926,14 +902,11 @@ pub mod stream {
 
         /// Builder method to set usage callback.
         ///
-        /// Called once on the last chunk with final usage statistics.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `&SamplingUsage` and returns a `Future<Output = ()>`
+        /// Receives `&SamplingUsage`.
         pub fn on_usage<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&SamplingUsage) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_usage = Some(Box::new(move |usage| Box::pin(f(usage))));
             self
@@ -941,14 +914,11 @@ pub mod stream {
 
         /// Builder method to set citations callback.
         ///
-        /// Called once on the last chunk with all citations.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `&[String]` and returns a `Future<Output = ()>`
+        /// Receives `&[String]`.
         pub fn on_citations<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&[String]) -> Fut + Send + Sync + 'a,
-            Fut: Future<Output = ()> + Send + 'a,
+            Fut: Future<Output = ()> + 'a,
         {
             self.on_citations = Some(Box::new(move |citations| Box::pin(f(citations))));
             self

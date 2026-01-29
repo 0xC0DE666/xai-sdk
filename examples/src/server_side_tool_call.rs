@@ -70,11 +70,12 @@ async fn main() -> Result<()> {
             let is_thinking_ct = is_thinking.clone();
 
             let consumer = Consumer::new()
-                .on_reason_token(move |ctx: OutputContext, _token: String| {
+                .on_reason_token(move |ctx: &OutputContext, _token: &str| {
                     let is_thinking = is_thinking_rt.clone();
                     let reasoning_started = reasoning_started_rt.clone();
+                    let output_index = ctx.output_index;
                     async move {
-                        if ctx.output_index == 0 {
+                        if output_index == 0 {
                             let mut started = reasoning_started.lock().unwrap();
                             let mut thinking = is_thinking.lock().unwrap();
                             if !*started {
@@ -89,21 +90,23 @@ async fn main() -> Result<()> {
                         }
                     }
                 })
-                .on_reasoning_complete(move |ctx: OutputContext| {
+                .on_reasoning_complete(move |ctx: &OutputContext| {
                     let is_thinking = is_thinking_rc.clone();
+                    let output_index = ctx.output_index;
                     async move {
                         let mut thinking = is_thinking.lock().unwrap();
                         if *thinking {
                             *thinking = false;
                             println!("\n");
                         }
-                        dbg!(&ctx);
+                        dbg!(output_index);
                         println!("on_reasoning_complete -------------------------------------------------\n");
                     }
                 })
                 // on_content_token: Print content in real-time
-                .on_content_token(move |ctx: OutputContext, token: String| {
+                .on_content_token(move |_ctx: &OutputContext, token: &str| {
                     let is_thinking = is_thinking_ct.clone();
+                    let token = token.to_string();
                     async move {
                         // Clear thinking indicator if still showing
                         let mut thinking = is_thinking.lock().unwrap();
@@ -116,38 +119,51 @@ async fn main() -> Result<()> {
                     }
                 })
                 // on_content_complete: New line after content
-                .on_content_complete(move |ctx: OutputContext| async move {
-                    dbg!(&ctx);
-                    println!(
-                        "on_content_complete -------------------------------------------------\n"
-                    );
+                .on_content_complete(move |ctx: &OutputContext| {
+                    let output_index = ctx.output_index;
+                    async move {
+                        dbg!(output_index);
+                        println!(
+                            "on_content_complete -------------------------------------------------\n"
+                        );
+                    }
                 })
                 // on_inline_citations: Show citations inline
-                .on_inline_citations(move |ctx: OutputContext, citations: Vec<InlineCitation>| async move {
-                    if !citations.is_empty() {
-                        println!("\n📚 Found {} inline citation(s):", citations.len());
-                        for citation in &citations {
-                            if let Some(ref citation_data) = citation.citation {
-                                println!("  • [{}] {:?}", citation.id, citation_data);
-                            } else {
-                                println!("  • [{}] (no citation data)", citation.id);
+                .on_inline_citations(move |_ctx: &OutputContext, citations: &[InlineCitation]| {
+                    let citations = citations.to_vec();
+                    async move {
+                        if !citations.is_empty() {
+                            println!("\n📚 Found {} inline citation(s):", citations.len());
+                            for citation in &citations {
+                                if let Some(ref citation_data) = citation.citation {
+                                    println!("  • [{}] {:?}", citation.id, citation_data);
+                                } else {
+                                    println!("  • [{}] (no citation data)", citation.id);
+                                }
                             }
                         }
+                        println!(
+                            "on_inline_citations -------------------------------------------------\n"
+                        );
                     }
-                    println!(
-                        "on_inline_citations -------------------------------------------------\n"
-                    );
                 })
-                .on_client_tool_calls(move |ctx: OutputContext, tool_calls: Vec<ToolCall>| async move {
-                    dbg!(&ctx);
-                    dbg!(&tool_calls);
-                    println!("on_client_tool_calls -------------------------------------------------\n");
+                .on_client_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
+                    let output_index = ctx.output_index;
+                    let tool_calls = tool_calls.to_vec();
+                    async move {
+                        dbg!(output_index);
+                        dbg!(&tool_calls);
+                        println!("on_client_tool_calls -------------------------------------------------\n");
+                    }
                 })
                 // on_server_tool_calls: Show server tool call details in real-time
-                .on_server_tool_calls(move |ctx: OutputContext, tool_calls: Vec<ToolCall>| async move {
-                    dbg!(&ctx);
-                    println!("\n🔧 Tool Call(s) Detected:");
-                    for tool_call in &tool_calls {
+                .on_server_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
+                    let output_index = ctx.output_index;
+                    let tool_calls = tool_calls.to_vec();
+                    async move {
+                        dbg!(output_index);
+                        println!("\n🔧 Tool Call(s) Detected:");
+                        for tool_call in &tool_calls {
                         let tool_type = match ToolCallType::try_from(tool_call.r#type) {
                             Ok(ToolCallType::XSearchTool) => "XSearch (Twitter/X)",
                             Ok(ToolCallType::WebSearchTool) => "WebSearch",
@@ -188,7 +204,8 @@ async fn main() -> Result<()> {
                         }
                         println!("  └─");
                     }
-                    println!("on_server_tool_calls -------------------------------------------------\n");
+                        println!("on_server_tool_calls -------------------------------------------------\n");
+                    }
                 })
                 // on_usage: Show final statistics
                 .on_usage(move |usage: &xai_sdk::api::SamplingUsage| {

@@ -79,7 +79,7 @@ fn test_consumer_default() {
 
 #[test]
 fn test_consumer_builder_on_content_token() {
-    let consumer = Consumer::new().on_content_token(async move |_ctx, _token| {});
+    let consumer = Consumer::new().on_content_token(|_ctx, _token| async move {});
     // Consumer should have the callback set
     assert!(consumer.on_content_token.is_some());
 }
