@@ -18,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // .compile_well_known_types(true)
     };
 
+    let proto_dir = "../xai/proto";
     configure().compile_protos(
         &[
             "../xai/proto/xai/api/v1/auth.proto",
@@ -33,12 +34,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "../xai/proto/xai/api/v1/usage.proto",
             "../xai/proto/xai/api/v1/video.proto",
         ],
-        &["../xai/proto"],
+        &[proto_dir],
     )?;
 
     configure().compile_protos(
         &["../xai/proto/xai/management_api/v1/billing.proto"],
-        &["../xai/proto"],
+        &[proto_dir],
     )?;
 
     Ok(())
