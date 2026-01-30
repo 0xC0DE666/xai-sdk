@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "../xai/proto/xai/api/v1/sample.proto",
             "../xai/proto/xai/api/v1/tokenize.proto",
             "../xai/proto/xai/api/v1/usage.proto",
-            // "../xai/proto/xai/api/v1/video.proto",
+            "../xai/proto/xai/api/v1/video.proto",
         ],
         &["../xai/proto"],
     )?;
