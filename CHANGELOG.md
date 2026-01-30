@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc4] - 2026-01-30
+
+### Added
+- **Server-Side Tool Call Example**: New `server_side_tool_call.rs` example demonstrating server-side tool call functionality
+  - Shows how to handle server-executed tools (XSearch, WebSearch, CodeExecution, etc.)
+  - Demonstrates proper tool call response handling in chat completions
+  - Complete working example with error handling and response processing
+
+### Changed
+- **BREAKING**: All `Consumer` builder methods now require `Send + Sync` bounds
+  - `on_chunk()`, `on_reason_token()`, `on_reasoning_complete()`, `on_content_token()`, `on_content_complete()`
+  - `on_inline_citations()`, `on_client_tool_calls()`, `on_server_tool_calls()`, `on_usage()`, `on_citations()`
+  - Enables safe use of consumers across thread boundaries and in spawned tasks
+  - All consumer creation functions now properly propagate these bounds
+- **BREAKING**: All `Consumer` callbacks are now async
+  - All callback functions now return `Future<Output = ()>` instead of `()`
+  - Enables non-blocking operations within callbacks (database calls, I/O, etc.)
+  - `await` is now required when calling callbacks in the process function
+  - Maintains same callback signatures but with async execution
+- **BREAKING**: Callback signatures changed to use references
+  - Token callbacks now receive `(&OutputContext, &str)` instead of `(OutputContext, &str)`
+  - Completion callbacks now receive `&OutputContext` instead of `OutputContext`
+  - Improves performance by avoiding unnecessary clones in hot paths
+  - All consumer implementations updated to use references
+- **BREAKING**: Split `on_tool_calls` into separate client and server callbacks
+  - `on_client_tool_calls(&OutputContext, &[ToolCall])` - for client-side tool execution
+  - `on_server_tool_calls(&OutputContext, &[ToolCall])` - for server-side tool execution
+  - Provides clearer separation between tool call types
+  - Updated all documentation and examples to use the new callback names
+- **Comprehensive Documentation Updates**: Complete overhaul of all Rust documentation
+  - Updated every public module with concise yet comprehensive documentation
+  - Consistent style and terminology across all 13 source files
+  - Improved examples, clearer parameter descriptions, and better organization
+  - Enhanced readability while maintaining technical accuracy
+  - Updated README.md examples to match current API usage
+
+### Fixed
+- **Type Safety**: Consumer builder methods now properly enforce `Send + Sync` requirements
+- **Performance**: Callback references eliminate unnecessary cloning in streaming hot paths
+- **API Clarity**: Separate client/server tool call callbacks provide better semantic distinction
+- **Documentation Accuracy**: All documentation now reflects actual API surface and behavior
+
 ## [0.8.0-rc3] - 2026-01-22
 
 ### Added
