@@ -8,7 +8,7 @@ members = [
 [workspace.package]
 documentation = "https://docs.rs/xai-sdk"
 repository = "https://github.com/0xC0DE666/xai-sdk"
-version = "0.8.0"
+version = "0.8.0-rc5"
 edition = "2024"
 rust-version = "1.88"
 keywords = ["async", "grpc", "xai", "grok"]

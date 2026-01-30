@@ -101,6 +101,10 @@ The SDK provides clients for all xAI services:
 ### Image Service
 - **`generate_image`** - Create images from text prompts
 
+### Video Service
+- **`generate_video`** - Create videos with deferred processing
+- **`get_deferred_video`** - Retrieve generated videos
+
 ### Auth Service
 - **`get_api_key_info`** - Get API key information
 
@@ -131,6 +135,7 @@ The SDK is organized into focused modules, each providing easy client creation:
 - **`models`** - Model listing and information
 - **`sample`** - Text sampling and generation
 - **`tokenize`** - Text tokenization
+- **`video`** - Video generation with deferred processing
 
 ### Complete Example
 Here's a complete example showing multiple services using the modular architecture:

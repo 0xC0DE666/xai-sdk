@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc5] - 2026-01-30
+
+### Added
+- **Video Service Support**: Complete video generation API with deferred processing
+  - New `video::client` module for video generation operations
+  - `generate_video()` - Generate videos with customizable parameters
+  - `get_deferred_video()` - Retrieve completed video generations
+  - Support for video quality, resolution, and aspect ratio controls
+  - Integration with existing authentication and error handling patterns
+  - New video-related types: `GenerateVideoRequest`, `VideoOutput`, `VideoResponse`
+
+### Documentation
+- **README Updates**: Added video service to API services and client modules sections
+- **Comprehensive Coverage**: Video generation service fully documented alongside existing services
+
 ## [0.8.0-rc4] - 2026-01-30
 
 ### Added
