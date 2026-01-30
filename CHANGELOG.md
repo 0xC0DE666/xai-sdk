@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.0] - 2026-01-22
+## [0.8.0-rc3] - 2026-01-22
 
 ### Added
 - **New Stream Consumer Callbacks**: Added four new optional callbacks to `chat::stream::Consumer` for comprehensive stream processing
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed test function names to match new context type naming
 - Fixed borrow checker issues in test code
 
-## [0.8.0] - 2025-12-22
+## [0.8.0-rc2] - 2025-12-22
 
 ### Changed
 - **Client Type Aliases**: All client modules now export simplified type aliases for better ergonomics
@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backward Compatible**: Existing code continues to work unchanged
 - **Type Safety**: Same underlying types, just with convenient aliases
 
-## [0.8.0] - 2025-12-08
+## [0.8.0-rc1] - 2025-12-08
 
 ### Added
 - **Billing API Support**: Complete billing and payment management API
