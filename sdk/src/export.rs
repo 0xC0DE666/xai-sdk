@@ -1,19 +1,32 @@
 //! Re-exports of commonly used types from dependencies.
 //!
-//! This module provides convenient re-exports of frequently used types from `tonic`
-//! so users don't need to add `tonic` as a dependency themselves.
+//! Provides convenient re-exports of frequently used types from `tonic` and other
+//! dependencies, so users don't need to add these crates as direct dependencies.
 //!
-//! The module structure mirrors `tonic`'s organization for familiarity.
+//! Module structure mirrors `tonic`'s organization for familiarity.
 
-// Core types
+/// Core gRPC types re-exported from `tonic`.
+///
+/// - [`Request`] - Wrapper for gRPC request messages
+/// - [`Response`] - Wrapper for gRPC response messages
+/// - [`Status`] - gRPC status codes and error information
+/// - [`Streaming`] - Stream of gRPC response messages
 pub use tonic::{Request, Response, Status, Streaming};
 
-// Transport module
+/// gRPC transport types re-exported from `tonic::transport`.
+///
+/// - [`Channel`] - gRPC connection channel
+/// - [`ClientTlsConfig`] - TLS configuration for secure connections
+/// - [`Endpoint`] - gRPC endpoint configuration
+/// - [`Error`] - Transport-level errors
 pub mod transport {
     pub use tonic::transport::{Channel, ClientTlsConfig, Endpoint, Error};
 }
 
-// Service module
+/// gRPC service utilities re-exported from `tonic::service`.
+///
+/// - [`Interceptor`] - Request/response interception trait
+/// - [`interceptor::InterceptedService`] - Service with interceptors applied
 pub mod service {
     pub use tonic::service::Interceptor;
 
@@ -22,7 +35,9 @@ pub mod service {
     }
 }
 
-// Metadata module
+/// gRPC metadata types re-exported from `tonic::metadata`.
+///
+/// - [`MetadataValue`] - HTTP header/metadata values
 pub mod metadata {
     pub use tonic::metadata::MetadataValue;
 }

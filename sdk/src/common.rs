@@ -1,18 +1,19 @@
 //! Common utilities for the xAI SDK.
 //!
-//! Provides shared functionality for channel creation and request interceptors.
+//! Provides shared functionality and utilities used across the xAI SDK,
+//! including channel creation, authentication interceptors, and common types.
 
 pub mod channel {
     use crate::XAI_API_URL;
     use crate::export::transport::{Channel, ClientTlsConfig, Error};
 
-    /// Create a TLS-enabled gRPC `Channel` to the xAI API endpoint.
+    /// Creates a TLS-enabled gRPC `Channel` to the xAI API endpoint.
     ///
-    /// This configures Tonic with native root certificates and connects to
+    /// Configures Tonic with native root certificates and connects to
     /// the SDK's default endpoint defined by [`XAI_API_URL`].
     ///
     /// # Returns
-    /// * `Result<Channel, Error>` - A connected channel or a connection error
+    /// * `Result<Channel, Error>` - Connected channel or transport error
     ///
     pub async fn new() -> Result<Channel, Error> {
         Channel::from_static(XAI_API_URL)
@@ -27,26 +28,24 @@ pub mod interceptor {
     use crate::export::service::Interceptor;
     use crate::export::{Request, Status};
 
-    /// A concrete interceptor type for use in client contexts.
+    /// Concrete interceptor type for client contexts.
     ///
-    /// This type erases the concrete interceptor implementation, allowing it to be
-    /// used as a concrete type in return positions and stored in structs where
-    /// `impl Interceptor` cannot be used.
+    /// Erases the concrete interceptor implementation, allowing use as a concrete type
+    /// in return positions and stored in structs where `impl Interceptor` cannot be used.
     ///
-    /// `ClientInterceptor` is `Send + Sync`, making it safe to use across thread
-    /// boundaries, including in `tokio::spawn` and other async contexts.
+    /// `Send + Sync`, making it safe to use across thread boundaries.
     pub struct ClientInterceptor {
         inner: Box<dyn Interceptor + Send + Sync>,
     }
 
     impl ClientInterceptor {
-        /// Create a new `ClientInterceptor` from any interceptor.
+        /// Creates a new `ClientInterceptor` from any interceptor.
         ///
-        /// The interceptor will be boxed internally, allowing it to be used
-        /// as a concrete type in contexts where `impl Interceptor` cannot be used.
+        /// The interceptor is boxed internally, allowing use as a concrete type
+        /// in contexts where `impl Interceptor` cannot be used.
         ///
         /// # Arguments
-        /// * `inner` - Any type implementing `Interceptor` that is `Send + Sync`
+        /// * `inner` - Any `Send + Sync` type implementing `Interceptor`
         ///
         pub fn new(inner: impl Interceptor + Send + Sync + 'static) -> Self {
             Self {
@@ -67,16 +66,16 @@ pub mod interceptor {
         }
     }
 
-    /// Build an interceptor that injects a Bearer token `authorization` header.
+    /// Creates an interceptor that injects a Bearer token `authorization` header.
     ///
-    /// The header value is set to `Bearer {api_key}`. This is the default
-    /// authentication mechanism used by the SDK's `client::new(api_key)` helpers.
+    /// Header value is set to `Bearer {api_key}`. This is the default
+    /// authentication mechanism used by SDK client constructors.
     ///
     /// # Arguments
-    /// * `api_key` - The xAI API key used for Bearer authentication
+    /// * `api_key` - Valid xAI API key for Bearer authentication
     ///
     /// # Returns
-    /// * `ClientInterceptor` - An interceptor that adds the authorization metadata
+    /// * `ClientInterceptor` - Interceptor that adds authorization metadata
     ///
     pub fn auth(api_key: &str) -> ClientInterceptor {
         let api_key = api_key.to_string();
@@ -91,17 +90,16 @@ pub mod interceptor {
         })
     }
 
-    /// Compose multiple interceptors into a single interceptor, applied in order.
+    /// Composes multiple interceptors into a single interceptor, applied in order.
     ///
-    /// Each interceptor receives the output request of the previous one; the first
-    /// receives the original request. If any interceptor returns an error, the
-    /// composed interceptor returns that error immediately.
+    /// Each interceptor receives the output request of the previous one. If any interceptor
+    /// returns an error, the composed interceptor returns that error immediately.
     ///
     /// # Arguments
-    /// * `interceptors` - A vector of boxed interceptor functions applied sequentially
+    /// * `interceptors` - Vector of boxed interceptor functions applied sequentially
     ///
     /// # Returns
-    /// * `ClientInterceptor` - A single interceptor that applies all provided interceptors
+    /// * `ClientInterceptor` - Single interceptor that applies all provided interceptors
     ///
     pub fn compose(mut interceptors: Vec<Box<dyn Interceptor + Send + Sync>>) -> ClientInterceptor {
         ClientInterceptor::new(move |mut req: Request<()>| -> Result<Request<()>, Status> {

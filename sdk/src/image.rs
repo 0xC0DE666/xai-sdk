@@ -1,6 +1,7 @@
 //! Image generation service client.
 //!
-//! Provides clients for generating images from text prompts.
+//! Provides gRPC clients for generating high-quality images from text prompts
+//! using xAI's advanced image generation models.
 
 pub mod client {
     use crate::common;
@@ -11,13 +12,15 @@ pub mod client {
 
     pub type ImageClient = XImageClient<InterceptedService<Channel, ClientInterceptor>>;
 
-    /// Creates a new ImageClient connected to the xAI API.
+    /// Creates a new authenticated `ImageClient` connected to the xAI API.
+    ///
+    /// Establishes a secure TLS connection with Bearer token authentication.
     ///
     /// # Arguments
-    /// * `api_key` - The xAI API key for authentication
+    /// * `api_key` - Valid xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ImageClient, Error>` - The connected client or connection error
+    /// * `Result<ImageClient, Error>` - Connected client or transport error
     ///
     pub async fn new(api_key: &str) -> Result<ImageClient, Error> {
         let channel = common::channel::new().await?;
@@ -27,14 +30,16 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new `ImageClient` with an existing channel.
+    /// Creates a new authenticated `ImageClient` using an existing gRPC channel.
+    ///
+    /// Useful for sharing connections across multiple service clients.
     ///
     /// # Arguments
-    /// * `channel` - An existing gRPC channel
-    /// * `api_key` - The xAI API key for authentication
+    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `api_key` - Valid xAI API key for authentication
     ///
     /// # Returns
-    /// * `ImageClient` - The connected client
+    /// * `ImageClient` - Authenticated client using the provided channel
     pub fn with_channel(channel: Channel, api_key: &str) -> ImageClient {
         let auth_intercept = common::interceptor::auth(api_key);
         let client = XImageClient::with_interceptor(channel, auth_intercept);
@@ -42,15 +47,16 @@ pub mod client {
         client
     }
 
-    /// Creates a new `ImageClient` using a provided interceptor.
+    /// Creates a new `ImageClient` with a custom interceptor.
     ///
-    /// Uses the same channel setup as [`new()`] but applies the custom interceptor.
+    /// Creates a new TLS connection but uses the provided interceptor instead of
+    /// the default authentication interceptor.
     ///
     /// # Arguments
-    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns
-    /// * `Result<ImageClient, Error>` - The connected, intercepted client or a connection error
+    /// * `Result<ImageClient, Error>` - Intercepted client or connection error
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
@@ -60,14 +66,16 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new `ImageClient` with an existing channel and a provided interceptor.
+    /// Creates a new `ImageClient` with an existing channel and custom interceptor.
+    ///
+    /// Combines a shared channel with custom request interception.
     ///
     /// # Arguments
-    /// * `channel` - An existing gRPC channel
-    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns
-    /// * `ImageClient` - The intercepted client
+    /// * `ImageClient` - Intercepted client using the provided channel
     pub fn with_channel_and_interceptor(
         channel: Channel,
         interceptor: impl Interceptor + Send + Sync + 'static,

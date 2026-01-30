@@ -1,4 +1,81 @@
-/// Module containing re-exported enums from xai_api with extended functionality.
+//! Utilities module.
+//!
+//! Provides extended functionality for xAI API enums and utility functions
+//! to enhance the developer experience.
+//!
+//! ## Extended Enums
+//!
+//! This module re-exports all enums from the generated Protocol Buffer code
+//! and adds convenience methods for common operations:
+//!
+//! ### Display and Parsing
+//!
+//! Many enums implement `Display` and `FromStr` for easy conversion:
+//!
+//! ```rust
+//! use xai_sdk::utils::enums::*;
+//!
+//! // Display enum values as strings
+//! let role = MessageRole::RoleUser;
+//! println!("Role: {}", role); // "user"
+//!
+//! // Parse from strings
+//! let parsed: MessageRole = "assistant".parse().unwrap();
+//! assert_eq!(parsed, MessageRole::RoleAssistant);
+//! ```
+//!
+//! ### Available Enums
+//!
+//! - [`MessageRole`] - User, assistant, system, function roles
+//! - [`FinishReason`] - Why generation stopped (stop, length, etc.)
+//! - [`Modality`] - Input/output modalities (text, image, etc.)
+//! - [`ImageFormat`] - Supported image formats
+//! - [`ToolMode`] - Tool calling modes
+//! - [`ReasoningEffort`] - Reasoning effort levels
+//! - And many more...
+//!
+//! ## Usage Examples
+//!
+//! ### Working with Message Roles
+//!
+//! ```rust
+//! use xai_sdk::utils::enums::MessageRole;
+//!
+//! // Create roles
+//! let user = MessageRole::RoleUser;
+//! let assistant = MessageRole::RoleAssistant;
+//!
+//! // Display as strings
+//! assert_eq!(user.to_string(), "user");
+//! assert_eq!(assistant.to_string(), "assistant");
+//!
+//! // Parse from strings
+//! let system: MessageRole = "system".parse().unwrap();
+//! assert_eq!(system, MessageRole::RoleSystem);
+//! ```
+//!
+//! ### Working with Finish Reasons
+//!
+//! ```rust
+//! use xai_sdk::utils::enums::FinishReason;
+//!
+//! let stop = FinishReason::ReasonStop;
+//! let tool_calls = FinishReason::ReasonToolCalls;
+//!
+//! assert_eq!(stop.to_string(), "stop");
+//! assert_eq!(tool_calls.to_string(), "tool_calls");
+//! ```
+//!
+//! ## Implementation Details
+//!
+//! The extended functionality is implemented through:
+//!
+//! - `Display` trait implementations for human-readable output
+//! - `FromStr` trait implementations for parsing from strings
+//! - Additional convenience methods where appropriate
+//!
+//! All implementations handle deprecated enum variants gracefully
+//! and provide clear error messages for invalid inputs.
 pub mod enums {
     use std::fmt;
     use std::str::FromStr;

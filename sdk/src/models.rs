@@ -1,6 +1,7 @@
 //! Model information service client.
 //!
-//! Provides clients for listing available language models, embedding models, and image generation models.
+//! Provides gRPC clients for querying available xAI models including language models,
+//! embedding models, and image generation models with their capabilities and metadata.
 
 pub mod client {
     use crate::common;
@@ -11,13 +12,15 @@ pub mod client {
 
     pub type ModelsClient = XModelsClient<InterceptedService<Channel, ClientInterceptor>>;
 
-    /// Creates a new ModelsClient connected to the xAI API.
+    /// Creates a new authenticated `ModelsClient` connected to the xAI API.
+    ///
+    /// Establishes a secure TLS connection with Bearer token authentication.
     ///
     /// # Arguments
-    /// * `api_key` - The xAI API key for authentication
+    /// * `api_key` - Valid xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ModelsClient, Error>` - The connected client or connection error
+    /// * `Result<ModelsClient, Error>` - Connected client or transport error
     ///
     pub async fn new(api_key: &str) -> Result<ModelsClient, Error> {
         let channel = common::channel::new().await?;
@@ -27,14 +30,16 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new `ModelsClient` with an existing channel.
+    /// Creates a new authenticated `ModelsClient` using an existing gRPC channel.
+    ///
+    /// Useful for sharing connections across multiple service clients.
     ///
     /// # Arguments
-    /// * `channel` - An existing gRPC channel
-    /// * `api_key` - The xAI API key for authentication
+    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `api_key` - Valid xAI API key for authentication
     ///
     /// # Returns
-    /// * `ModelsClient` - The connected client
+    /// * `ModelsClient` - Authenticated client using the provided channel
     pub fn with_channel(channel: Channel, api_key: &str) -> ModelsClient {
         let auth_intercept = common::interceptor::auth(api_key);
         let client = XModelsClient::with_interceptor(channel, auth_intercept);
@@ -42,15 +47,16 @@ pub mod client {
         client
     }
 
-    /// Creates a new `ModelsClient` using a provided interceptor.
+    /// Creates a new `ModelsClient` with a custom interceptor.
     ///
-    /// Uses the same channel setup as [`new()`] but applies the custom interceptor.
+    /// Creates a new TLS connection but uses the provided interceptor instead of
+    /// the default authentication interceptor.
     ///
     /// # Arguments
-    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns
-    /// * `Result<ModelsClient, Error>` - The connected, intercepted client or a connection error
+    /// * `Result<ModelsClient, Error>` - Intercepted client or connection error
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
@@ -60,14 +66,16 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new `ModelsClient` with an existing channel and a provided interceptor.
+    /// Creates a new `ModelsClient` with an existing channel and custom interceptor.
+    ///
+    /// Combines a shared channel with custom request interception.
     ///
     /// # Arguments
-    /// * `channel` - An existing gRPC channel
-    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns
-    /// * `ModelsClient` - The intercepted client
+    /// * `ModelsClient` - Intercepted client using the provided channel
     pub fn with_channel_and_interceptor(
         channel: Channel,
         interceptor: impl Interceptor + Send + Sync + 'static,
