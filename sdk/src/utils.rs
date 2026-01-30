@@ -29,10 +29,21 @@
 //! - [`MessageRole`] - User, assistant, system, function roles
 //! - [`FinishReason`] - Why generation stopped (stop, length, etc.)
 //! - [`Modality`] - Input/output modalities (text, image, etc.)
-//! - [`ImageFormat`] - Supported image formats
-//! - [`ToolMode`] - Tool calling modes
+//! - [`ImageDetail`] - Image detail levels
+//! - [`ImageFormat`] - Image file formats
+//! - [`ImageQuality`] - Image quality settings (low, medium, high)
+//! - [`ImageAspectRatio`] - Image aspect ratios (1:1, 16:9, etc.)
+//! - [`ImageResolution`] - Image resolution settings
+//! - [`RankingMetric`] - Similarity ranking methods
 //! - [`ReasoningEffort`] - Reasoning effort levels
-//! - And many more...
+//! - [`SearchMode`] - Search operation modes
+//! - [`ToolMode`] - Tool calling modes
+//! - [`ToolCallType`] - Types of tool calls (client-side, server-side)
+//! - [`ToolCallStatus`] - Tool call execution status
+//! - [`ServerSideTool`] - Available server-side tools
+//! - [`IncludeOption`] - Content inclusion options
+//! - [`VideoAspectRatio`] - Video aspect ratios (1:1, 16:9, etc.)
+//! - [`VideoResolution`] - Video resolution settings (480p, 720p)
 //!
 //! ## Usage Examples
 //!
@@ -82,8 +93,10 @@ pub mod enums {
 
     // Re-export all enums
     pub use crate::xai_api::{
-        DeferredStatus, EmbedEncodingFormat, FinishReason, FormatType, ImageDetail, ImageFormat,
-        MessageRole, Modality, RankingMetric, ReasoningEffort, SearchMode, ToolMode,
+        DeferredStatus, EmbedEncodingFormat, FinishReason, FormatType, ImageAspectRatio, ImageDetail,
+        ImageFormat, ImageQuality, ImageResolution, IncludeOption, MessageRole, Modality,
+        RankingMetric, ReasoningEffort, SearchMode, ServerSideTool, ToolCallStatus, ToolCallType,
+        ToolMode, VideoAspectRatio, VideoResolution,
     };
 
     impl fmt::Display for DeferredStatus {
@@ -410,6 +423,301 @@ pub mod enums {
                 "embedding" => Ok(Modality::Embedding),
                 _ => Modality::from_str_name(s.to_ascii_uppercase().as_str())
                     .ok_or_else(|| format!("Invalid modality: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for ServerSideTool {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                ServerSideTool::Invalid => "invalid",
+                ServerSideTool::WebSearch => "web_search",
+                ServerSideTool::XSearch => "x_search",
+                ServerSideTool::CodeExecution => "code_execution",
+                ServerSideTool::ViewImage => "view_image",
+                ServerSideTool::ViewXVideo => "view_x_video",
+                ServerSideTool::CollectionsSearch => "collections_search",
+                ServerSideTool::Mcp => "mcp",
+                ServerSideTool::AttachmentSearch => "attachment_search",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for ServerSideTool {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(ServerSideTool::Invalid),
+                "web_search" | "websearch" => Ok(ServerSideTool::WebSearch),
+                "x_search" | "xsearch" => Ok(ServerSideTool::XSearch),
+                "code_execution" | "codeexecution" => Ok(ServerSideTool::CodeExecution),
+                "view_image" | "viewimage" => Ok(ServerSideTool::ViewImage),
+                "view_x_video" | "viewxvideo" => Ok(ServerSideTool::ViewXVideo),
+                "collections_search" | "collectionssearch" => Ok(ServerSideTool::CollectionsSearch),
+                "mcp" => Ok(ServerSideTool::Mcp),
+                "attachment_search" | "attachmentsearch" => Ok(ServerSideTool::AttachmentSearch),
+                _ => ServerSideTool::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid server side tool: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for ImageQuality {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                ImageQuality::ImgQualityInvalid => "invalid",
+                ImageQuality::ImgQualityLow => "low",
+                ImageQuality::ImgQualityMedium => "medium",
+                ImageQuality::ImgQualityHigh => "high",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for ImageQuality {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(ImageQuality::ImgQualityInvalid),
+                "low" => Ok(ImageQuality::ImgQualityLow),
+                "medium" => Ok(ImageQuality::ImgQualityMedium),
+                "high" => Ok(ImageQuality::ImgQualityHigh),
+                _ => ImageQuality::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid image quality: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for ImageAspectRatio {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                ImageAspectRatio::ImgAspectRatioInvalid => "invalid",
+                ImageAspectRatio::ImgAspectRatio11 => "1:1",
+                ImageAspectRatio::ImgAspectRatio34 => "3:4",
+                ImageAspectRatio::ImgAspectRatio43 => "4:3",
+                ImageAspectRatio::ImgAspectRatio916 => "9:16",
+                ImageAspectRatio::ImgAspectRatio169 => "16:9",
+                ImageAspectRatio::ImgAspectRatio23 => "2:3",
+                ImageAspectRatio::ImgAspectRatio32 => "3:2",
+                ImageAspectRatio::ImgAspectRatioAuto => "auto",
+                ImageAspectRatio::ImgAspectRatio9195 => "9:19.5",
+                ImageAspectRatio::ImgAspectRatio1959 => "19.5:9",
+                ImageAspectRatio::ImgAspectRatio920 => "9:20",
+                ImageAspectRatio::ImgAspectRatio209 => "20:9",
+                ImageAspectRatio::ImgAspectRatio12 => "1:2",
+                ImageAspectRatio::ImgAspectRatio21 => "2:1",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for ImageAspectRatio {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "1:1" | "1x1" => Ok(ImageAspectRatio::ImgAspectRatio11),
+                "3:4" | "3x4" => Ok(ImageAspectRatio::ImgAspectRatio34),
+                "4:3" | "4x3" => Ok(ImageAspectRatio::ImgAspectRatio43),
+                "9:16" | "9x16" => Ok(ImageAspectRatio::ImgAspectRatio916),
+                "16:9" | "16x9" => Ok(ImageAspectRatio::ImgAspectRatio169),
+                "2:3" | "2x3" => Ok(ImageAspectRatio::ImgAspectRatio23),
+                "3:2" | "3x2" => Ok(ImageAspectRatio::ImgAspectRatio32),
+                "9:19.5" | "9x19.5" => Ok(ImageAspectRatio::ImgAspectRatio9195),
+                "19.5:9" | "19.5x9" => Ok(ImageAspectRatio::ImgAspectRatio1959),
+                "9:20" | "9x20" => Ok(ImageAspectRatio::ImgAspectRatio920),
+                "20:9" | "20x9" => Ok(ImageAspectRatio::ImgAspectRatio209),
+                "1:2" | "1x2" => Ok(ImageAspectRatio::ImgAspectRatio12),
+                "2:1" | "2x1" => Ok(ImageAspectRatio::ImgAspectRatio21),
+                "auto" => Ok(ImageAspectRatio::ImgAspectRatioAuto),
+                "invalid" => Ok(ImageAspectRatio::ImgAspectRatioInvalid),
+                _ => ImageAspectRatio::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid image aspect ratio: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for ImageResolution {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                ImageResolution::ImgResolutionInvalid => "invalid",
+                ImageResolution::ImgResolution1k => "1k",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for ImageResolution {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(ImageResolution::ImgResolutionInvalid),
+                "1k" => Ok(ImageResolution::ImgResolution1k),
+                _ => ImageResolution::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid image resolution: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for IncludeOption {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                IncludeOption::Invalid => "invalid",
+                IncludeOption::WebSearchCallOutput => "web_search_call_output",
+                IncludeOption::XSearchCallOutput => "x_search_call_output",
+                IncludeOption::CodeExecutionCallOutput => "code_execution_call_output",
+                IncludeOption::CollectionsSearchCallOutput => "collections_search_call_output",
+                IncludeOption::AttachmentSearchCallOutput => "attachment_search_call_output",
+                IncludeOption::McpCallOutput => "mcp_call_output",
+                IncludeOption::InlineCitations => "inline_citations",
+                IncludeOption::VerboseStreaming => "verbose_streaming",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for IncludeOption {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(IncludeOption::Invalid),
+                "web_search_call_output" | "websearch" => Ok(IncludeOption::WebSearchCallOutput),
+                "x_search_call_output" | "xsearch" => Ok(IncludeOption::XSearchCallOutput),
+                "code_execution_call_output" | "codeexecution" => Ok(IncludeOption::CodeExecutionCallOutput),
+                "collections_search_call_output" | "collectionssearch" => Ok(IncludeOption::CollectionsSearchCallOutput),
+                "attachment_search_call_output" | "attachmentsearch" => Ok(IncludeOption::AttachmentSearchCallOutput),
+                "mcp_call_output" | "mcp" => Ok(IncludeOption::McpCallOutput),
+                "inline_citations" | "citations" => Ok(IncludeOption::InlineCitations),
+                "verbose_streaming" | "verbose" => Ok(IncludeOption::VerboseStreaming),
+                _ => IncludeOption::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid include option: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for ToolCallType {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                ToolCallType::Invalid => "invalid",
+                ToolCallType::ClientSideTool => "client_side_tool",
+                ToolCallType::WebSearchTool => "web_search_tool",
+                ToolCallType::XSearchTool => "x_search_tool",
+                ToolCallType::CodeExecutionTool => "code_execution_tool",
+                ToolCallType::CollectionsSearchTool => "collections_search_tool",
+                ToolCallType::McpTool => "mcp_tool",
+                ToolCallType::AttachmentSearchTool => "attachment_search_tool",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for ToolCallType {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(ToolCallType::Invalid),
+                "client_side_tool" | "clientside" => Ok(ToolCallType::ClientSideTool),
+                "web_search_tool" | "websearch" => Ok(ToolCallType::WebSearchTool),
+                "x_search_tool" | "xsearch" => Ok(ToolCallType::XSearchTool),
+                "code_execution_tool" | "codeexecution" => Ok(ToolCallType::CodeExecutionTool),
+                "collections_search_tool" | "collectionssearch" => Ok(ToolCallType::CollectionsSearchTool),
+                "attachment_search_tool" | "attachmentsearch" => Ok(ToolCallType::AttachmentSearchTool),
+                "mcp_tool" | "mcp" => Ok(ToolCallType::McpTool),
+                _ => ToolCallType::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid tool call type: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for ToolCallStatus {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                ToolCallStatus::InProgress => "in_progress",
+                ToolCallStatus::Completed => "completed",
+                ToolCallStatus::Incomplete => "incomplete",
+                ToolCallStatus::Failed => "failed",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for ToolCallStatus {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "in_progress" | "inprogress" => Ok(ToolCallStatus::InProgress),
+                "completed" => Ok(ToolCallStatus::Completed),
+                "incomplete" => Ok(ToolCallStatus::Incomplete),
+                "failed" => Ok(ToolCallStatus::Failed),
+                _ => ToolCallStatus::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid tool call status: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for VideoAspectRatio {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                VideoAspectRatio::Unspecified => "unspecified",
+                VideoAspectRatio::VideoAspectRatio11 => "1:1",
+                VideoAspectRatio::VideoAspectRatio169 => "16:9",
+                VideoAspectRatio::VideoAspectRatio916 => "9:16",
+                VideoAspectRatio::VideoAspectRatio43 => "4:3",
+                VideoAspectRatio::VideoAspectRatio34 => "3:4",
+                VideoAspectRatio::VideoAspectRatio32 => "3:2",
+                VideoAspectRatio::VideoAspectRatio23 => "2:3",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for VideoAspectRatio {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "1:1" | "1x1" => Ok(VideoAspectRatio::VideoAspectRatio11),
+                "16:9" | "16x9" => Ok(VideoAspectRatio::VideoAspectRatio169),
+                "9:16" | "9x16" => Ok(VideoAspectRatio::VideoAspectRatio916),
+                "4:3" | "4x3" => Ok(VideoAspectRatio::VideoAspectRatio43),
+                "3:4" | "3x4" => Ok(VideoAspectRatio::VideoAspectRatio34),
+                "3:2" | "3x2" => Ok(VideoAspectRatio::VideoAspectRatio32),
+                "2:3" | "2x3" => Ok(VideoAspectRatio::VideoAspectRatio23),
+                "unspecified" => Ok(VideoAspectRatio::Unspecified),
+                _ => VideoAspectRatio::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid video aspect ratio: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for VideoResolution {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                VideoResolution::Unspecified => "unspecified",
+                VideoResolution::VideoResolution480p => "480p",
+                VideoResolution::VideoResolution720p => "720p",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for VideoResolution {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "unspecified" => Ok(VideoResolution::Unspecified),
+                "480p" => Ok(VideoResolution::VideoResolution480p),
+                "720p" => Ok(VideoResolution::VideoResolution720p),
+                _ => VideoResolution::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid video resolution: '{s}'")),
             }
         }
     }
