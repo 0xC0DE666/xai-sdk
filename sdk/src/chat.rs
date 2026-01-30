@@ -1,7 +1,8 @@
 //! Chat completion service client.
 //!
-//! Provides clients for chat completions, both blocking and streaming, as well as
-//! utilities for processing and assembling streaming responses.
+//! Provides high-performance gRPC clients for xAI's chat completion API, supporting
+//! both blocking and streaming responses with comprehensive utilities for real-time
+//! token processing and response assembly.
 
 pub mod client {
     use crate::common;
@@ -12,13 +13,16 @@ pub mod client {
 
     pub type ChatClient = XChatClient<InterceptedService<Channel, ClientInterceptor>>;
 
-    /// Creates a new `ChatClient` connected to the xAI API.
+    /// Creates a new authenticated `ChatClient` connected to the xAI API.
+    ///
+    /// Establishes a secure TLS connection to xAI's chat service with automatic
+    /// Bearer token authentication.
     ///
     /// # Arguments
-    /// * `api_key` - The xAI API key for authentication
+    /// * `api_key` - Valid xAI API key for authentication
     ///
     /// # Returns
-    /// * `Result<ChatClient, Error>` - The connected client or connection error
+    /// * `Result<ChatClient, Error>` - Connected client or transport error
     ///
     pub async fn new(api_key: &str) -> Result<ChatClient, Error> {
         let channel = common::channel::new().await?;
@@ -28,14 +32,16 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new `ChatClient` with an existing channel.
+    /// Creates a new authenticated `ChatClient` using an existing gRPC channel.
+    ///
+    /// Useful for sharing connections across multiple service clients.
     ///
     /// # Arguments
-    /// * `channel` - An existing gRPC channel
-    /// * `api_key` - The xAI API key for authentication
+    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `api_key` - Valid xAI API key for authentication
     ///
     /// # Returns
-    /// * `ChatClient` - The connected client
+    /// * `ChatClient` - Authenticated client using the provided channel
     pub fn with_channel(channel: Channel, api_key: &str) -> ChatClient {
         let auth_intercept = common::interceptor::auth(api_key);
         let client = XChatClient::with_interceptor(channel, auth_intercept);
@@ -43,16 +49,16 @@ pub mod client {
         client
     }
 
-    /// Creates a new `ChatClient` using a provided interceptor.
+    /// Creates a new `ChatClient` with a custom interceptor.
     ///
-    /// This mirrors [`new()`] channel creation but applies the custom interceptor
-    /// instead of the default auth interceptor.
+    /// Creates a new TLS connection but uses the provided interceptor instead of
+    /// the default authentication interceptor.
     ///
     /// # Arguments
-    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns
-    /// * `Result<ChatClient, Error>` - The connected, intercepted client or a connection error
+    /// * `Result<ChatClient, Error>` - Intercepted client or connection error
     ///
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
@@ -63,14 +69,16 @@ pub mod client {
         Ok(client)
     }
 
-    /// Creates a new `ChatClient` with an existing channel and a provided interceptor.
+    /// Creates a new `ChatClient` with an existing channel and custom interceptor.
+    ///
+    /// Combines a shared channel with custom request interception.
     ///
     /// # Arguments
-    /// * `channel` - An existing gRPC channel
-    /// * `interceptor` - Custom interceptor for request authentication/metadata
+    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns
-    /// * `ChatClient` - The intercepted client
+    /// * `ChatClient` - Intercepted client using the provided channel
     pub fn with_channel_and_interceptor(
         channel: Channel,
         interceptor: impl Interceptor + Send + Sync + 'static,
@@ -81,8 +89,8 @@ pub mod client {
 
 /// Streaming utilities for chat completions.
 ///
-/// Provides functions for processing streaming responses, assembling chunks into complete
-/// responses, and flexible callback-based consumers for real-time token processing.
+/// Provides high-performance utilities for processing real-time chat completion streams,
+/// including flexible callback-based consumers and chunk assembly into complete responses.
 pub mod stream {
     use crate::export::{Status, Streaming};
     use crate::xai_api::{
@@ -95,24 +103,19 @@ pub mod stream {
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
 
-    /// Processes a streaming chat completion response, calling appropriate callbacks for each chunk.
+    /// Processes a streaming chat completion response with custom callbacks.
     ///
-    /// This function takes a gRPC streaming response containing `GetChatCompletionChunk` objects
-    /// and processes each chunk as it arrives. It calls user-defined callbacks for content tokens,
-    /// reasoning tokens, and complete chunks, allowing for real-time processing of AI responses.
-    ///
-    /// The token callbacks receive `(&OutputContext, token: &str)` so no cloning is needed.
-    /// All callbacks are async and will be awaited in the same task.
+    /// Iterates through streaming chunks, invoking consumer callbacks for each token,
+    /// completion event, and metadata. Supports multi-output streams with proper
+    /// context tracking.
     ///
     /// # Arguments
-    /// * `stream` - The gRPC streaming response containing chat completion chunks
-    /// * `consumer` - A [`Consumer`] that defines callback functions for handling different types of data.
-    ///   The consumer's lifetime is inferred from its callbacks - if callbacks capture local variables,
-    ///   the consumer must live at least as long as those variables.
+    /// * `stream` - gRPC streaming response from `get_completion_chunk`
+    /// * `consumer` - Configured callback consumer for handling stream events
     ///
     /// # Returns
-    /// * `Ok(Vec<GetChatCompletionChunk>)` - All collected chunks from the stream
-    /// * `Err(Status)` - Any gRPC error that occurred during streaming
+    /// * `Ok(Vec<GetChatCompletionChunk>)` - All chunks collected from the stream
+    /// * `Err(Status)` - gRPC error if streaming failed
     ///
     /// # Examples
     ///
@@ -282,17 +285,7 @@ pub mod stream {
         Ok(chunks)
     }
 
-    /// Determines the reasoning phase status based on the delta content and output finish reason.
-    ///
-    /// Reasoning is complete when:
-    /// - We have no reasoning content AND either:
-    ///   - We have content (reasoning finished, content starting), or
-    ///   - The output is finished (everything is done)
-    ///
-    /// Reasoning is pending when:
-    /// - We have reasoning content AND no content yet
-    ///
-    /// Otherwise, reasoning is in the initial state.
+    /// Determines the reasoning phase status based on delta content and finish reason.
     fn get_reasoning_status(
         reasoning_content: &str,
         content: &str,
@@ -311,15 +304,7 @@ pub mod stream {
         }
     }
 
-    /// Determines the content phase status based on the delta content and output finish reason.
-    ///
-    /// Content is complete when:
-    /// - Reasoning is empty (reasoning phase is done) AND the output has finished
-    ///
-    /// Content is pending when:
-    /// - We have content tokens being generated
-    ///
-    /// Otherwise, content is in the initial state.
+    /// Determines the content phase status based on delta content and finish reason.
     fn get_content_status(
         reasoning_content: &str,
         content: &str,
@@ -338,25 +323,20 @@ pub mod stream {
         }
     }
 
-    /// Assembles a vector of streaming chunks into a complete GetChatCompletionResponse.
+    /// Assembles streaming chunks into a complete chat completion response.
     ///
-    /// This function takes the collected chunks from a streaming chat completion response
-    /// and reconstructs them into a single, complete response object. It handles multiple
-    /// outputs by grouping chunks by index, accumulates content from deltas, and preserves
-    /// all metadata and usage statistics.
+    /// Reconstructs a full `GetChatCompletionResponse` from collected chunks by:
+    /// - Grouping chunks by output index for multi-output handling
+    /// - Accumulating content, reasoning, and tool calls across deltas
+    /// - Preserving metadata from first chunk and usage stats from last chunk
+    /// - Maintaining output ordering
     ///
     /// # Arguments
-    /// * `chunks` - A vector of `GetChatCompletionChunk` objects collected from a streaming response
+    /// * `chunks` - Vector of chunks from a streaming response
     ///
     /// # Returns
-    /// * `Some(GetChatCompletionResponse)` - The complete assembled response if chunks are provided
-    /// * `None` - If the chunks vector is empty
-    ///
-    /// # Features
-    /// - **Multiple Outputs**: Groups chunks by output index to handle multiple response outputs
-    /// - **Content Accumulation**: Concatenates all delta content, reasoning, and encrypted content
-    /// - **Metadata Preservation**: Uses first chunk for consistent metadata, last chunk for final stats
-    /// - **Order Maintenance**: Sorts outputs by index to preserve original order
+    /// * `Some(GetChatCompletionResponse)` - Complete assembled response
+    /// * `None` - If chunks vector is empty
     ///
     pub fn assemble(chunks: Vec<GetChatCompletionChunk>) -> Option<GetChatCompletionResponse> {
         if chunks.is_empty() {
@@ -454,7 +434,7 @@ pub mod stream {
         })
     }
 
-    /// Helper struct to accumulate data for each output during assembly
+    /// Accumulates output data during chunk assembly process.
     #[derive(Default)]
     struct OutputData {
         content: String,
@@ -467,30 +447,26 @@ pub mod stream {
         logprobs: Option<LogProbs>,
     }
 
-    /// Boxed future for async callbacks. Does not require `Send` so callbacks can
-    /// take references; futures are awaited immediately in the same task.
+    /// Boxed future type for async callbacks. Allows references without `Send` requirement.
     pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
-    /// A callback-based consumer for processing streaming chat completion responses.
+    /// Callback-based consumer for processing streaming chat completion responses.
     ///
-    /// The `Consumer` allows you to define custom callbacks that are invoked as chunks
-    /// arrive from the stream. All callbacks are optional and can be set using builder
-    /// methods or by using the pre-configured [`with_stdout()`](Consumer::with_stdout) or
-    /// [`with_buffered_stdout()`](Consumer::with_buffered_stdout) constructors.
+    /// Defines optional async callbacks invoked as streaming chunks arrive.
+    /// Use builder methods to configure callbacks or pre-configured constructors
+    /// for common use cases.
     ///
     /// # Lifetime
     ///
-    /// The lifetime parameter `'a` is inferred by the compiler based on how the `Consumer` is used.
-    /// If your callbacks capture local variables, the lifetime will be scoped to that context.
-    /// If your callbacks only capture owned data or have no captures, the lifetime can be `'static`,
-    /// allowing the consumer to be stored anywhere for the duration of the program.
+    /// Lifetime `'a` is inferred from callback captures. Scoped to local context
+    /// if callbacks capture variables; `'static` if callbacks own all data.
     ///
-    /// # Callback Signatures (ordered by execution order)
-    /// All callbacks are async and return `Future<Output = ()>`. Parameters use references so no cloning.
+    /// # Callback Signatures (execution order)
+    /// All callbacks are async with `Future<Output = ()>`. Use references to avoid cloning.
     /// - `on_chunk`: `&GetChatCompletionChunk`
-    /// - `on_reason_token`: `(&OutputContext, token: &str)`
+    /// - `on_reason_token`: `(&OutputContext, &str)`
     /// - `on_reasoning_complete`: `&OutputContext`
-    /// - `on_content_token`: `(&OutputContext, token: &str)`
+    /// - `on_content_token`: `(&OutputContext, &str)`
     /// - `on_content_complete`: `&OutputContext`
     /// - `on_inline_citations`: `(&OutputContext, &[InlineCitation])`
     /// - `on_client_tool_calls`: `(&OutputContext, &[ToolCall])`
@@ -594,26 +570,10 @@ pub mod stream {
     }
 
     impl<'a> Consumer<'a> {
-        /// Create a new empty `Consumer` with no callbacks set.
+        /// Creates an empty `Consumer` with no callbacks configured.
         ///
-        /// The lifetime `'a` will be inferred from the callbacks you add using the builder methods.
-        /// If you add callbacks that capture local variables, the consumer will be scoped to that context.
-        ///
-        /// # Examples
-        ///
-        /// ```no_run
-        /// use xai_sdk::chat::stream::Consumer;
-        ///
-        /// // Empty consumer
-        /// let consumer = Consumer::new();
-        ///
-        /// // Consumer with callbacks that capture local state
-        /// let mut counter = 0;
-        /// let consumer = Consumer::new()
-        ///     .on_content_token(|_ctx, _token| async move {
-        ///         counter += 1;
-        ///     });
-        /// ```
+        /// Lifetime `'a` inferred from added callbacks. Scoped to local context
+        /// if callbacks capture variables.
         pub fn new() -> Self {
             Self {
                 on_chunk: None,
@@ -629,15 +589,13 @@ pub mod stream {
             }
         }
 
-        /// Create a `Consumer` that prints content and reason tokens to stdout.
+        /// Creates a `Consumer` that prints tokens to stdout in real-time.
         ///
-        /// This consumer only prints tokens from the first output (index 0) to avoid
-        /// output mangling when multiple outputs are requested. For multi-output
-        /// streaming, use [`with_buffered_stdout()`](Consumer::with_buffered_stdout) instead.
+        /// Prints reasoning and content tokens as they arrive. Only handles the first output
+        /// (index 0) to avoid interleaved output. For multi-output streams, use
+        /// [`with_buffered_stdout()`] instead.
         ///
-        /// The returned consumer has a `'static` lifetime since it doesn't capture any local variables.
-        /// You can still add additional callbacks using builder methods, but those callbacks must also
-        /// be `'static` (not capture local variables).
+        /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
         ///
         /// # Examples
         ///
@@ -691,15 +649,12 @@ pub mod stream {
             }
         }
 
-        /// Create a Consumer that buffers tokens per output and prints them in labeled blocks when each output completes.
+        /// Creates a `Consumer` that buffers and prints multi-output streams cleanly.
         ///
-        /// This prevents output mangling when streaming multiple outputs by buffering tokens
-        /// until an output finishes (has a finish_reason), then printing that output's complete content
-        /// in a clean labeled block.
+        /// Buffers tokens per output until completion, then prints each output in
+        /// labeled blocks. Prevents output interleaving in multi-output streams.
         ///
-        /// The returned consumer has a `'static` lifetime since it doesn't capture any local variables.
-        /// You can still add additional callbacks using builder methods, but those callbacks must also
-        /// be `'static` (not capture local variables).
+        /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
         ///
         /// # Examples
         ///
@@ -790,12 +745,7 @@ pub mod stream {
             }
         }
 
-        /// Builder method to set chunk callback.
-        ///
-        /// Called once per chunk received, before token callbacks are invoked.
-        ///
-        /// # Arguments
-        /// * `f` - Async closure that receives `&GetChatCompletionChunk`
+        /// Sets the chunk callback, invoked once per received chunk before token callbacks.
         pub fn on_chunk<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&GetChatCompletionChunk) -> Fut + Send + Sync + 'a,
@@ -805,9 +755,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set reason token callback.
-        ///
-        /// The callback receives `(&OutputContext, token: &str)` — no cloning.
+        /// Sets the reasoning token callback, invoked for each reasoning token.
         pub fn on_reason_token<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
@@ -817,10 +765,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set reasoning completion callback.
-        ///
-        /// Called once when the reasoning phase completes for an output.
-        /// Receives `&OutputContext`.
+        /// Sets the reasoning completion callback, invoked once when reasoning phase ends.
         pub fn on_reasoning_complete<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
@@ -830,9 +775,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set content token callback.
-        ///
-        /// The callback receives `(&OutputContext, token: &str)` — no cloning.
+        /// Sets the content token callback, invoked for each content token.
         pub fn on_content_token<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
@@ -842,10 +785,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set content completion callback.
-        ///
-        /// Called once when the content phase completes for an output.
-        /// Receives `&OutputContext`.
+        /// Sets the content completion callback, invoked once when content generation ends.
         pub fn on_content_complete<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
@@ -855,9 +795,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set inline citations callback.
-        ///
-        /// Receives `(&OutputContext, &[InlineCitation])`.
+        /// Sets the inline citations callback, invoked when citations appear in deltas.
         pub fn on_inline_citations<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &[InlineCitation]) -> Fut + Send + Sync + 'a,
@@ -868,9 +806,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set client-side tool calls callback.
-        ///
-        /// Receives `(&OutputContext, &[ToolCall])`.
+        /// Sets the client-side tool calls callback, invoked for client-executable tool calls.
         pub fn on_client_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
@@ -880,9 +816,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set server-side tool calls callback.
-        ///
-        /// Receives `(&OutputContext, &[ToolCall])`.
+        /// Sets the server-side tool calls callback, invoked for server-executed tool calls.
         pub fn on_server_tool_calls<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
@@ -892,9 +826,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set usage callback.
-        ///
-        /// Receives `&SamplingUsage`.
+        /// Sets the usage callback, invoked once with final token usage statistics.
         pub fn on_usage<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&SamplingUsage) -> Fut + Send + Sync + 'a,
@@ -904,9 +836,7 @@ pub mod stream {
             self
         }
 
-        /// Builder method to set citations callback.
-        ///
-        /// Receives `&[String]`.
+        /// Sets the citations callback, invoked once with all citation URLs.
         pub fn on_citations<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&[String]) -> Fut + Send + Sync + 'a,
@@ -923,10 +853,7 @@ pub mod stream {
         }
     }
 
-    /// Represents the status of a phase (reasoning or content) in a streaming response.
-    ///
-    /// This enum is used in [`OutputContext`] to track the progress of reasoning and content
-    /// generation phases for each output in a multi-output stream.
+    /// Status of reasoning or content generation phases in streaming responses.
     #[derive(Clone, Debug, PartialEq)]
     pub enum PhaseStatus {
         /// Initial state - the phase has not started yet.
@@ -939,64 +866,26 @@ pub mod stream {
 
     /// Contextual information about an output in a streaming chat completion response.
     ///
-    /// `OutputContext` provides metadata about the current output being processed, including
-    /// which output it belongs to, how many total outputs are in the stream, and completion
-    /// status flags for reasoning and content phases.
-    ///
-    /// This struct is passed to token callbacks (`on_content_token` and `on_reason_token`)
-    /// and completion callbacks (`on_content_complete` and `on_reasoning_complete`) to provide
-    /// context about the output's position in the stream and the state of the response generation.
+    /// Provides metadata about output position, total outputs, and generation phase status.
+    /// Passed to token and completion callbacks for context-aware processing.
     ///
     #[derive(Clone, Debug)]
     pub struct OutputContext {
-        /// The total number of outputs in this streaming response.
-        ///
-        /// When `n > 1` is specified in the request, multiple outputs are generated
-        /// concurrently. This field indicates how many outputs are being streamed.
+        /// Total number of outputs in this streaming response (when `n > 1`).
         pub total_outputs: usize,
 
-        /// The index of the output this token belongs to.
-        ///
-        /// Outputs are indexed starting from 0. Use this to distinguish tokens from
-        /// different outputs when processing multi-output streams.
+        /// Index of this output (0-based), for distinguishing outputs in multi-output streams.
         pub output_index: usize,
 
-        /// The current status of the reasoning phase for this output.
-        ///
-        /// - `PhaseStatus::Init`: Initial state, no reasoning content yet
-        /// - `PhaseStatus::Pending`: Reasoning content is being generated
-        /// - `PhaseStatus::Complete`: Reasoning phase is complete (no more reasoning tokens,
-        ///   and either content has started or the output has finished)
-        ///
-        /// Use this to detect when the model has finished its reasoning phase
-        /// and moved on to generating the final answer.
+        /// Current status of the reasoning phase for this output.
         pub reasoning_status: PhaseStatus,
 
-        /// The current status of the content phase for this output.
-        ///
-        /// - `PhaseStatus::Init`: Initial state, no content yet (reasoning may still be active)
-        /// - `PhaseStatus::Pending`: Content tokens are being generated
-        /// - `PhaseStatus::Complete`: Content phase is complete (output has finished,
-        ///   i.e., `finish_reason != 0`)
-        ///
-        /// Use this to detect when an output has completed and perform any
-        /// final processing or cleanup.
+        /// Current status of the content phase for this output.
         pub content_status: PhaseStatus,
     }
 
     impl OutputContext {
         /// Creates a new `OutputContext` with the specified values.
-        ///
-        /// # Arguments
-        ///
-        /// * `total_outputs` - The total number of outputs in the stream
-        /// * `output_index` - The index of the output this context belongs to
-        /// * `reasoning_status` - The current status of the reasoning phase
-        /// * `content_status` - The current status of the content phase
-        ///
-        /// # Returns
-        ///
-        /// A new `OutputContext` instance with the provided values.
         pub fn new(
             total_outputs: usize,
             output_index: usize,
