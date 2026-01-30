@@ -93,10 +93,10 @@ pub mod enums {
 
     // Re-export all enums
     pub use crate::xai_api::{
-        DeferredStatus, EmbedEncodingFormat, FinishReason, FormatType, ImageAspectRatio, ImageDetail,
-        ImageFormat, ImageQuality, ImageResolution, IncludeOption, MessageRole, Modality,
-        RankingMetric, ReasoningEffort, SearchMode, ServerSideTool, ToolCallStatus, ToolCallType,
-        ToolMode, VideoAspectRatio, VideoResolution,
+        DeferredStatus, EmbedEncodingFormat, FinishReason, FormatType, ImageAspectRatio,
+        ImageDetail, ImageFormat, ImageQuality, ImageResolution, IncludeOption, MessageRole,
+        Modality, RankingMetric, ReasoningEffort, SearchMode, ServerSideTool, ToolCallStatus,
+        ToolCallType, ToolMode, VideoAspectRatio, VideoResolution,
     };
 
     impl fmt::Display for DeferredStatus {
@@ -588,9 +588,15 @@ pub mod enums {
                 "invalid" => Ok(IncludeOption::Invalid),
                 "web_search_call_output" | "websearch" => Ok(IncludeOption::WebSearchCallOutput),
                 "x_search_call_output" | "xsearch" => Ok(IncludeOption::XSearchCallOutput),
-                "code_execution_call_output" | "codeexecution" => Ok(IncludeOption::CodeExecutionCallOutput),
-                "collections_search_call_output" | "collectionssearch" => Ok(IncludeOption::CollectionsSearchCallOutput),
-                "attachment_search_call_output" | "attachmentsearch" => Ok(IncludeOption::AttachmentSearchCallOutput),
+                "code_execution_call_output" | "codeexecution" => {
+                    Ok(IncludeOption::CodeExecutionCallOutput)
+                }
+                "collections_search_call_output" | "collectionssearch" => {
+                    Ok(IncludeOption::CollectionsSearchCallOutput)
+                }
+                "attachment_search_call_output" | "attachmentsearch" => {
+                    Ok(IncludeOption::AttachmentSearchCallOutput)
+                }
                 "mcp_call_output" | "mcp" => Ok(IncludeOption::McpCallOutput),
                 "inline_citations" | "citations" => Ok(IncludeOption::InlineCitations),
                 "verbose_streaming" | "verbose" => Ok(IncludeOption::VerboseStreaming),
@@ -626,8 +632,12 @@ pub mod enums {
                 "web_search_tool" | "websearch" => Ok(ToolCallType::WebSearchTool),
                 "x_search_tool" | "xsearch" => Ok(ToolCallType::XSearchTool),
                 "code_execution_tool" | "codeexecution" => Ok(ToolCallType::CodeExecutionTool),
-                "collections_search_tool" | "collectionssearch" => Ok(ToolCallType::CollectionsSearchTool),
-                "attachment_search_tool" | "attachmentsearch" => Ok(ToolCallType::AttachmentSearchTool),
+                "collections_search_tool" | "collectionssearch" => {
+                    Ok(ToolCallType::CollectionsSearchTool)
+                }
+                "attachment_search_tool" | "attachmentsearch" => {
+                    Ok(ToolCallType::AttachmentSearchTool)
+                }
                 "mcp_tool" | "mcp" => Ok(ToolCallType::McpTool),
                 _ => ToolCallType::from_str_name(s)
                     .ok_or_else(|| format!("Invalid tool call type: '{s}'")),
