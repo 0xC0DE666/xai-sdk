@@ -15,11 +15,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .extern_path(".google.protobuf.Any", "::prost_wkt_types::Any")
             .extern_path(".google.protobuf.Timestamp", "::prost_wkt_types::Timestamp")
             .extern_path(".google.protobuf.Value", "::prost_wkt_types::Value")
+            // .compile_well_known_types(true)
     };
 
     configure().compile_protos(
         &[
             "../xai/proto/xai/api/v1/auth.proto",
+            // "../xai/proto/xai/api/v1/batch.proto",
             "../xai/proto/xai/api/v1/chat.proto",
             "../xai/proto/xai/api/v1/deferred.proto",
             "../xai/proto/xai/api/v1/documents.proto",
@@ -29,6 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "../xai/proto/xai/api/v1/sample.proto",
             "../xai/proto/xai/api/v1/tokenize.proto",
             "../xai/proto/xai/api/v1/usage.proto",
+            // "../xai/proto/xai/api/v1/video.proto",
         ],
         &["../xai/proto"],
     )?;

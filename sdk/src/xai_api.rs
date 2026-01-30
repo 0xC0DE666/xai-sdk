@@ -514,6 +514,102 @@ pub mod documents_client {
         }
     }
 }
+/// Records the cost associated with a sampling request (both chat and sample
+/// endpoints).
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SamplingUsage {
+    /// Total number of text completion tokens generated across all choices
+    /// (in case of n>1).
+    #[prost(int32, tag = "1")]
+    pub completion_tokens: i32,
+    /// Total number of reasoning tokens generated across all choices.
+    #[prost(int32, tag = "6")]
+    pub reasoning_tokens: i32,
+    /// Total number of prompt tokens (both text and images).
+    #[prost(int32, tag = "2")]
+    pub prompt_tokens: i32,
+    /// Total number of tokens (prompt + completion).
+    #[prost(int32, tag = "3")]
+    pub total_tokens: i32,
+    /// Total number of (uncached) text tokens in the prompt.
+    #[prost(int32, tag = "4")]
+    pub prompt_text_tokens: i32,
+    /// Total number of cached text tokens in the prompt.
+    #[prost(int32, tag = "7")]
+    pub cached_prompt_text_tokens: i32,
+    /// Total number of image tokens in the prompt.
+    #[prost(int32, tag = "5")]
+    pub prompt_image_tokens: i32,
+    /// Number of individual live search sources used.
+    /// Only applicable when live search is enabled.
+    /// e.g. If a live search query returns citations from both X and Web and news sources, this will be 3.
+    /// If it returns citations from only X, this will be 1.
+    #[prost(int32, tag = "8")]
+    pub num_sources_used: i32,
+    /// List of server side tools called.
+    #[prost(enumeration = "ServerSideTool", repeated, tag = "9")]
+    pub server_side_tools_used: ::prost::alloc::vec::Vec<i32>,
+}
+/// Usage of embedding models.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct EmbeddingUsage {
+    /// The number of feature vectors produced from text inputs.
+    #[prost(int32, tag = "1")]
+    pub num_text_embeddings: i32,
+    /// The number of feature vectors produced from image inputs.
+    #[prost(int32, tag = "2")]
+    pub num_image_embeddings: i32,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ServerSideTool {
+    Invalid = 0,
+    WebSearch = 1,
+    XSearch = 2,
+    CodeExecution = 3,
+    ViewImage = 4,
+    ViewXVideo = 5,
+    CollectionsSearch = 6,
+    Mcp = 7,
+    AttachmentSearch = 8,
+}
+impl ServerSideTool {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Invalid => "SERVER_SIDE_TOOL_INVALID",
+            Self::WebSearch => "SERVER_SIDE_TOOL_WEB_SEARCH",
+            Self::XSearch => "SERVER_SIDE_TOOL_X_SEARCH",
+            Self::CodeExecution => "SERVER_SIDE_TOOL_CODE_EXECUTION",
+            Self::ViewImage => "SERVER_SIDE_TOOL_VIEW_IMAGE",
+            Self::ViewXVideo => "SERVER_SIDE_TOOL_VIEW_X_VIDEO",
+            Self::CollectionsSearch => "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH",
+            Self::Mcp => "SERVER_SIDE_TOOL_MCP",
+            Self::AttachmentSearch => "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SERVER_SIDE_TOOL_INVALID" => Some(Self::Invalid),
+            "SERVER_SIDE_TOOL_WEB_SEARCH" => Some(Self::WebSearch),
+            "SERVER_SIDE_TOOL_X_SEARCH" => Some(Self::XSearch),
+            "SERVER_SIDE_TOOL_CODE_EXECUTION" => Some(Self::CodeExecution),
+            "SERVER_SIDE_TOOL_VIEW_IMAGE" => Some(Self::ViewImage),
+            "SERVER_SIDE_TOOL_VIEW_X_VIDEO" => Some(Self::ViewXVideo),
+            "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH" => Some(Self::CollectionsSearch),
+            "SERVER_SIDE_TOOL_MCP" => Some(Self::Mcp),
+            "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH" => Some(Self::AttachmentSearch),
+            _ => None,
+        }
+    }
+}
 /// Request message for generating an image.
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -539,6 +635,20 @@ pub struct GenerateImageRequest {
     /// in. See ImageFormat enum for options.
     #[prost(enumeration = "ImageFormat", tag = "11")]
     pub format: i32,
+    /// Optional aspect ratio for image generation/editing.
+    /// Only supported by grok-imagine models.
+    /// Defaults to 1:1 if not specified. Auto is only supported for image generation
+    /// with a thinking upsampler.
+    #[prost(enumeration = "ImageAspectRatio", optional, tag = "14")]
+    pub aspect_ratio: ::core::option::Option<i32>,
+    /// Optional resolution for image generation/editing.
+    /// Only supported by grok-imagine models.
+    /// Defaults to 1k if not specified.
+    /// When 2k is selected, the image is generated at 1k and upscaled using super-resolution.
+    /// The final output area is capped at approximately 2048x2048 pixels, with dimensions
+    /// adjusted to preserve aspect ratio and rounded to multiples of 16.
+    #[prost(enumeration = "ImageResolution", optional, tag = "15")]
+    pub resolution: ::core::option::Option<i32>,
 }
 /// The response from the image generation models containing the generated image(s).
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -550,6 +660,9 @@ pub struct ImageResponse {
     /// The model used to generate the image (ignoring aliases).
     #[prost(string, tag = "2")]
     pub model: ::prost::alloc::string::String,
+    /// The usage of the request.
+    #[prost(message, optional, tag = "3")]
+    pub usage: ::core::option::Option<SamplingUsage>,
 }
 /// Contains all data related to a generated image.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -573,10 +686,12 @@ pub mod generated_image {
     #[derive(serde::Serialize, serde::Deserialize)]
     #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
     pub enum Image {
-        /// A base-64 encoded string of the image.
+        /// A base-64 encoded string of the image. Provided if user specified `IMG_FORMAT_BASE64` in `format` field of the
+        /// `GenerateImageRequest` message.
         #[prost(string, tag = "1")]
         Base64(::prost::alloc::string::String),
-        /// A url that points to the generated image.
+        /// A url that points to the generated image. Provided if user specified `IMG_FORMAT_URL` in `format` field of the
+        /// `GenerateImageRequest` message.
         #[prost(string, tag = "3")]
         Url(::prost::alloc::string::String),
     }
@@ -586,7 +701,7 @@ pub mod generated_image {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ImageUrlContent {
     /// This is either an image URL or a base64-encoded version of the image.
-    /// The following image formats are supported: PNG and JPG.
+    /// The following image formats are supported: PNG, JPG, and WebP.
     /// If an image URL is provided, the image will be downloaded for every API
     /// request without being cached. Images are fetched using
     /// "XaiImageApiFetch/1.0" user agent, and will timeout after 5 seconds.
@@ -671,6 +786,161 @@ impl ImageFormat {
             "IMG_FORMAT_INVALID" => Some(Self::ImgFormatInvalid),
             "IMG_FORMAT_BASE64" => Some(Self::ImgFormatBase64),
             "IMG_FORMAT_URL" => Some(Self::ImgFormatUrl),
+            _ => None,
+        }
+    }
+}
+/// Quality levels for image generation with their corresponding resolutions.
+/// Currently only supported by grok-imagine models.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ImageQuality {
+    /// Quality is invalid.
+    ImgQualityInvalid = 0,
+    /// Low quality.
+    ImgQualityLow = 1,
+    /// Medium quality: (default).
+    ImgQualityMedium = 2,
+    /// High quality.
+    ImgQualityHigh = 3,
+}
+impl ImageQuality {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::ImgQualityInvalid => "IMG_QUALITY_INVALID",
+            Self::ImgQualityLow => "IMG_QUALITY_LOW",
+            Self::ImgQualityMedium => "IMG_QUALITY_MEDIUM",
+            Self::ImgQualityHigh => "IMG_QUALITY_HIGH",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "IMG_QUALITY_INVALID" => Some(Self::ImgQualityInvalid),
+            "IMG_QUALITY_LOW" => Some(Self::ImgQualityLow),
+            "IMG_QUALITY_MEDIUM" => Some(Self::ImgQualityMedium),
+            "IMG_QUALITY_HIGH" => Some(Self::ImgQualityHigh),
+            _ => None,
+        }
+    }
+}
+/// Aspect ratio for image generation.
+/// Only supported by grok-imagine models.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ImageAspectRatio {
+    /// Invalid aspect ratio.
+    ImgAspectRatioInvalid = 0,
+    /// 1:1 aspect ratio (square).
+    ImgAspectRatio11 = 1,
+    /// 3:4 aspect ratio (portrait).
+    ImgAspectRatio34 = 2,
+    /// 4:3 aspect ratio (landscape).
+    ImgAspectRatio43 = 3,
+    /// 9:16 aspect ratio (tall portrait).
+    ImgAspectRatio916 = 4,
+    /// 16:9 aspect ratio (wide landscape).
+    ImgAspectRatio169 = 5,
+    /// 2:3 aspect ratio (photo portrait).
+    ImgAspectRatio23 = 6,
+    /// 3:2 aspect ratio (photo landscape).
+    ImgAspectRatio32 = 7,
+    /// Auto aspect ratio (model auto-selects based on prompt).
+    /// Only supported for image generation with a thinking upsampler.
+    ImgAspectRatioAuto = 8,
+    /// 9:19.5 aspect ratio (extra tall portrait - phone screens).
+    ImgAspectRatio9195 = 9,
+    /// 19.5:9 aspect ratio (extra wide landscape).
+    ImgAspectRatio1959 = 10,
+    /// 9:20 aspect ratio (tall portrait - modern phone screens).
+    ImgAspectRatio920 = 11,
+    /// 20:9 aspect ratio (ultra wide landscape).
+    ImgAspectRatio209 = 12,
+    /// 1:2 aspect ratio (tall portrait).
+    ImgAspectRatio12 = 13,
+    /// 2:1 aspect ratio (wide landscape).
+    ImgAspectRatio21 = 14,
+}
+impl ImageAspectRatio {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::ImgAspectRatioInvalid => "IMG_ASPECT_RATIO_INVALID",
+            Self::ImgAspectRatio11 => "IMG_ASPECT_RATIO_1_1",
+            Self::ImgAspectRatio34 => "IMG_ASPECT_RATIO_3_4",
+            Self::ImgAspectRatio43 => "IMG_ASPECT_RATIO_4_3",
+            Self::ImgAspectRatio916 => "IMG_ASPECT_RATIO_9_16",
+            Self::ImgAspectRatio169 => "IMG_ASPECT_RATIO_16_9",
+            Self::ImgAspectRatio23 => "IMG_ASPECT_RATIO_2_3",
+            Self::ImgAspectRatio32 => "IMG_ASPECT_RATIO_3_2",
+            Self::ImgAspectRatioAuto => "IMG_ASPECT_RATIO_AUTO",
+            Self::ImgAspectRatio9195 => "IMG_ASPECT_RATIO_9_19_5",
+            Self::ImgAspectRatio1959 => "IMG_ASPECT_RATIO_19_5_9",
+            Self::ImgAspectRatio920 => "IMG_ASPECT_RATIO_9_20",
+            Self::ImgAspectRatio209 => "IMG_ASPECT_RATIO_20_9",
+            Self::ImgAspectRatio12 => "IMG_ASPECT_RATIO_1_2",
+            Self::ImgAspectRatio21 => "IMG_ASPECT_RATIO_2_1",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "IMG_ASPECT_RATIO_INVALID" => Some(Self::ImgAspectRatioInvalid),
+            "IMG_ASPECT_RATIO_1_1" => Some(Self::ImgAspectRatio11),
+            "IMG_ASPECT_RATIO_3_4" => Some(Self::ImgAspectRatio34),
+            "IMG_ASPECT_RATIO_4_3" => Some(Self::ImgAspectRatio43),
+            "IMG_ASPECT_RATIO_9_16" => Some(Self::ImgAspectRatio916),
+            "IMG_ASPECT_RATIO_16_9" => Some(Self::ImgAspectRatio169),
+            "IMG_ASPECT_RATIO_2_3" => Some(Self::ImgAspectRatio23),
+            "IMG_ASPECT_RATIO_3_2" => Some(Self::ImgAspectRatio32),
+            "IMG_ASPECT_RATIO_AUTO" => Some(Self::ImgAspectRatioAuto),
+            "IMG_ASPECT_RATIO_9_19_5" => Some(Self::ImgAspectRatio9195),
+            "IMG_ASPECT_RATIO_19_5_9" => Some(Self::ImgAspectRatio1959),
+            "IMG_ASPECT_RATIO_9_20" => Some(Self::ImgAspectRatio920),
+            "IMG_ASPECT_RATIO_20_9" => Some(Self::ImgAspectRatio209),
+            "IMG_ASPECT_RATIO_1_2" => Some(Self::ImgAspectRatio12),
+            "IMG_ASPECT_RATIO_2_1" => Some(Self::ImgAspectRatio21),
+            _ => None,
+        }
+    }
+}
+/// Resolution for image generation.
+/// Only supported by grok-imagine models.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ImageResolution {
+    /// Invalid resolution.
+    ImgResolutionInvalid = 0,
+    /// 1k resolution (~1 megapixel total).
+    /// Dimensions vary by aspect ratio.
+    ImgResolution1k = 1,
+}
+impl ImageResolution {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::ImgResolutionInvalid => "IMG_RESOLUTION_INVALID",
+            Self::ImgResolution1k => "IMG_RESOLUTION_1K",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "IMG_RESOLUTION_INVALID" => Some(Self::ImgResolutionInvalid),
+            "IMG_RESOLUTION_1K" => Some(Self::ImgResolution1k),
             _ => None,
         }
     }
@@ -788,102 +1058,6 @@ pub mod image_client {
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Image", "GenerateImage"));
             self.inner.unary(req, path, codec).await
-        }
-    }
-}
-/// Records the cost associated with a sampling request (both chat and sample
-/// endpoints).
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SamplingUsage {
-    /// Total number of text completion tokens generated across all choices
-    /// (in case of n>1).
-    #[prost(int32, tag = "1")]
-    pub completion_tokens: i32,
-    /// Total number of reasoning tokens generated across all choices.
-    #[prost(int32, tag = "6")]
-    pub reasoning_tokens: i32,
-    /// Total number of prompt tokens (both text and images).
-    #[prost(int32, tag = "2")]
-    pub prompt_tokens: i32,
-    /// Total number of tokens (prompt + completion).
-    #[prost(int32, tag = "3")]
-    pub total_tokens: i32,
-    /// Total number of (uncached) text tokens in the prompt.
-    #[prost(int32, tag = "4")]
-    pub prompt_text_tokens: i32,
-    /// Total number of cached text tokens in the prompt.
-    #[prost(int32, tag = "7")]
-    pub cached_prompt_text_tokens: i32,
-    /// Total number of image tokens in the prompt.
-    #[prost(int32, tag = "5")]
-    pub prompt_image_tokens: i32,
-    /// Number of individual live search sources used.
-    /// Only applicable when live search is enabled.
-    /// e.g. If a live search query returns citations from both X and Web and news sources, this will be 3.
-    /// If it returns citations from only X, this will be 1.
-    #[prost(int32, tag = "8")]
-    pub num_sources_used: i32,
-    /// List of server side tools called.
-    #[prost(enumeration = "ServerSideTool", repeated, tag = "9")]
-    pub server_side_tools_used: ::prost::alloc::vec::Vec<i32>,
-}
-/// Usage of embedding models.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct EmbeddingUsage {
-    /// The number of feature vectors produced from text inputs.
-    #[prost(int32, tag = "1")]
-    pub num_text_embeddings: i32,
-    /// The number of feature vectors produced from image inputs.
-    #[prost(int32, tag = "2")]
-    pub num_image_embeddings: i32,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum ServerSideTool {
-    Invalid = 0,
-    WebSearch = 1,
-    XSearch = 2,
-    CodeExecution = 3,
-    ViewImage = 4,
-    ViewXVideo = 5,
-    CollectionsSearch = 6,
-    Mcp = 7,
-    AttachmentSearch = 8,
-}
-impl ServerSideTool {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Invalid => "SERVER_SIDE_TOOL_INVALID",
-            Self::WebSearch => "SERVER_SIDE_TOOL_WEB_SEARCH",
-            Self::XSearch => "SERVER_SIDE_TOOL_X_SEARCH",
-            Self::CodeExecution => "SERVER_SIDE_TOOL_CODE_EXECUTION",
-            Self::ViewImage => "SERVER_SIDE_TOOL_VIEW_IMAGE",
-            Self::ViewXVideo => "SERVER_SIDE_TOOL_VIEW_X_VIDEO",
-            Self::CollectionsSearch => "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH",
-            Self::Mcp => "SERVER_SIDE_TOOL_MCP",
-            Self::AttachmentSearch => "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "SERVER_SIDE_TOOL_INVALID" => Some(Self::Invalid),
-            "SERVER_SIDE_TOOL_WEB_SEARCH" => Some(Self::WebSearch),
-            "SERVER_SIDE_TOOL_X_SEARCH" => Some(Self::XSearch),
-            "SERVER_SIDE_TOOL_CODE_EXECUTION" => Some(Self::CodeExecution),
-            "SERVER_SIDE_TOOL_VIEW_IMAGE" => Some(Self::ViewImage),
-            "SERVER_SIDE_TOOL_VIEW_X_VIDEO" => Some(Self::ViewXVideo),
-            "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH" => Some(Self::CollectionsSearch),
-            "SERVER_SIDE_TOOL_MCP" => Some(Self::Mcp),
-            "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH" => Some(Self::AttachmentSearch),
-            _ => None,
         }
     }
 }
