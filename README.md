@@ -79,43 +79,43 @@ anyhow = "1.0"
 The SDK provides clients for all xAI services:
 
 ### Chat Service
-- **`GetCompletion`** - Get chat completion
-- **`GetCompletionChunk`** - Stream chat completion in chunks
-- **`StartDeferredCompletion`** - Start defered chat completion
-- **`GetDeferredCompletion`** - Retrieve defered completion
-- **`GetStoredCompletion`** - Get stored chat completion
-- **`DeleteStoredCompletion`** - Delete stored chat completion
+- **`get_completion`** - Get chat completion
+- **`get_completion_chunk`** - Stream chat completion in chunks
+- **`start_deferred_completion`** - Start deferred chat completion
+- **`get_deferred_completion`** - Retrieve deferred completion
+- **`get_stored_completion`** - Get stored chat completion
+- **`delete_stored_completion`** - Delete stored chat completion
 
-### Sample Service  
-- **`SampleText`** - Raw text generation
-- **`SampleTextStreaming`** - Streaming text generation
+### Sample Service
+- **`sample_text`** - Raw text generation
+- **`sample_text_streaming`** - Streaming text generation
 
 ### Models Service
-- **`ListLanguageModels`** - List available language models
-- **`ListEmbeddingModels`** - List embedding models
-- **`ListImageGenerationModels`** - List image generation models
+- **`list_language_models`** - List available language models
+- **`list_embedding_models`** - List embedding models
+- **`list_image_generation_models`** - List image generation models
 
 ### Embed Service
-- **`Embed`** - Generate embeddings from text or images
+- **`embed`** - Generate embeddings from text or images
 
 ### Image Service
-- **`GenerateImage`** - Create images from text prompts
+- **`generate_image`** - Create images from text prompts
 
 ### Auth Service
 - **`get_api_key_info`** - Get API key information
 
 ### Billing Service
-- **`SetBillingInfo`** - Set billing information for a team
-- **`GetBillingInfo`** - Get billing information for a team
-- **`ListPaymentMethods`** - List payment methods on file
-- **`SetDefaultPaymentMethod`** - Set default payment method
-- **`GetAmountToPay`** - Preview current billing period amount
-- **`AnalyzeBillingItems`** - Analyze historical billing usage
-- **`ListInvoices`** - List invoices for a team
-- **`ListPrepaidBalanceChanges`** - List prepaid credit balance changes
-- **`TopUpOrGetExistingPendingChange`** - Top up prepaid credits
-- **`GetSpendingLimits`** - Get spending limits
-- **`SetSoftSpendingLimit`** - Set soft spending limit
+- **`set_billing_info`** - Set billing information for a team
+- **`get_billing_info`** - Get billing information for a team
+- **`list_payment_methods`** - List payment methods on file
+- **`set_default_payment_method`** - Set default payment method
+- **`get_amount_to_pay`** - Preview current billing period amount
+- **`analyze_billing_items`** - Analyze historical billing usage
+- **`list_invoices`** - List invoices for a team
+- **`list_prepaid_balance_changes`** - List prepaid credit balance changes
+- **`top_up_or_get_existing_pending_change`** - Top up prepaid credits
+- **`get_spending_limits`** - Get spending limits
+- **`set_soft_spending_limit`** - Set soft spending limit
 
 ## Client Modules
 
@@ -136,11 +136,12 @@ The SDK is organized into focused modules, each providing easy client creation:
 Here's a complete example showing multiple services using the modular architecture:
 
 ```rust
-use anyhow::Context;
+use anyhow::{Context, Result};
 use std::env;
 use xai_sdk::Request;
-use xai_sdk::xai_api::{
-    Content, GetCompletionsRequest, Message, MessageRole, SampleTextRequest, content,
+use xai_sdk::api::{
+    Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
+    content,
 };
 use xai_sdk::{chat, models, sample};
 
@@ -148,21 +149,28 @@ use xai_sdk::{chat, models, sample};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load API key for authentication
     let api_key = env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
-    
+
     // Create authenticated clients for different services
-    let mut models_client = models::client::new(api_key).await?;
-    let mut sample_client = sample::client::new(api_key).await?;
+    let mut models_client = models::client::new(api_key.clone()).await?;
+    let mut sample_client = sample::client::new(api_key.clone()).await?;
     let mut chat_client = chat::client::new(api_key).await?;
-    
+
     // List available models
     let models_request = Request::new(());
     let models_response = models_client.list_language_models(models_request).await?;
     println!("Available models: {:?}", models_response.into_inner().models);
 
+    // Get details for a specific model
+    let model_request = Request::new(GetModelRequest {
+        name: "grok-3-latest".to_string(),
+    });
+    let model_response = models_client.get_language_model(model_request).await?;
+    println!("Model details: {:?}", model_response.into_inner());
+
     // Generate text
     let sample_request = Request::new(SampleTextRequest {
         prompt: vec!["Hello, world!".to_string()],
-        model: "grok-2-latest".to_string(),
+        model: "grok-3-latest".to_string(),
         ..Default::default()
     });
     let sample_response = sample_client.sample_text(sample_request).await?;
@@ -182,7 +190,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     });
     let chat_response = chat_client.get_completion(chat_request).await?;
-    println!("Chat response: {}", chat_response.into_inner().outputs[0].message.as_ref().unwrap().content);
+    println!(
+        "Chat response: {}",
+        chat_response.into_inner().outputs[0]
+            .message
+            .as_ref()
+            .unwrap()
+            .content
+    );
 
     Ok(())
 }
@@ -194,11 +209,16 @@ The SDK provides powerful utilities for working with streaming responses:
 
 ### Stream Consumer
 A flexible callback system for processing streaming data:
-- **`on_content_token(&OutputContext, token: &str)`** - Called for each piece of response content
-- **`on_content_complete(&OutputContext)`** - Called once when the content phase completes for an output
+- **`on_chunk(chunk)`** - Called for each complete chunk received
 - **`on_reason_token(&OutputContext, token: &str)`** - Called for each piece of reasoning content
 - **`on_reasoning_complete(&OutputContext)`** - Called once when the reasoning phase completes for an output
-- **`on_chunk(chunk)`** - Called for each complete chunk received
+- **`on_content_token(&OutputContext, token: &str)`** - Called for each piece of response content
+- **`on_content_complete(&OutputContext)`** - Called once when the content phase completes for an output
+- **`on_inline_citations(&OutputContext, &[InlineCitation])`** - Called when inline citations are present in a delta
+- **`on_client_tool_calls(&OutputContext, &[ToolCall])`** - Called when client-side tool calls are present
+- **`on_server_tool_calls(&OutputContext, &[ToolCall])`** - Called when server-side tool calls are present
+- **`on_usage(&SamplingUsage)`** - Called once on the last chunk with usage statistics
+- **`on_citations(&[String])`** - Called once on the last chunk with citations
 
 The `OutputContext` provides:
 - `total_outputs` - Total number of outputs in the stream
