@@ -19,6 +19,7 @@ pub mod models;
 pub mod sample;
 pub mod tokenize;
 pub mod utils;
+pub mod video;
 pub use export::*;
 
 // Generated proto files (from build.rs)
