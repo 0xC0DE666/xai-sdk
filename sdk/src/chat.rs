@@ -854,11 +854,11 @@ pub mod utils {
     /// all common fields between the two structures.
     ///
     /// # Arguments
-    /// * `completion_messages` - Vector of completion messages to convert
+    /// * `completion_messages` - Slice of completion messages to convert
     ///
     /// # Returns
     /// * `Vec<Message>` - Vector of messages with populated common fields
-    pub fn to_messages(completion_messages: &Vec<CompletionMessage>) -> Vec<Message> {
+    pub fn to_messages(completion_messages: &[CompletionMessage]) -> Vec<Message> {
         completion_messages
             .iter()
             .map(|comp_msg| Message {

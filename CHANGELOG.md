@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Chat Utils Module**: New `chat::utils` module providing utility functions for chat-related operations
-  - `to_messages()` function converts `Vec<CompletionMessage>` to `Vec<Message>` for reuse in subsequent API calls
+  - `to_messages()` function converts `&[CompletionMessage]` to `Vec<Message>` for reuse in subsequent API calls
   - Populates all common fields between `CompletionMessage` and `Message` structures
   - Handles content type conversion from `String` to `Vec<Content>` with text content
   - Comprehensive test suite with 5 test cases covering edge cases and field mappings
