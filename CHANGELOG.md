@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Chat Utils Module**: New `chat::utils` module providing utility functions for chat-related operations
-  - `to_messages()` function converts `&[CompletionMessage]` to `Vec<Message>` for reuse in subsequent API calls
+  - `to_messages()` function converts `&[CompletionOutput]` to `Vec<Message>` for reuse in subsequent API calls
+  - Optimized implementation using pre-allocated `Vec` and direct for loop instead of iterator chains
   - Populates all common fields between `CompletionMessage` and `Message` structures
   - Handles content type conversion from `String` to `Vec<Content>` with text content
+  - Safely extracts `CompletionMessage` from `CompletionOutput` structures
   - Comprehensive test suite with 5 test cases covering edge cases and field mappings
   - Useful for non-streaming contexts like `start_deferred_completion()` and `get_completion()` responses
 
