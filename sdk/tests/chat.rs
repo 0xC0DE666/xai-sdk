@@ -1,8 +1,9 @@
 use xai_sdk::api::{
-    CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, InlineCitation,
-    SamplingUsage, ToolCall,
+    CompletionMessage, CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk,
+    InlineCitation, MessageRole, SamplingUsage, ToolCall, content::Content,
 };
 use xai_sdk::chat::stream::{Consumer, OutputContext, PhaseStatus, assemble};
+use xai_sdk::chat::utils::to_messages;
 
 #[test]
 fn test_output_context_new() {
@@ -857,4 +858,167 @@ fn test_assemble_handles_outputs_across_multiple_chunks() {
         response.outputs[1].message.as_ref().unwrap().content,
         "Hi There"
     );
+}
+
+#[test]
+fn test_to_messages_empty_vector() {
+    let completion_messages: Vec<CompletionMessage> = vec![];
+    let messages = to_messages(&completion_messages);
+    assert!(messages.is_empty());
+}
+
+#[test]
+fn test_to_messages_single_completion_message() {
+    let mut completion_message = CompletionMessage::default();
+    completion_message.content = "Hello, world!".to_string();
+    completion_message.reasoning_content = "Thinking step by step...".to_string();
+    completion_message.role = MessageRole::RoleAssistant.into();
+    completion_message.tool_calls = vec![ToolCall {
+        id: "call-123".to_string(),
+        ..Default::default()
+    }];
+    completion_message.encrypted_content = "encrypted-data".to_string();
+    completion_message.citations = vec![InlineCitation {
+        id: "cit-1".to_string(),
+        ..Default::default()
+    }];
+
+    let completion_messages = vec![completion_message];
+    let messages = to_messages(&completion_messages);
+
+    assert_eq!(messages.len(), 1);
+    let message = &messages[0];
+
+    // Check content conversion from String to Vec<Content>
+    assert_eq!(message.content.len(), 1);
+    match &message.content[0].content {
+        Some(Content::Text(text)) => {
+            assert_eq!(text, "Hello, world!");
+        }
+        _ => panic!("Expected Text content"),
+    }
+
+    // Check other fields are copied correctly
+    assert_eq!(
+        message.reasoning_content,
+        Some("Thinking step by step...".to_string())
+    );
+    assert_eq!(message.role, MessageRole::RoleAssistant.into());
+    assert_eq!(message.tool_calls.len(), 1);
+    assert_eq!(message.tool_calls[0].id, "call-123");
+    assert_eq!(message.encrypted_content, "encrypted-data");
+
+    // Check default values for Message-specific fields
+    assert_eq!(message.name, String::new());
+    assert!(message.tool_call_id.is_none());
+}
+
+#[test]
+fn test_to_messages_multiple_completion_messages() {
+    let completion_message1 = CompletionMessage {
+        content: "First message".to_string(),
+        reasoning_content: "First reasoning".to_string(),
+        role: MessageRole::RoleUser.into(),
+        ..Default::default()
+    };
+
+    let completion_message2 = CompletionMessage {
+        content: "Second message".to_string(),
+        reasoning_content: "Second reasoning".to_string(),
+        role: MessageRole::RoleAssistant.into(),
+        ..Default::default()
+    };
+
+    let completion_messages = vec![completion_message1, completion_message2];
+    let messages = to_messages(&completion_messages);
+
+    assert_eq!(messages.len(), 2);
+
+    // Check first message
+    assert_eq!(messages[0].role, MessageRole::RoleUser.into());
+    match &messages[0].content[0].content {
+        Some(Content::Text(text)) => {
+            assert_eq!(text, "First message");
+        }
+        _ => panic!("Expected Text content"),
+    }
+
+    // Check second message
+    assert_eq!(messages[1].role, MessageRole::RoleAssistant.into());
+    match &messages[1].content[0].content {
+        Some(Content::Text(text)) => {
+            assert_eq!(text, "Second message");
+        }
+        _ => panic!("Expected Text content"),
+    }
+}
+
+#[test]
+fn test_to_messages_preserves_tool_calls() {
+    use xai_sdk::api::{FunctionCall, tool_call};
+
+    let mut completion_message = CompletionMessage::default();
+    completion_message.tool_calls = vec![
+        ToolCall {
+            id: "tool-1".to_string(),
+            r#type: 0,
+            tool: Some(tool_call::Tool::Function(FunctionCall {
+                name: "search".to_string(),
+                arguments: r#"{"query": "test"}"#.to_string(),
+            })),
+            ..Default::default()
+        },
+        ToolCall {
+            id: "tool-2".to_string(),
+            r#type: 1,
+            tool: Some(tool_call::Tool::Function(FunctionCall {
+                name: "calculate".to_string(),
+                arguments: r#"{"expr": "2+2"}"#.to_string(),
+            })),
+            ..Default::default()
+        },
+    ];
+
+    let completion_messages = vec![completion_message];
+    let messages = to_messages(&completion_messages);
+
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].tool_calls.len(), 2);
+    assert_eq!(messages[0].tool_calls[0].id, "tool-1");
+    match &messages[0].tool_calls[0].tool {
+        Some(tool_call::Tool::Function(func)) => {
+            assert_eq!(func.name, "search");
+        }
+        _ => panic!("Expected Function tool"),
+    }
+    assert_eq!(messages[0].tool_calls[1].id, "tool-2");
+    match &messages[0].tool_calls[1].tool {
+        Some(tool_call::Tool::Function(func)) => {
+            assert_eq!(func.name, "calculate");
+        }
+        _ => panic!("Expected Function tool"),
+    }
+}
+
+#[test]
+fn test_to_messages_empty_content() {
+    let completion_message = CompletionMessage {
+        content: String::new(),
+        reasoning_content: String::new(),
+        ..Default::default()
+    };
+
+    let completion_messages = vec![completion_message];
+    let messages = to_messages(&completion_messages);
+
+    assert_eq!(messages.len(), 1);
+    // Even with empty content, we should still have one Content element
+    assert_eq!(messages[0].content.len(), 1);
+    match &messages[0].content[0].content {
+        Some(Content::Text(text)) => {
+            assert_eq!(text, "");
+        }
+        _ => panic!("Expected Text content"),
+    }
+    assert!(messages[0].reasoning_content.as_ref().unwrap().is_empty());
 }
