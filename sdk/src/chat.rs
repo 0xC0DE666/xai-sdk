@@ -116,24 +116,6 @@ pub mod stream {
     /// # Returns
     /// * `Ok(Vec<GetChatCompletionChunk>)` - All chunks collected from the stream
     /// * `Err(Status)` - gRPC error if streaming failed
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use xai_sdk::chat::stream::{Consumer, process};
-    ///
-    /// // With static consumer
-    /// let consumer = Consumer::with_stdout();
-    /// // process(stream, consumer).await?;
-    ///
-    /// // With scoped consumer that captures local state
-    /// let mut is_thinking = true;
-    /// let consumer = Consumer::new()
-    ///     .on_reasoning_complete(|_ctx| async move {
-    ///         is_thinking = false;
-    ///     });
-    /// // process(stream, consumer).await?;
-    /// ```
     pub async fn process(
         mut stream: Streaming<GetChatCompletionChunk>,
         mut consumer: Consumer<'_>,
@@ -473,22 +455,6 @@ pub mod stream {
     /// - `on_server_tool_calls`: `(&OutputContext, &[ToolCall])`
     /// - `on_usage`: `&SamplingUsage`
     /// - `on_citations`: `&[String]`
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use xai_sdk::chat::stream::Consumer;
-    ///
-    /// // Consumer with static lifetime (no local captures)
-    /// let consumer = Consumer::with_stdout();
-    ///
-    /// // Consumer that captures local variables (scoped lifetime)
-    /// let mut is_thinking = true;
-    /// let consumer = Consumer::new()
-    ///     .on_reasoning_complete(|_ctx| async move {
-    ///         is_thinking = false;
-    ///     });
-    /// ```
     pub struct Consumer<'a> {
         /// Callback invoked once per complete chunk received.
         ///
@@ -596,24 +562,6 @@ pub mod stream {
         /// [`with_buffered_stdout()`] instead.
         ///
         /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
-        ///
-        /// # Examples
-        ///
-        /// ```no_run
-        /// use xai_sdk::chat::stream::Consumer;
-        ///
-        /// // Basic usage
-        /// let consumer = Consumer::with_stdout();
-        ///
-        /// // Can still add static callbacks
-        /// let consumer = Consumer::with_stdout()
-        ///     .on_usage(|usage| {
-        ///         let total_tokens = usage.total_tokens;
-        ///         async move {
-        ///             println!("Tokens used: {}", total_tokens);
-        ///         }
-        ///     });
-        /// ```
         pub fn with_stdout() -> Self {
             Self {
                 on_chunk: None,
@@ -655,15 +603,6 @@ pub mod stream {
         /// labeled blocks. Prevents output interleaving in multi-output streams.
         ///
         /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
-        ///
-        /// # Examples
-        ///
-        /// ```no_run
-        /// use xai_sdk::chat::stream::Consumer;
-        ///
-        /// // For multiple outputs, this prevents interleaved output
-        /// let consumer = Consumer::with_buffered_stdout();
-        /// ```
         pub fn with_buffered_stdout() -> Self {
             #[derive(Default)]
             struct ChoiceBuffer {

@@ -45,38 +45,6 @@
 //! - [`VideoAspectRatio`] - Video aspect ratios (1:1, 16:9, etc.)
 //! - [`VideoResolution`] - Video resolution settings (480p, 720p)
 //!
-//! ## Usage Examples
-//!
-//! ### Working with Message Roles
-//!
-//! ```rust
-//! use xai_sdk::utils::enums::MessageRole;
-//!
-//! // Create roles
-//! let user = MessageRole::RoleUser;
-//! let assistant = MessageRole::RoleAssistant;
-//!
-//! // Display as strings
-//! assert_eq!(user.to_string(), "user");
-//! assert_eq!(assistant.to_string(), "assistant");
-//!
-//! // Parse from strings
-//! let system: MessageRole = "system".parse().unwrap();
-//! assert_eq!(system, MessageRole::RoleSystem);
-//! ```
-//!
-//! ### Working with Finish Reasons
-//!
-//! ```rust
-//! use xai_sdk::utils::enums::FinishReason;
-//!
-//! let stop = FinishReason::ReasonStop;
-//! let tool_calls = FinishReason::ReasonToolCalls;
-//!
-//! assert_eq!(stop.to_string(), "stop");
-//! assert_eq!(tool_calls.to_string(), "tool_calls");
-//! ```
-//!
 //! ## Implementation Details
 //!
 //! The extended functionality is implemented through:
