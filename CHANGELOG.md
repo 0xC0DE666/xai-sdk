@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc6] - 2026-01-31
+
+### Added
+- **Chat Utils Module**: New `chat::utils` module providing utility functions for chat-related operations
+  - `to_messages()` function converts `Vec<CompletionMessage>` to `Vec<Message>` for reuse in subsequent API calls
+  - Populates all common fields between `CompletionMessage` and `Message` structures
+  - Handles content type conversion from `String` to `Vec<Content>` with text content
+  - Comprehensive test suite with 5 test cases covering edge cases and field mappings
+  - Useful for non-streaming contexts like `start_deferred_completion()` and `get_completion()` responses
+
+### Documentation
+- **README Updates**: Updated installation version to 0.8.0-rc6
+- **Function Documentation**: Added comprehensive documentation for `to_messages()` with usage examples
+
 ## [0.8.0-rc5] - 2026-01-30
 
 ### Added
