@@ -1,5 +1,5 @@
 use xai_sdk::api::{
-    CompletionMessage, CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk,
+    CompletionMessage, CompletionOutput, CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk,
     InlineCitation, MessageRole, SamplingUsage, ToolCall, content::Content,
 };
 use xai_sdk::chat::stream::{Consumer, OutputContext, PhaseStatus, assemble};
@@ -862,29 +862,35 @@ fn test_assemble_handles_outputs_across_multiple_chunks() {
 
 #[test]
 fn test_to_messages_empty_vector() {
-    let completion_messages: Vec<CompletionMessage> = vec![];
-    let messages = to_messages(&completion_messages);
+    let completion_outputs: Vec<CompletionOutput> = vec![];
+    let messages = to_messages(&completion_outputs);
     assert!(messages.is_empty());
 }
 
 #[test]
 fn test_to_messages_single_completion_message() {
-    let mut completion_message = CompletionMessage::default();
-    completion_message.content = "Hello, world!".to_string();
-    completion_message.reasoning_content = "Thinking step by step...".to_string();
-    completion_message.role = MessageRole::RoleAssistant.into();
-    completion_message.tool_calls = vec![ToolCall {
-        id: "call-123".to_string(),
-        ..Default::default()
-    }];
-    completion_message.encrypted_content = "encrypted-data".to_string();
-    completion_message.citations = vec![InlineCitation {
-        id: "cit-1".to_string(),
-        ..Default::default()
-    }];
+    let completion_message = CompletionMessage {
+        content: "Hello, world!".to_string(),
+        reasoning_content: "Thinking step by step...".to_string(),
+        role: MessageRole::RoleAssistant.into(),
+        tool_calls: vec![ToolCall {
+            id: "call-123".to_string(),
+            ..Default::default()
+        }],
+        encrypted_content: "encrypted-data".to_string(),
+        citations: vec![InlineCitation {
+            id: "cit-1".to_string(),
+            ..Default::default()
+        }],
+    };
 
-    let completion_messages = vec![completion_message];
-    let messages = to_messages(&completion_messages);
+    let completion_output = CompletionOutput {
+        message: Some(completion_message),
+        ..Default::default()
+    };
+
+    let completion_outputs = vec![completion_output];
+    let messages = to_messages(&completion_outputs);
 
     assert_eq!(messages.len(), 1);
     let message = &messages[0];
@@ -915,22 +921,28 @@ fn test_to_messages_single_completion_message() {
 
 #[test]
 fn test_to_messages_multiple_completion_messages() {
-    let completion_message1 = CompletionMessage {
-        content: "First message".to_string(),
-        reasoning_content: "First reasoning".to_string(),
-        role: MessageRole::RoleUser.into(),
+    let completion_output1 = CompletionOutput {
+        message: Some(CompletionMessage {
+            content: "First message".to_string(),
+            reasoning_content: "First reasoning".to_string(),
+            role: MessageRole::RoleUser.into(),
+            ..Default::default()
+        }),
         ..Default::default()
     };
 
-    let completion_message2 = CompletionMessage {
-        content: "Second message".to_string(),
-        reasoning_content: "Second reasoning".to_string(),
-        role: MessageRole::RoleAssistant.into(),
+    let completion_output2 = CompletionOutput {
+        message: Some(CompletionMessage {
+            content: "Second message".to_string(),
+            reasoning_content: "Second reasoning".to_string(),
+            role: MessageRole::RoleAssistant.into(),
+            ..Default::default()
+        }),
         ..Default::default()
     };
 
-    let completion_messages = vec![completion_message1, completion_message2];
-    let messages = to_messages(&completion_messages);
+    let completion_outputs = vec![completion_output1, completion_output2];
+    let messages = to_messages(&completion_outputs);
 
     assert_eq!(messages.len(), 2);
 
@@ -957,30 +969,37 @@ fn test_to_messages_multiple_completion_messages() {
 fn test_to_messages_preserves_tool_calls() {
     use xai_sdk::api::{FunctionCall, tool_call};
 
-    let mut completion_message = CompletionMessage::default();
-    completion_message.tool_calls = vec![
-        ToolCall {
-            id: "tool-1".to_string(),
-            r#type: 0,
-            tool: Some(tool_call::Tool::Function(FunctionCall {
-                name: "search".to_string(),
-                arguments: r#"{"query": "test"}"#.to_string(),
-            })),
-            ..Default::default()
-        },
-        ToolCall {
-            id: "tool-2".to_string(),
-            r#type: 1,
-            tool: Some(tool_call::Tool::Function(FunctionCall {
-                name: "calculate".to_string(),
-                arguments: r#"{"expr": "2+2"}"#.to_string(),
-            })),
-            ..Default::default()
-        },
-    ];
+    let completion_message = CompletionMessage {
+        tool_calls: vec![
+            ToolCall {
+                id: "tool-1".to_string(),
+                r#type: 0,
+                tool: Some(tool_call::Tool::Function(FunctionCall {
+                    name: "search".to_string(),
+                    arguments: r#"{"query": "test"}"#.to_string(),
+                })),
+                ..Default::default()
+            },
+            ToolCall {
+                id: "tool-2".to_string(),
+                r#type: 1,
+                tool: Some(tool_call::Tool::Function(FunctionCall {
+                    name: "calculate".to_string(),
+                    arguments: r#"{"expr": "2+2"}"#.to_string(),
+                })),
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
+    };
 
-    let completion_messages = vec![completion_message];
-    let messages = to_messages(&completion_messages);
+    let completion_output = CompletionOutput {
+        message: Some(completion_message),
+        ..Default::default()
+    };
+
+    let completion_outputs = vec![completion_output];
+    let messages = to_messages(&completion_outputs);
 
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].tool_calls.len(), 2);
@@ -1008,8 +1027,13 @@ fn test_to_messages_empty_content() {
         ..Default::default()
     };
 
-    let completion_messages = vec![completion_message];
-    let messages = to_messages(&completion_messages);
+    let completion_output = CompletionOutput {
+        message: Some(completion_message),
+        ..Default::default()
+    };
+
+    let completion_outputs = vec![completion_output];
+    let messages = to_messages(&completion_outputs);
 
     assert_eq!(messages.len(), 1);
     // Even with empty content, we should still have one Content element

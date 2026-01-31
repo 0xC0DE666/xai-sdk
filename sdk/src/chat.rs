@@ -845,33 +845,37 @@ pub mod stream {
 ///
 /// Provides utilities for processing real-time chat completion streams,
 pub mod utils {
-    use crate::xai_api::{CompletionMessage, Content, Message, content};
+    use crate::xai_api::{CompletionOutput, Content, Message, content};
 
-    /// Converts a vector of `CompletionMessage` to a vector of `Message`.
+    /// Converts a slice of `CompletionOutput` to a vector of `Message`.
     ///
-    /// Maps each `CompletionMessage` from a chat completion response to a `Message`
-    /// structure suitable for use in subsequent API calls. The conversion populates
-    /// all common fields between the two structures.
+    /// Maps each `CompletionOutput` from a chat completion response to a `Message`
+    /// structure suitable for use in subsequent API calls. The conversion extracts
+    /// the `CompletionMessage` from each output and populates all common fields
+    /// between the two structures.
     ///
     /// # Arguments
-    /// * `completion_messages` - Slice of completion messages to convert
+    /// * `completion_outputs` - Slice of completion outputs to convert
     ///
     /// # Returns
     /// * `Vec<Message>` - Vector of messages with populated common fields
-    pub fn to_messages(completion_messages: &[CompletionMessage]) -> Vec<Message> {
-        completion_messages
-            .iter()
-            .map(|comp_msg| Message {
-                content: vec![Content {
-                    content: Some(content::Content::Text(comp_msg.content.clone())),
-                }],
-                reasoning_content: Some(comp_msg.reasoning_content.clone()),
-                role: comp_msg.role,
-                name: String::new(),
-                tool_calls: comp_msg.tool_calls.clone(),
-                encrypted_content: comp_msg.encrypted_content.clone(),
-                tool_call_id: None,
-            })
-            .collect()
+    pub fn to_messages(completion_outputs: &[CompletionOutput]) -> Vec<Message> {
+        let mut messages = Vec::with_capacity(completion_outputs.len());
+        for output in completion_outputs {
+            if let Some(comp_msg) = &output.message {
+                messages.push(Message {
+                    content: vec![Content {
+                        content: Some(content::Content::Text(comp_msg.content.clone())),
+                    }],
+                    reasoning_content: Some(comp_msg.reasoning_content.clone()),
+                    role: comp_msg.role,
+                    name: String::new(),
+                    tool_calls: comp_msg.tool_calls.clone(),
+                    encrypted_content: comp_msg.encrypted_content.clone(),
+                    tool_call_id: None,
+                });
+            }
+        }
+        messages
     }
 }
