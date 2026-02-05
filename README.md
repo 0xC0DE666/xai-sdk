@@ -6,7 +6,6 @@ A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services 
 
 - **Complete API Coverage**: Full gRPC client implementation for all xAI services
 - **Type Safety**: Auto-generated Rust types from Protocol Buffers
-- **Async/Await**: Built on Tokio for high-performance async operations
 - **Multiple Models**: Support for all xAI language models (Grok-3, Grok-4, etc.)
 - **Streaming Support**: Real-time streaming for chat completions and text generation
 - **Response Assembly**: Convert streaming chunks into complete responses
@@ -328,7 +327,6 @@ This SDK is built using:
 - **Protocol Buffers**: Auto-generated Rust types from xAI's `.proto` definitions
 - **Tonic**: Modern gRPC framework for Rust with async/await support
 - **Prost**: High-performance Protocol Buffer implementation
-- **Tokio**: Async runtime for Rust
 
 The code is generated from xAI's official Protocol Buffer definitions, ensuring compatibility and type safety.
 
