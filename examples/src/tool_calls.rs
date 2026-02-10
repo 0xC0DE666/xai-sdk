@@ -60,33 +60,26 @@ async fn main() -> Result<()> {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
             let consumer = Consumer::new()
                 .on_reasoning_token(|ctx: &OutputContext, token: &str| {
-                        print!("{token}");
-                        io::stdout().flush().unwrap();
-
+                    print!("{token}");
+                    io::stdout().flush().unwrap();
                     async {}
                 })
                 .on_reasoning_complete(move |ctx: &OutputContext| {
-                        println!("on_reasoning_complete -------------------------------------------------\n");
-                    async move {
-                    }
+                    println!("on_reasoning_complete -------------------------------------------------\n");
+                    async {}
                 })
                 // on_content_token: Print content in real-time
                 .on_content_token(move |_ctx: &OutputContext, token: &str| {
-                        print!("{token}");
-                        io::stdout().flush().unwrap();
-
-                    async move {
-                    }
+                    print!("{token}");
+                    io::stdout().flush().unwrap();
+                    async {}
                 })
                 // on_content_complete: New line after content
                 .on_content_complete(move |ctx: &OutputContext| {
-                    let output_index = ctx.output_index;
-                    async move {
-                        dbg!(output_index);
-                        println!(
-                            "on_content_complete -------------------------------------------------\n"
-                        );
-                    }
+                    println!(
+                        "on_content_complete -------------------------------------------------\n"
+                    );
+                    async {}
                 })
                 // on_inline_citations: Show citations inline
                 .on_inline_citations(move |_ctx: &OutputContext, citations: &[InlineCitation]| {
@@ -110,6 +103,9 @@ async fn main() -> Result<()> {
                 .on_client_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
                     let output_index = ctx.output_index;
                     let tool_calls = tool_calls.to_vec();
+                    // AI TODO: call print_tool_calls for client side tools
+                    // check for a write file tool call as per definition, parse the args and execute
+                    // the tool call.
                     async move {
                         println!("on_client_tool_calls -------------------------------------------------\n");
                     }
@@ -118,6 +114,8 @@ async fn main() -> Result<()> {
                 .on_server_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
                     let output_index = ctx.output_index;
                     let tool_calls = tool_calls.to_vec();
+                    // AI TODO: extract this display logic to function print_tool_calls(calls: &[ToolCall])
+                    // then call print_tool_calls, move all the code into this context (above async block)
                     async move {
                         dbg!(output_index);
                         println!("\n🔧 Tool Call(s) Detected:");
@@ -210,7 +208,6 @@ async fn main() -> Result<()> {
                     println!("📝 All chunks written to chunks.txt");
 
                     // let res = chat::stream::assemble(chunks);
-                    // dbg!(res);
                 }
                 Err(e) => {
                     eprintln!("\n❌ Error processing stream: {}", e);
@@ -228,6 +225,7 @@ async fn main() -> Result<()> {
 }
 
 /// Writes content to a file at the specified path.
+// AI TODO: refactor this to use tokio fs
 fn write_file(path: PathBuf, content: String) -> Result<()> {
     std::fs::write(&path, content).context(format!("Failed to write file: {:?}", path))?;
     Ok(())
