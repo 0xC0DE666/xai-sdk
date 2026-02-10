@@ -120,9 +120,41 @@ pub mod stream {
         mut stream: Streaming<GetChatCompletionChunk>,
         mut consumer: Consumer<'_>,
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
+        #[derive(Debug, Clone)]
+        struct OutputStats {
+            index: i32,
+            prev_index: Option<i32>,
+            total_reasoning_tokens: usize,
+            total_content_tokens: usize,
+        }
+
+        impl OutputStats {
+            fn new(index: i32) -> Self {
+                let prev_index = match index > 0 {
+                    true => Some(index - 1),
+                    false => None,
+                };
+
+                Self {
+                    index,
+                    prev_index,
+                    total_reasoning_tokens: 0,
+                    total_content_tokens: 0,
+                }
+            }
+
+            fn merge(&mut self, other: &Self) {
+                if self.index == other.index {
+                    self.total_reasoning_tokens += other.total_reasoning_tokens;
+                    self.total_content_tokens += other.total_content_tokens;
+                }
+            }
+        }
+
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
         let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
+        let mut output_stats: HashMap<i32, OutputStats> = HashMap::new();
         let mut last_chunk: Option<GetChatCompletionChunk> = None;
 
         loop {
@@ -142,7 +174,18 @@ pub mod stream {
 
                     // Handle each output
                     for output in &chunk.outputs {
+                        let cur_output_index = output.index;
+                        let mut cur_output_stats = OutputStats::new(cur_output_index);
+                        let prev_output_stats = output_stats.get(&(cur_output_index - 1));
+
                         if let Some(delta) = &output.delta {
+                            // Track tokens stats per output
+                            if !delta.reasoning_content.is_empty() {
+                                cur_output_stats.total_reasoning_tokens += 1;
+                            }
+                            if !delta.content.is_empty() {
+                                cur_output_stats.total_content_tokens += 1;
+                            }
                             let reasoning_status = get_reasoning_status(
                                 &delta.reasoning_content,
                                 &delta.content,
@@ -239,6 +282,12 @@ pub mod stream {
                                 }
                             }
                         }
+
+                        // Insert new or update existing output stats
+                        output_stats
+                            .entry(cur_output_index)
+                            .and_modify(|c| c.merge(&cur_output_stats))
+                            .or_insert(cur_output_stats);
                     }
                     last_chunk = Some(chunk.clone());
                     chunks.push(chunk);
