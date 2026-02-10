@@ -1,6 +1,6 @@
 use xai_sdk::api::{
-    CompletionMessage, CompletionOutput, CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk,
-    InlineCitation, MessageRole, SamplingUsage, ToolCall, content::Content,
+    CompletionMessage, CompletionOutput, CompletionOutputChunk, Delta, FinishReason,
+    GetChatCompletionChunk, InlineCitation, MessageRole, SamplingUsage, ToolCall, content::Content,
 };
 use xai_sdk::chat::stream::{Consumer, OutputContext, PhaseStatus, assemble};
 use xai_sdk::chat::utils::to_messages;
@@ -52,7 +52,7 @@ fn test_phase_status_equality() {
 fn test_consumer_new() {
     let consumer = Consumer::new();
     assert!(consumer.on_chunk.is_none());
-    assert!(consumer.on_reason_token.is_none());
+    assert!(consumer.on_reasoning_token.is_none());
     assert!(consumer.on_reasoning_complete.is_none());
     assert!(consumer.on_content_token.is_none());
     assert!(consumer.on_content_complete.is_none());
@@ -67,7 +67,7 @@ fn test_consumer_new() {
 fn test_consumer_default() {
     let consumer = Consumer::default();
     assert!(consumer.on_chunk.is_none());
-    assert!(consumer.on_reason_token.is_none());
+    assert!(consumer.on_reasoning_token.is_none());
     assert!(consumer.on_reasoning_complete.is_none());
     assert!(consumer.on_content_token.is_none());
     assert!(consumer.on_content_complete.is_none());
@@ -87,11 +87,11 @@ fn test_consumer_builder_on_content_token() {
 
 #[test]
 fn test_consumer_builder_on_reason_token() {
-    let consumer = Consumer::new().on_reason_token(|_ctx, _token| async move {
+    let consumer = Consumer::new().on_reasoning_token(|_ctx, _token| async move {
         // Test callback
     });
 
-    assert!(consumer.on_reason_token.is_some());
+    assert!(consumer.on_reasoning_token.is_some());
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn test_consumer_builder_on_content_complete() {
 fn test_consumer_builder_chain() {
     let consumer = Consumer::new()
         .on_chunk(|_chunk| async move {})
-        .on_reason_token(|_ctx, _token| async move {})
+        .on_reasoning_token(|_ctx, _token| async move {})
         .on_reasoning_complete(|_ctx| async move {})
         .on_content_token(|_ctx, _token| async move {})
         .on_content_complete(|_ctx| async move {})
@@ -136,7 +136,7 @@ fn test_consumer_builder_chain() {
         .on_citations(|_citations| async move {});
 
     assert!(consumer.on_chunk.is_some());
-    assert!(consumer.on_reason_token.is_some());
+    assert!(consumer.on_reasoning_token.is_some());
     assert!(consumer.on_reasoning_complete.is_some());
     assert!(consumer.on_content_token.is_some());
     assert!(consumer.on_content_complete.is_some());

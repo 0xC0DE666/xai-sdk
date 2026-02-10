@@ -3,7 +3,6 @@ use serde_json::json;
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use xai_sdk::api::{
     Content, Function, GetChatCompletionChunk, GetCompletionsRequest, InlineCitation, Message,
     MessageRole, Tool, ToolCall, ToolCallStatus, ToolCallType, XSearch, content,
@@ -59,65 +58,24 @@ async fn main() -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-
-            // Create a locally scoped Consumer with real-time status updates
-            let is_thinking = Arc::new(Mutex::new(false));
-            let reasoning_started = Arc::new(Mutex::new(false));
-
-            let is_thinking_rt = is_thinking.clone();
-            let reasoning_started_rt = reasoning_started.clone();
-            let is_thinking_rc = is_thinking.clone();
-            let is_thinking_ct = is_thinking.clone();
-
             let consumer = Consumer::new()
-                .on_reason_token(move |ctx: &OutputContext, token: &str| {
-                    let is_thinking = is_thinking_rt.clone();
-                    let reasoning_started = reasoning_started_rt.clone();
-                    let output_index = ctx.output_index;
-                    let token = token.to_string();
-                    async move {
+                .on_reasoning_token(|ctx: &OutputContext, token: &str| {
                         print!("{token}");
                         io::stdout().flush().unwrap();
 
-                        // let mut started = reasoning_started.lock().unwrap();
-                        // let mut thinking = is_thinking.lock().unwrap();
-                        // if !*started {
-                        //     *started = true;
-                        //     *thinking = true;
-                        //     print!("\n💭 Thinking");
-                        //     io::stdout().flush().unwrap();
-                        // } else if *thinking {
-                        //     print!(".");
-                        //     io::stdout().flush().unwrap();
-                        // }
-                    }
+                    async {}
                 })
                 .on_reasoning_complete(move |ctx: &OutputContext| {
-                    let is_thinking = is_thinking_rc.clone();
-                    let output_index = ctx.output_index;
-                    async move {
-                        let mut thinking = is_thinking.lock().unwrap();
-                        if *thinking {
-                            *thinking = false;
-                            println!("\n");
-                        }
-                        dbg!(output_index);
                         println!("on_reasoning_complete -------------------------------------------------\n");
+                    async move {
                     }
                 })
                 // on_content_token: Print content in real-time
                 .on_content_token(move |_ctx: &OutputContext, token: &str| {
-                    let is_thinking = is_thinking_ct.clone();
-                    let token = token.to_string();
-                    async move {
-                        // Clear thinking indicator if still showing
-                        let mut thinking = is_thinking.lock().unwrap();
-                        if *thinking {
-                            *thinking = false;
-                            println!("\n");
-                        }
                         print!("{token}");
                         io::stdout().flush().unwrap();
+
+                    async move {
                     }
                 })
                 // on_content_complete: New line after content
@@ -153,8 +111,6 @@ async fn main() -> Result<()> {
                     let output_index = ctx.output_index;
                     let tool_calls = tool_calls.to_vec();
                     async move {
-                        // dbg!(output_index);
-                        // dbg!(&tool_calls);
                         println!("on_client_tool_calls -------------------------------------------------\n");
                     }
                 })

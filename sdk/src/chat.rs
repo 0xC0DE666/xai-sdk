@@ -212,10 +212,10 @@ pub mod stream {
                         // Token / citation / tool callbacks – only when there is a delta
                         if let Some(delta) = delta {
                             // Reasoning token
-                            if let Some(ref mut on_reason_token) = consumer.on_reason_token
+                            if let Some(ref mut on_reasoning_token) = consumer.on_reasoning_token
                                 && !delta.reasoning_content.is_empty()
                             {
-                                on_reason_token(&output_ctx, &delta.reasoning_content).await;
+                                on_reasoning_token(&output_ctx, &delta.reasoning_content).await;
                             }
 
                             // Content token
@@ -488,7 +488,7 @@ pub mod stream {
     /// # Callback Signatures (execution order)
     /// All callbacks are async with `Future<Output = ()>`. Use references to avoid cloning.
     /// - `on_chunk`: `&GetChatCompletionChunk`
-    /// - `on_reason_token`: `(&OutputContext, &str)`
+    /// - `on_reasoning_token`: `(&OutputContext, &str)`
     /// - `on_reasoning_complete`: `&OutputContext`
     /// - `on_content_token`: `(&OutputContext, &str)`
     /// - `on_content_complete`: `&OutputContext`
@@ -507,7 +507,7 @@ pub mod stream {
         /// Callback invoked for each reasoning token in the stream.
         ///
         /// Receives `(&OutputContext, token: &str)` — no cloning.
-        pub on_reason_token:
+        pub on_reasoning_token:
             Option<Box<dyn FnMut(&OutputContext, &str) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked once when the reasoning phase completes for an output.
@@ -585,7 +585,7 @@ pub mod stream {
         pub fn new() -> Self {
             Self {
                 on_chunk: None,
-                on_reason_token: None,
+                on_reasoning_token: None,
                 on_reasoning_complete: None,
                 on_content_token: None,
                 on_content_complete: None,
@@ -607,7 +607,7 @@ pub mod stream {
         pub fn with_stdout() -> Self {
             Self {
                 on_chunk: None,
-                on_reason_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
+                on_reasoning_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
                         print!("{token}");
@@ -696,7 +696,7 @@ pub mod stream {
                         }
                     })
                 })),
-                on_reason_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                on_reasoning_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
                     let output_index = ctx.output_index as i32;
                     let token = token.to_string();
                     let buffers_reason = buffers_reason_clone.clone();
@@ -737,12 +737,12 @@ pub mod stream {
         }
 
         /// Sets the reasoning token callback, invoked for each reasoning token.
-        pub fn on_reason_token<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_reasoning_token<F, Fut>(mut self, mut f: F) -> Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
         {
-            self.on_reason_token = Some(Box::new(move |ctx, token| Box::pin(f(ctx, token))));
+            self.on_reasoning_token = Some(Box::new(move |ctx, token| Box::pin(f(ctx, token))));
             self
         }
 
