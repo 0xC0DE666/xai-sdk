@@ -35,5 +35,5 @@ name = "billing"
 path = "src/billing.rs"
 
 [[example]]
-name = "server_side_tool_call"
-path = "src/server_side_tool_call.rs"
+name = "tool_calls"
+path = "src/tool_calls.rs"
