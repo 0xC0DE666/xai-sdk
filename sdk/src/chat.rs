@@ -103,6 +103,49 @@ pub mod stream {
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
 
+    #[derive(Debug, Clone)]
+    struct OutputStats {
+        index: i32,
+        prev_index: Option<i32>,
+        total_reasoning_tokens: usize,
+        total_content_tokens: usize,
+        finish_reason: FinishReason,
+    }
+
+    impl OutputStats {
+        fn init(index: i32, finish_reason: FinishReason) -> Self {
+            let prev_index = match index > 0 {
+                true => Some(index - 1),
+                false => None,
+            };
+
+            Self {
+                index,
+                prev_index,
+                total_reasoning_tokens: 0,
+                total_content_tokens: 0,
+                finish_reason,
+            }
+        }
+
+        fn inc(&mut self, reason_token: &str, content_token: &str) {
+            if !reason_token.is_empty() {
+                self.total_reasoning_tokens += 1;
+            }
+            if !content_token.is_empty() {
+                self.total_content_tokens += 1;
+            }
+        }
+
+        fn merge(&mut self, other: &Self) {
+            if self.index == other.index {
+                self.total_reasoning_tokens += other.total_reasoning_tokens;
+                self.total_content_tokens += other.total_content_tokens;
+                self.finish_reason = other.finish_reason
+            }
+        }
+    }
+
     /// Processes a streaming chat completion response with custom callbacks.
     ///
     /// Iterates through streaming chunks, invoking consumer callbacks for each token,
@@ -120,37 +163,6 @@ pub mod stream {
         mut stream: Streaming<GetChatCompletionChunk>,
         mut consumer: Consumer<'_>,
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
-        #[derive(Debug, Clone)]
-        struct OutputStats {
-            index: i32,
-            prev_index: Option<i32>,
-            total_reasoning_tokens: usize,
-            total_content_tokens: usize,
-        }
-
-        impl OutputStats {
-            fn new(index: i32) -> Self {
-                let prev_index = match index > 0 {
-                    true => Some(index - 1),
-                    false => None,
-                };
-
-                Self {
-                    index,
-                    prev_index,
-                    total_reasoning_tokens: 0,
-                    total_content_tokens: 0,
-                }
-            }
-
-            fn merge(&mut self, other: &Self) {
-                if self.index == other.index {
-                    self.total_reasoning_tokens += other.total_reasoning_tokens;
-                    self.total_content_tokens += other.total_content_tokens;
-                }
-            }
-        }
-
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
         let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
@@ -175,17 +187,14 @@ pub mod stream {
                     // Handle each output
                     for output in &chunk.outputs {
                         let cur_output_index = output.index;
-                        let mut cur_output_stats = OutputStats::new(cur_output_index);
+                        let mut cur_output_stats =
+                            OutputStats::init(cur_output_index, output.finish_reason());
                         let prev_output_stats = output_stats.get(&(cur_output_index - 1));
 
                         if let Some(delta) = &output.delta {
-                            // Track tokens stats per output
-                            if !delta.reasoning_content.is_empty() {
-                                cur_output_stats.total_reasoning_tokens += 1;
-                            }
-                            if !delta.content.is_empty() {
-                                cur_output_stats.total_content_tokens += 1;
-                            }
+                            // Track token stats per output
+                            cur_output_stats.inc(&delta.reasoning_content, &delta.content);
+
                             let reasoning_status = get_reasoning_status(
                                 &delta.reasoning_content,
                                 &delta.content,
@@ -317,6 +326,11 @@ pub mod stream {
     }
 
     /// Determines the reasoning phase status based on delta content and finish reason.
+    // fn get_reasoning_status(
+    //     cur_output_stats: &OutputStats,
+    //     prev_output_stats: Option<&OutputStats>,
+    // ) -> PhaseStatus {
+
     fn get_reasoning_status(
         reasoning_content: &str,
         content: &str,
