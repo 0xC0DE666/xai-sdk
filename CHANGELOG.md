@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-02-10
+
+### Added
+- **OutputContext phase and multi-output info**: `OutputContext` now exposes `total_outputs`, `output_index`, `reasoning_status`, and `content_status`. The new `PhaseStatus` enum (`Init`, `Pending`, `Complete`) indicates the current reasoning and content phase per output, enabling progress-aware streaming and correct behavior for multi-output streams.
+- **Tool calls example**: The `tool_calls` example (renamed from `server_side_tool_call`) demonstrates server-side and client-side tool handling, shared `print_tool_calls` display logic, and execution of client-side `write_file` tool calls with async file I/O via tokio.
+
+### Changed
+- **Stream processing**: Chat stream processing uses stats-based output tracking. Token counts and finish reason are accumulated per output; `on_reasoning_complete` and `on_content_complete` fire once per output when the corresponding phase completes.
+- **Example rename**: The `server_side_tool_call` example is now `tool_calls` and has been refactored for clarity (client-side tool execution, tokio-based `write_file`, cleaner output).
+
 ## [0.8.0-rc6] - 2026-01-31
 
 ### Added

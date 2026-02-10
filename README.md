@@ -68,9 +68,9 @@ anyhow = "1.0"
    cargo run --example interceptor_compose
    ```
 
-7. Run the billing service example:
+7. Run the tool calls example:
    ```bash
-   cargo run --example billing
+   cargo run --example tool_calls
    ```
 
 ## API Services
@@ -214,7 +214,7 @@ The SDK provides powerful utilities for working with streaming responses:
 ### Stream Consumer
 A flexible callback system for processing streaming data:
 - **`on_chunk(chunk)`** - Called for each complete chunk received
-- **`on_reason_token(&OutputContext, token: &str)`** - Called for each piece of reasoning content
+- **`on_reasoning_token(&OutputContext, token: &str)`** - Called for each piece of reasoning content
 - **`on_reasoning_complete(&OutputContext)`** - Called once when the reasoning phase completes for an output
 - **`on_content_token(&OutputContext, token: &str)`** - Called for each piece of response content
 - **`on_content_complete(&OutputContext)`** - Called once when the content phase completes for an output
