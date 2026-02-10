@@ -11,8 +11,6 @@ use xai_sdk::chat;
 use xai_sdk::chat::stream::{Consumer, OutputContext};
 use xai_sdk::{Request, Streaming};
 
-const WRITE_FILE: &str = "write_file";
-
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load API key from environment variable
@@ -22,7 +20,7 @@ async fn main() -> Result<()> {
     // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
-    let prompt = "What are the last two tweets from @elonmusk and @tsoding? Write their tweets to 'musk.txt' and 'tsoding.txt'";
+    let prompt = "What where the last two tweets from @elonmusk and @tsoding? Write their tweets with sources to 'musk.txt' and 'tsoding.txt'.";
     let model = "grok-4-latest";
 
     let mut cntnt = Content::default();
@@ -59,155 +57,101 @@ async fn main() -> Result<()> {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
             let consumer = Consumer::new()
-                .on_reasoning_token(|ctx: &OutputContext, token: &str| {
+                .on_reasoning_token(|_ctx: &OutputContext, token: &str| {
                     print!("{token}");
                     io::stdout().flush().unwrap();
                     async {}
                 })
-                .on_reasoning_complete(move |ctx: &OutputContext| {
-                    println!("on_reasoning_complete -------------------------------------------------\n");
+                .on_reasoning_complete(|_ctx: &OutputContext| {
+                    println!();
                     async {}
                 })
-                // on_content_token: Print content in real-time
-                .on_content_token(move |_ctx: &OutputContext, token: &str| {
+                .on_content_token(|_ctx: &OutputContext, token: &str| {
                     print!("{token}");
                     io::stdout().flush().unwrap();
                     async {}
                 })
-                // on_content_complete: New line after content
-                .on_content_complete(move |ctx: &OutputContext| {
-                    println!(
-                        "on_content_complete -------------------------------------------------\n"
-                    );
+                .on_content_complete(|_ctx: &OutputContext| {
+                    println!();
                     async {}
                 })
-                // on_inline_citations: Show citations inline
                 .on_inline_citations(move |_ctx: &OutputContext, citations: &[InlineCitation]| {
                     let citations = citations.to_vec();
                     async move {
                         if !citations.is_empty() {
-                            println!("\n📚 Found {} inline citation(s):", citations.len());
-                            for citation in &citations {
-                                if let Some(ref citation_data) = citation.citation {
-                                    println!("  • [{}] {:?}", citation.id, citation_data);
+                            println!("\n📚 {} inline citation(s)", citations.len());
+                            for c in &citations {
+                                if let Some(ref data) = c.citation {
+                                    println!("  • [{}] {:?}", c.id, data);
                                 } else {
-                                    println!("  • [{}] (no citation data)", citation.id);
+                                    println!("  • [{}] (no data)", c.id);
                                 }
                             }
                         }
-                        println!(
-                            "on_inline_citations -------------------------------------------------\n"
-                        );
                     }
                 })
-                .on_client_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
-                    let output_index = ctx.output_index;
-                    let tool_calls = tool_calls.to_vec();
-                    // AI TODO: call print_tool_calls for client side tools
-                    // check for a write file tool call as per definition, parse the args and execute
-                    // the tool call.
+                .on_client_tool_calls(move |_ctx: &OutputContext, tool_calls: &[ToolCall]| {
+                    print_tool_calls(tool_calls);
+                    let writes: Vec<(PathBuf, String)> = tool_calls
+                        .iter()
+                        .filter_map(|tc| {
+                            let Some(xai_sdk::api::tool_call::Tool::Function(f)) = &tc.tool else {
+                                return None;
+                            };
+                            if f.name != WRITE_FILE {
+                                return None;
+                            }
+                            let args: serde_json::Value =
+                                serde_json::from_str(&f.arguments).ok()?;
+                            let name = args.get("name")?.as_str()?.to_string();
+                            let content = args.get("content")?.as_str()?.to_string();
+                            Some((PathBuf::from(name), content))
+                        })
+                        .collect();
                     async move {
-                        println!("on_client_tool_calls -------------------------------------------------\n");
-                    }
-                })
-                // on_server_tool_calls: Show server tool call details in real-time
-                .on_server_tool_calls(move |ctx: &OutputContext, tool_calls: &[ToolCall]| {
-                    let output_index = ctx.output_index;
-                    let tool_calls = tool_calls.to_vec();
-                    // AI TODO: extract this display logic to function print_tool_calls(calls: &[ToolCall])
-                    // then call print_tool_calls, move all the code into this context (above async block)
-                    async move {
-                        dbg!(output_index);
-                        println!("\n🔧 Tool Call(s) Detected:");
-                        for tool_call in &tool_calls {
-                        let tool_type = match ToolCallType::try_from(tool_call.r#type) {
-                            Ok(ToolCallType::XSearchTool) => "XSearch (Twitter/X)",
-                            Ok(ToolCallType::WebSearchTool) => "WebSearch",
-                            Ok(ToolCallType::CodeExecutionTool) => "CodeExecution",
-                            Ok(ToolCallType::CollectionsSearchTool) => "CollectionsSearch",
-                            Ok(ToolCallType::McpTool) => "MCP",
-                            Ok(ToolCallType::AttachmentSearchTool) => "AttachmentSearch",
-                            Ok(ToolCallType::ClientSideTool) => "Client-Side Function",
-                            _ => "Unknown",
-                        };
-
-                        let status = match ToolCallStatus::try_from(tool_call.status) {
-                            Ok(ToolCallStatus::InProgress) => "⏳ In Progress",
-                            Ok(ToolCallStatus::Completed) => "✅ Completed",
-                            Ok(ToolCallStatus::Incomplete) => "⚠️  Incomplete",
-                            Ok(ToolCallStatus::Failed) => "❌ Failed",
-                            _ => "❓ Unknown",
-                        };
-
-                        println!("  ┌─ Tool: {}", tool_type);
-                        println!("  │  ID: {}", tool_call.id);
-                        println!("  │  Status: {}", status);
-
-                        // Extract tool call details if it's a function call
-                        if let Some(xai_sdk::api::tool_call::Tool::Function(function_call)) =
-                            &tool_call.tool
-                        {
-                            println!("  │  Function: {}", function_call.name);
-                            if !function_call.arguments.is_empty() {
-                                // Truncate long arguments for display
-                                let args_display = if function_call.arguments.len() > 100 {
-                                    format!("{}...", &function_call.arguments[..100])
-                                } else {
-                                    function_call.arguments.clone()
-                                };
-                                println!("  │  Arguments: {}", args_display);
+                        for (path, content) in writes {
+                            if let Err(e) = write_file(path.clone(), content).await {
+                                eprintln!("Failed to write {:?}: {}", path, e);
                             }
                         }
-                        println!("  └─");
-                    }
-                        println!("on_server_tool_calls -------------------------------------------------\n");
                     }
                 })
-                // on_usage: Show final statistics
+                .on_server_tool_calls(move |_ctx: &OutputContext, tool_calls: &[ToolCall]| {
+                    print_tool_calls(tool_calls);
+                    async {}
+                })
                 .on_usage(move |usage: &xai_sdk::api::SamplingUsage| {
-                    let prompt_tokens = usage.prompt_tokens;
-                    let completion_tokens = usage.completion_tokens;
-                    let reasoning_tokens = usage.reasoning_tokens;
-                    let total_tokens = usage.total_tokens;
-                    async move {
-                        println!("\n📊 Token Usage:");
-                        println!("  Prompt: {} tokens", prompt_tokens);
-                        println!("  Completion: {} tokens", completion_tokens);
-                        println!("  Reasoning: {} tokens", reasoning_tokens);
-                        println!("  Total: {} tokens", total_tokens);
-                        println!(
-                            "on_usage -------------------------------------------------\n"
-                        );
-                    }
+                    let u = (
+                        usage.prompt_tokens,
+                        usage.completion_tokens,
+                        usage.reasoning_tokens,
+                        usage.total_tokens,
+                    );
+                    println!(
+                        "\n📊 Tokens: prompt={} completion={} reasoning={} total={}",
+                        u.0, u.1, u.2, u.3
+                    );
+                    async {}
                 })
-                // on_citations: Show final citations
                 .on_citations(move |citations: &[String]| {
                     let citations = citations.to_vec();
-                    async move {
-                        if !citations.is_empty() {
-                            println!("\n🔗 Source Citations:");
-                            for (i, citation) in citations.iter().enumerate() {
-                                println!("  {}. {}", i + 1, citation);
-                            }
+                    if !citations.is_empty() {
+                        println!("\n🔗 Sources:");
+                        for (i, c) in citations.iter().enumerate() {
+                            println!("  {}. {}", i + 1, c);
                         }
-                        println!(
-                            "on_citations -------------------------------------------------\n"
-                        );
                     }
+                    async move {}
                 });
 
-            // Process the stream
             match chat::stream::process(stream, consumer).await {
                 Ok(chunks) => {
-                    println!("\n✅ Stream completed ({} chunks processed)", chunks.len());
-
-                    // Write all chunks to chunks.txt in dbg format
+                    println!("\n✅ Done ({} chunks)", chunks.len());
                     let chunks_debug = format!("{:#?}", chunks);
                     write_file(PathBuf::from("debug/chunks.txt"), chunks_debug)
-                        .context("Failed to write chunks to chunks.txt")?;
-                    println!("📝 All chunks written to chunks.txt");
-
-                    // let res = chat::stream::assemble(chunks);
+                        .await
+                        .context("Failed to write debug/chunks.txt")?;
+                    println!("📝 Chunks saved to debug/chunks.txt");
                 }
                 Err(e) => {
                     eprintln!("\n❌ Error processing stream: {}", e);
@@ -224,12 +168,47 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Writes content to a file at the specified path.
-// AI TODO: refactor this to use tokio fs
-fn write_file(path: PathBuf, content: String) -> Result<()> {
-    std::fs::write(&path, content).context(format!("Failed to write file: {:?}", path))?;
-    Ok(())
+/// Prints tool call details (type, id, status, function name/args) to stdout.
+fn print_tool_calls(tool_calls: &[ToolCall]) {
+    if tool_calls.is_empty() {
+        return;
+    }
+    println!("\n🔧 Tool call(s):");
+    for tool_call in tool_calls {
+        let tool_type = match ToolCallType::try_from(tool_call.r#type) {
+            Ok(ToolCallType::XSearchTool) => "XSearch (Twitter/X)",
+            Ok(ToolCallType::WebSearchTool) => "WebSearch",
+            Ok(ToolCallType::CodeExecutionTool) => "CodeExecution",
+            Ok(ToolCallType::CollectionsSearchTool) => "CollectionsSearch",
+            Ok(ToolCallType::McpTool) => "MCP",
+            Ok(ToolCallType::AttachmentSearchTool) => "AttachmentSearch",
+            Ok(ToolCallType::ClientSideTool) => "Client-side function",
+            _ => "Unknown",
+        };
+        let status = match ToolCallStatus::try_from(tool_call.status) {
+            Ok(ToolCallStatus::InProgress) => "⏳ In progress",
+            Ok(ToolCallStatus::Completed) => "✅ Completed",
+            Ok(ToolCallStatus::Incomplete) => "⚠️ Incomplete",
+            Ok(ToolCallStatus::Failed) => "❌ Failed",
+            _ => "❓ Unknown",
+        };
+        println!("  ┌─ {} (id: {}, {})", tool_type, tool_call.id, status);
+        if let Some(xai_sdk::api::tool_call::Tool::Function(f)) = &tool_call.tool {
+            println!("  │  Function: {}", f.name);
+            if !f.arguments.is_empty() {
+                let args = if f.arguments.len() > 80 {
+                    format!("{}...", &f.arguments[..80])
+                } else {
+                    f.arguments.clone()
+                };
+                println!("  │  Arguments: {}", args);
+            }
+        }
+        println!("  └─");
+    }
 }
+
+const WRITE_FILE: &str = "write_file";
 
 /// Creates a tool definition for the write_file function.
 fn write_file_tool() -> Tool {
@@ -257,4 +236,17 @@ fn write_file_tool() -> Tool {
     Tool {
         tool: Some(xai_sdk::api::tool::Tool::Function(def)),
     }
+}
+
+/// Writes content to a file at the specified path (creates parent dirs if needed).
+async fn write_file(path: PathBuf, content: String) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .context(format!("Failed to create parent dir for {:?}", path))?;
+    }
+    tokio::fs::write(&path, content)
+        .await
+        .context(format!("Failed to write file: {:?}", path))?;
+    Ok(())
 }
