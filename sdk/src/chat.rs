@@ -106,7 +106,6 @@ pub mod stream {
     #[derive(Debug, Clone)]
     struct OutputStats {
         index: i32,
-        prev_index: Option<i32>,
         total_reasoning_tokens: usize,
         total_content_tokens: usize,
         finish_reason: FinishReason,
@@ -114,14 +113,8 @@ pub mod stream {
 
     impl OutputStats {
         fn init(index: i32, finish_reason: FinishReason) -> Self {
-            let prev_index = match index > 0 {
-                true => Some(index - 1),
-                false => None,
-            };
-
             Self {
                 index,
-                prev_index,
                 total_reasoning_tokens: 0,
                 total_content_tokens: 0,
                 finish_reason,
@@ -174,9 +167,8 @@ pub mod stream {
             match stream.message().await {
                 Ok(chunk) => {
                     // Stream complete
-                    let chunk = match chunk {
-                        Some(c) => c,
-                        None => break,
+                    let Some(chunk) = chunk else {
+                        break;
                     };
 
                     // Handle the chunk
@@ -191,104 +183,104 @@ pub mod stream {
                             OutputStats::init(cur_output_index, output.finish_reason());
                         let prev_output_stats = output_stats.get(&(cur_output_index - 1));
 
-                        if let Some(delta) = &output.delta {
-                            // Track token stats per output
-                            cur_output_stats.inc(&delta.reasoning_content, &delta.content);
+                        let Some(delta) = &output.delta else {
+                            continue;
+                        };
 
-                            let reasoning_status = get_reasoning_status(
-                                &delta.reasoning_content,
-                                &delta.content,
-                                output.finish_reason,
-                            );
+                        // Track token stats per output
+                        cur_output_stats.inc(&delta.reasoning_content, &delta.content);
 
-                            let content_status = get_content_status(
-                                &delta.reasoning_content,
-                                &delta.content,
-                                output.finish_reason,
-                            );
+                        let reasoning_status = get_reasoning_status(
+                            &delta.reasoning_content,
+                            &delta.content,
+                            output.finish_reason,
+                        );
 
-                            let output_ctx = OutputContext::new(
-                                (output.index + 1) as usize,
-                                output.index as usize,
-                                reasoning_status.clone(),
-                                content_status.clone(),
-                            );
+                        let content_status = get_content_status(
+                            &delta.reasoning_content,
+                            &delta.content,
+                            output.finish_reason,
+                        );
 
-                            // Reasoning
-                            if let Some(ref mut on_reason_token) = consumer.on_reason_token
-                                && !delta.reasoning_content.is_empty()
-                            {
-                                on_reason_token(&output_ctx, &delta.reasoning_content).await;
+                        let output_ctx = OutputContext::new(
+                            (output.index + 1) as usize,
+                            output.index as usize,
+                            reasoning_status.clone(),
+                            content_status.clone(),
+                        );
+
+                        // Reasoning
+                        if let Some(ref mut on_reason_token) = consumer.on_reason_token
+                            && !delta.reasoning_content.is_empty()
+                        {
+                            on_reason_token(&output_ctx, &delta.reasoning_content).await;
+                        }
+
+                        if let Some(ref mut on_reasoning_complete) = consumer.on_reasoning_complete
+                        {
+                            let was_complete = reasoning_complete_flags
+                                .get(&output.index)
+                                .copied()
+                                .unwrap_or(false);
+                            if !was_complete && reasoning_status == PhaseStatus::Complete {
+                                on_reasoning_complete(&output_ctx).await;
+                                reasoning_complete_flags.insert(output.index, true);
                             }
+                        }
 
-                            if let Some(ref mut on_reasoning_complete) =
-                                consumer.on_reasoning_complete
-                            {
-                                let was_complete = reasoning_complete_flags
-                                    .get(&output.index)
-                                    .copied()
-                                    .unwrap_or(false);
-                                if !was_complete && reasoning_status == PhaseStatus::Complete {
-                                    on_reasoning_complete(&output_ctx).await;
-                                    reasoning_complete_flags.insert(output.index, true);
+                        // Content
+                        if let Some(ref mut on_content_token) = consumer.on_content_token
+                            && !delta.content.is_empty()
+                        {
+                            on_content_token(&output_ctx, &delta.content).await;
+                        }
+
+                        if let Some(ref mut on_content_complete) = consumer.on_content_complete {
+                            let was_complete = content_complete_flags
+                                .get(&output.index)
+                                .copied()
+                                .unwrap_or(false);
+                            if !was_complete && content_status == PhaseStatus::Complete {
+                                on_content_complete(&output_ctx).await;
+                                content_complete_flags.insert(output.index, true);
+                            }
+                        }
+
+                        // Inline citations
+                        if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
+                            && !delta.citations.is_empty()
+                        {
+                            on_inline_citations(&output_ctx, &delta.citations).await;
+                        }
+
+                        // Tool calls - filter by type and call appropriate callbacks
+                        if !delta.tool_calls.is_empty() {
+                            // Separate client-side and server-side tool calls
+                            let mut client_tool_calls = Vec::new();
+                            let mut server_tool_calls = Vec::new();
+
+                            for tool_call in &delta.tool_calls {
+                                if tool_call.r#type == ToolCallType::ClientSideTool.into() {
+                                    client_tool_calls.push(tool_call.clone());
+                                } else {
+                                    server_tool_calls.push(tool_call.clone());
                                 }
                             }
 
-                            // Content
-                            if let Some(ref mut on_content_token) = consumer.on_content_token
-                                && !delta.content.is_empty()
+                            // Call client-side tool calls callback
+                            if let Some(ref mut on_client_tool_calls) =
+                                consumer.on_client_tool_calls
+                                && !client_tool_calls.is_empty()
                             {
-                                on_content_token(&output_ctx, &delta.content).await;
+                                on_client_tool_calls(&output_ctx, &client_tool_calls).await;
                             }
 
-                            if let Some(ref mut on_content_complete) = consumer.on_content_complete
+                            // Call server-side tool calls callback
+                            if let Some(ref mut on_server_tool_calls) =
+                                consumer.on_server_tool_calls
+                                && !server_tool_calls.is_empty()
                             {
-                                let was_complete = content_complete_flags
-                                    .get(&output.index)
-                                    .copied()
-                                    .unwrap_or(false);
-                                if !was_complete && content_status == PhaseStatus::Complete {
-                                    on_content_complete(&output_ctx).await;
-                                    content_complete_flags.insert(output.index, true);
-                                }
-                            }
-
-                            // Inline citations
-                            if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
-                                && !delta.citations.is_empty()
-                            {
-                                on_inline_citations(&output_ctx, &delta.citations).await;
-                            }
-
-                            // Tool calls - filter by type and call appropriate callbacks
-                            if !delta.tool_calls.is_empty() {
-                                // Separate client-side and server-side tool calls
-                                let mut client_tool_calls = Vec::new();
-                                let mut server_tool_calls = Vec::new();
-
-                                for tool_call in &delta.tool_calls {
-                                    if tool_call.r#type == ToolCallType::ClientSideTool.into() {
-                                        client_tool_calls.push(tool_call.clone());
-                                    } else {
-                                        server_tool_calls.push(tool_call.clone());
-                                    }
-                                }
-
-                                // Call client-side tool calls callback
-                                if let Some(ref mut on_client_tool_calls) =
-                                    consumer.on_client_tool_calls
-                                    && !client_tool_calls.is_empty()
-                                {
-                                    on_client_tool_calls(&output_ctx, &client_tool_calls).await;
-                                }
-
-                                // Call server-side tool calls callback
-                                if let Some(ref mut on_server_tool_calls) =
-                                    consumer.on_server_tool_calls
-                                    && !server_tool_calls.is_empty()
-                                {
-                                    on_server_tool_calls(&output_ctx, &server_tool_calls).await;
-                                }
+                                on_server_tool_calls(&output_ctx, &server_tool_calls).await;
                             }
                         }
 
@@ -298,6 +290,7 @@ pub mod stream {
                             .and_modify(|c| c.merge(&cur_output_stats))
                             .or_insert(cur_output_stats);
                     }
+
                     last_chunk = Some(chunk.clone());
                     chunks.push(chunk);
                 }
