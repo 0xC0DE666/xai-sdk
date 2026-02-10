@@ -100,7 +100,11 @@ Stream phase tracking: analysis and implementation plan
   - Implement get_output_status(cur_output_stats, prev_output_stats) -> (PhaseStatus, PhaseStatus).
   - Replace the use of get_reasoning_status and get_content_status in the process loop with get_output_status.
   - Remove get_reasoning_status and get_content_status (or keep only for tests if needed).
-  - Preserve semantics so that on_reasoning_complete and on_content_complete still fire exactly once per output when the phase transitions to Complete, as they do today.
+  - New completion semantics (no parity with current behavior required):
+    - on_reasoning_complete and on_content_complete fire only during a transition from one output to the next (i.e. when we start processing a chunk for output index N+1, we consider output N "done").
+    - Fire on_reasoning_complete for the previous output only if that output had any reasoning tokens (total_reasoning_tokens > 0).
+    - Fire on_content_complete for the previous output only if that output had any content tokens (total_content_tokens > 0).
+    - When the stream ends (no more chunks), fire the same completes for the final output if it had reasoning/content (transition to "no next output").
 
 ================================================================================
 3. IMPLEMENTATION PLAN
@@ -112,28 +116,26 @@ Stream phase tracking: analysis and implementation plan
   - cur_output_stats: &OutputStats
       - index, total_reasoning_tokens, total_content_tokens, finish_reason
   - prev_output_stats: Option<&OutputStats>
-      - Reserved for future use (e.g. enforce "content only after reasoning" across outputs). Current delta-based logic does not use previous output; for parity we can ignore it.
+      - Used for completion callback firing (see 3.2): when we transition to the next output, we use the previous output's stats to decide whether to fire on_reasoning_complete / on_content_complete.
 
-  Reasoning status (same logic as get_reasoning_status, expressed in stats):
+  get_output_status returns (reasoning_status, content_status) for the *current* output (for OutputContext only). Phase status rules:
+
   - is_finished = (cur_output_stats.finish_reason != FinishReason::ReasonInvalid)
-  - Reasoning Complete when: we have passed the reasoning phase
-    - No reasoning tokens and (we have content tokens or the output is finished):
-      total_reasoning_tokens == 0 && (total_content_tokens > 0 || is_finished)
-  - Reasoning Pending when: we are in the reasoning phase
-    - total_reasoning_tokens > 0 && total_content_tokens == 0
-  - Otherwise: Init
+  - Reasoning status:
+    - Complete: total_reasoning_tokens == 0 && (total_content_tokens > 0 || is_finished)
+    - Pending: total_reasoning_tokens > 0 && total_content_tokens == 0
+    - Otherwise: Init
+  - Content status:
+    - Complete: is_finished
+    - Pending: total_content_tokens > 0 && !is_finished
+    - Otherwise: Init
 
-  Content status (same logic as get_content_status, expressed in stats):
-  - Content Complete when: output is finished
-    - is_finished
-  - Content Pending when: we have content tokens
-    - total_content_tokens > 0 && !is_finished
-  - Otherwise: Init
-
-  Edge cases:
-  - Output that only has tool calls (no reasoning, no content): total_* both 0, finish_reason e.g. ReasonToolCalls → reasoning Complete (no reasoning and finished), content Complete (finished).
-  - Output that has reasoning then content: reasoning goes Init → Pending → Complete when content starts or finish; content goes Init → Pending → Complete on finish.
-  - prev_output_stats: leave unused for now; signature already exists for future use.
+  Completion callbacks (separate from get_output_status):
+  - Do not fire when the current output's phase becomes Complete.
+  - Fire only on *transition to the next output* (or end of stream for the final output):
+    - When we first see a chunk for output index K where K > the previous output index we processed, we have "transitioned" from output K-1. Then: if output_stats for index K-1 has total_reasoning_tokens > 0, fire on_reasoning_complete for output K-1 (with OutputContext for K-1). If it has total_content_tokens > 0, fire on_content_complete for output K-1.
+    - When the stream ends (chunk is None and we break), fire on_reasoning_complete / on_content_complete for the last output index we ever saw, if that output had reasoning/content respectively.
+  - prev_output_stats (or output_stats.get(&(cur_output_index - 1))) is used when we detect a transition to decide whether the previous output had reasoning/content and thus whether to fire.
 
 3.2 Code changes
 
@@ -143,17 +145,16 @@ Stream phase tracking: analysis and implementation plan
      - Content: if is_finished { Complete } else if total_content_tokens > 0 { Pending } else { Init }
      - Return (reasoning_status, content_status).
 
-  B. Switch the process loop to stats-based status
-     - After cur_output_stats.inc(...) and the entry().and_modify().or_insert(cur_output_stats), we have updated output_stats for cur_output_index.
-     - Get the merged stats: e.g. let stats = output_stats.get(&cur_output_index).unwrap_or(&cur_output_stats) (or use the updated cur_output_stats after merge — care: merge happens after the loop over outputs, so for the same chunk we must use the stats that include the current delta; the code currently merges at the end of the for output loop, so the stats in the map are updated after we've already used cur_output_stats for callbacks. So we need to either:
-       (1) Merge cur_output_stats into the map first, then get the merged stats from the map and call get_output_status(merged_stats, prev), and use that for OutputContext and completion callbacks, or
-       (2) Compute cur_output_stats, merge into map, then re-read from map for get_output_status.
-     - Recommendation: merge into output_stats first, then get merged = output_stats.get(&cur_output_index).unwrap(), then (reasoning_status, content_status) = get_output_status(merged, prev_output_stats). Use these for OutputContext and for the completion flags/callbacks.
+  B. Switch the process loop to stats-based status and transition-based completions
+     - Merge cur_output_stats into output_stats first, then get merged stats for cur_output_index. Call get_output_status(merged, prev_output_stats) and use the result for OutputContext only (not for firing completions).
+     - Transition-based completion firing:
+       (1) When we are about to process an output with index K (K >= 0): if K >= 1, we have "transitioned past" output K-1. If we have not yet fired completions for K-1 (use reasoning_complete_flags / content_complete_flags keyed by output index), get output_stats for K-1; if total_reasoning_tokens > 0 call on_reasoning_complete for K-1; if total_content_tokens > 0 call on_content_complete for K-1; then set the flags for K-1 so we don't fire again.
+       (2) When the stream ends (we break because chunk is None): for the highest output index we ever saw, if we haven't fired completions for that index, fire on_reasoning_complete / on_content_complete if that output had reasoning/content. Track the max output index seen (e.g. across the loop) so we know the final output at end of stream.
      - Remove the two get_reasoning_status / get_content_status calls and the "AI TODO" / "AI TO DELETE" comments.
 
   C. Delete get_reasoning_status and get_content_status
      - Remove the two functions and their "AI TO DELETE" comments.
-     - Ensure tests still pass: existing tests that assert on OutputContext or completion callbacks should still pass if semantics are preserved. Any unit tests that call get_reasoning_status / get_content_status directly need to be updated to use get_output_status with an OutputStats built from the same inputs (or removed if redundant).
+     - Update tests: completion callback semantics change (transition-based, not phase-Complete-based). Tests that assert on when on_reasoning_complete / on_content_complete are called must expect them only at output transitions (or stream end), and only when the previous/final output had reasoning/content. Any unit tests that call get_reasoning_status / get_content_status directly should be updated to use get_output_status or removed.
 
   D. Tests
      - Add unit tests for get_output_status covering:
@@ -162,7 +163,8 @@ Stream phase tracking: analysis and implementation plan
        - Complete/Pending: no reasoning, content tokens, not finished.
        - Complete/Complete: finished (with or without tokens).
        - Tool-call-only output: 0/0 tokens, finish_reason ReasonToolCalls → Complete/Complete.
-     - Run existing stream/process and assemble tests to confirm no regressions.
+     - Add or update tests for completion callbacks: they fire only on transition to next output (or stream end), and only when the previous/final output had reasoning or content respectively.
+     - Run existing stream/process and assemble tests; update expectations for completion callback timing.
 
 3.3 Order of implementation
 
@@ -177,5 +179,5 @@ Stream phase tracking: analysis and implementation plan
 -----------------------------------------------------
 
 - Chunks are GetChatCompletionChunk with one or more CompletionOutputChunk in outputs; each has index, delta, finish_reason. Deltas carry content and reasoning_content; token counts are accumulated in OutputStats per output index.
-- Phase status (reasoning/content) should be derived from OutputStats (totals + finish_reason) via get_output_status, replacing the current delta-based get_reasoning_status and get_content_status, so that completion callbacks and OutputContext stay correct and the design is stats-based and extensible.
-- Implementation: implement get_output_status, switch the loop to use merged stats and get_output_status, add tests, then remove the old helpers and comments.
+- Phase status (reasoning/content) for OutputContext is derived from OutputStats via get_output_status. Completion callbacks do not fire when the current output's phase becomes Complete; they fire only on transition to the next output (or at stream end for the final output), and only if that output had reasoning or content respectively.
+- Implementation: implement get_output_status; switch the loop to use merged stats and get_output_status for OutputContext; add transition detection and fire on_reasoning_complete / on_content_complete only at output boundaries when the previous/final output had tokens; add tests and update existing completion-callback expectations; remove get_reasoning_status and get_content_status.
