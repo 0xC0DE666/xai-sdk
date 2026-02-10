@@ -161,6 +161,7 @@ pub mod stream {
         let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
         let mut output_stats: HashMap<i32, OutputStats> = HashMap::new();
         let mut last_chunk: Option<GetChatCompletionChunk> = None;
+        let mut max_output_index_seen: i32 = -1;
 
         loop {
             // Process each chunk as it arrives
@@ -181,7 +182,6 @@ pub mod stream {
                         let cur_output_index = output.index;
                         let mut cur_output_stats =
                             OutputStats::init(cur_output_index, output.finish_reason());
-                        let prev_output_stats = output_stats.get(&(cur_output_index - 1));
 
                         let Some(delta) = &output.delta else {
                             continue;
@@ -190,22 +190,15 @@ pub mod stream {
                         // Track token stats per output
                         cur_output_stats.inc(&delta.reasoning_content, &delta.content);
 
-                        // AI TODO:
-                        // let (reasoning_status, content_status) = get_output_status(&cur_output_stats, prev_output_stats);
-
-                        // AI TO DELETE:
-                        let reasoning_status = get_reasoning_status(
-                            &delta.reasoning_content,
-                            &delta.content,
-                            output.finish_reason,
-                        );
-
-                        // AI TO DELETE:
-                        let content_status = get_content_status(
-                            &delta.reasoning_content,
-                            &delta.content,
-                            output.finish_reason,
-                        );
+                        // Merge into map first so we have accumulated stats for this output
+                        output_stats
+                            .entry(cur_output_index)
+                            .and_modify(|c| c.merge(&cur_output_stats))
+                            .or_insert_with(|| cur_output_stats.clone());
+                        let merged = output_stats.get(&cur_output_index).unwrap();
+                        let prev_output_stats = output_stats.get(&(cur_output_index - 1));
+                        let (reasoning_status, content_status) =
+                            get_output_status(merged, prev_output_stats);
 
                         let output_ctx = OutputContext::new(
                             (output.index + 1) as usize,
@@ -214,6 +207,50 @@ pub mod stream {
                             content_status.clone(),
                         );
 
+                        // Fire completions for previous output when we transition to the next
+                        if cur_output_index >= 1 {
+                            let prev_index = cur_output_index - 1;
+                            if let Some(prev_stats) = output_stats.get(&prev_index) {
+                                let total_outputs = (cur_output_index + 1) as usize;
+                                let prev_ctx = OutputContext::new(
+                                    total_outputs,
+                                    prev_index as usize,
+                                    PhaseStatus::Complete,
+                                    PhaseStatus::Complete,
+                                );
+                                if reasoning_complete_flags
+                                    .get(&prev_index)
+                                    .copied()
+                                    .unwrap_or(false)
+                                    == false
+                                    && prev_stats.total_reasoning_tokens > 0
+                                {
+                                    if let Some(ref mut on_reasoning_complete) =
+                                        consumer.on_reasoning_complete
+                                    {
+                                        on_reasoning_complete(&prev_ctx).await;
+                                    }
+                                    reasoning_complete_flags.insert(prev_index, true);
+                                }
+                                if content_complete_flags
+                                    .get(&prev_index)
+                                    .copied()
+                                    .unwrap_or(false)
+                                    == false
+                                    && prev_stats.total_content_tokens > 0
+                                {
+                                    if let Some(ref mut on_content_complete) =
+                                        consumer.on_content_complete
+                                    {
+                                        on_content_complete(&prev_ctx).await;
+                                    }
+                                    content_complete_flags.insert(prev_index, true);
+                                }
+                            }
+                        }
+
+                        max_output_index_seen = max_output_index_seen.max(cur_output_index);
+
                         // Reasoning
                         if let Some(ref mut on_reason_token) = consumer.on_reason_token
                             && !delta.reasoning_content.is_empty()
@@ -221,34 +258,11 @@ pub mod stream {
                             on_reason_token(&output_ctx, &delta.reasoning_content).await;
                         }
 
-                        if let Some(ref mut on_reasoning_complete) = consumer.on_reasoning_complete
-                        {
-                            let was_complete = reasoning_complete_flags
-                                .get(&output.index)
-                                .copied()
-                                .unwrap_or(false);
-                            if !was_complete && reasoning_status == PhaseStatus::Complete {
-                                on_reasoning_complete(&output_ctx).await;
-                                reasoning_complete_flags.insert(output.index, true);
-                            }
-                        }
-
                         // Content
                         if let Some(ref mut on_content_token) = consumer.on_content_token
                             && !delta.content.is_empty()
                         {
                             on_content_token(&output_ctx, &delta.content).await;
-                        }
-
-                        if let Some(ref mut on_content_complete) = consumer.on_content_complete {
-                            let was_complete = content_complete_flags
-                                .get(&output.index)
-                                .copied()
-                                .unwrap_or(false);
-                            if !was_complete && content_status == PhaseStatus::Complete {
-                                on_content_complete(&output_ctx).await;
-                                content_complete_flags.insert(output.index, true);
-                            }
                         }
 
                         // Inline citations
@@ -288,12 +302,6 @@ pub mod stream {
                                 on_server_tool_calls(&output_ctx, &server_tool_calls).await;
                             }
                         }
-
-                        // Insert new or update existing output stats
-                        output_stats
-                            .entry(cur_output_index)
-                            .and_modify(|c| c.merge(&cur_output_stats))
-                            .or_insert(cur_output_stats);
                     }
 
                     last_chunk = Some(chunk.clone());
@@ -301,6 +309,41 @@ pub mod stream {
                 }
                 Err(status) => {
                     return Err(status);
+                }
+            }
+        }
+
+        // Fire completions for the final output at stream end
+        if max_output_index_seen >= 0 {
+            if let Some(ref final_stats) = output_stats.get(&max_output_index_seen) {
+                let total_outputs = (max_output_index_seen + 1) as usize;
+                let final_ctx = OutputContext::new(
+                    total_outputs,
+                    max_output_index_seen as usize,
+                    PhaseStatus::Complete,
+                    PhaseStatus::Complete,
+                );
+                if reasoning_complete_flags
+                    .get(&max_output_index_seen)
+                    .copied()
+                    .unwrap_or(false)
+                    == false
+                    && final_stats.total_reasoning_tokens > 0
+                {
+                    if let Some(ref mut on_reasoning_complete) = consumer.on_reasoning_complete {
+                        on_reasoning_complete(&final_ctx).await;
+                    }
+                }
+                if content_complete_flags
+                    .get(&max_output_index_seen)
+                    .copied()
+                    .unwrap_or(false)
+                    == false
+                    && final_stats.total_content_tokens > 0
+                {
+                    if let Some(ref mut on_content_complete) = consumer.on_content_complete {
+                        on_content_complete(&final_ctx).await;
+                    }
                 }
             }
         }
@@ -323,52 +366,35 @@ pub mod stream {
         Ok(chunks)
     }
 
-    // AI TODO:
+    /// Returns (reasoning_status, content_status) for the current output from accumulated stats.
+    /// Used for OutputContext only; completion callbacks fire on output transition (see process loop).
     fn get_output_status(
         cur_output_stats: &OutputStats,
-        prev_output_stats: Option<&OutputStats>,
+        _prev_output_stats: Option<&OutputStats>,
     ) -> (PhaseStatus, PhaseStatus) {
-        todo!();
-    }
+        let is_finished = cur_output_stats.finish_reason != FinishReason::ReasonInvalid;
+        let r = cur_output_stats.total_reasoning_tokens;
+        let c = cur_output_stats.total_content_tokens;
 
-    // AI TO DELETE:
-    /// Determines the reasoning phase status based on delta content and finish reason.
-    fn get_reasoning_status(
-        reasoning_content: &str,
-        content: &str,
-        finish_reason: i32,
-    ) -> PhaseStatus {
-        let has_reasoning = !reasoning_content.is_empty();
-        let has_content = !content.is_empty();
-        let is_finished = finish_reason != FinishReason::ReasonInvalid.into();
-
-        if !has_reasoning && (has_content || is_finished) {
+        let reasoning_status = if is_finished {
             PhaseStatus::Complete
-        } else if has_reasoning && !has_content {
+        } else if r == 0 && c > 0 {
+            PhaseStatus::Complete
+        } else if r > 0 && c == 0 {
             PhaseStatus::Pending
         } else {
             PhaseStatus::Init
-        }
-    }
+        };
 
-    // AI TO DELETE:
-    /// Determines the content phase status based on delta content and finish reason.
-    fn get_content_status(
-        reasoning_content: &str,
-        content: &str,
-        finish_reason: i32,
-    ) -> PhaseStatus {
-        let has_reasoning = !reasoning_content.is_empty();
-        let has_content = !content.is_empty();
-        let is_finished = finish_reason != FinishReason::ReasonInvalid.into();
-
-        if !has_reasoning && is_finished {
+        let content_status = if is_finished {
             PhaseStatus::Complete
-        } else if has_content {
+        } else if c > 0 {
             PhaseStatus::Pending
         } else {
             PhaseStatus::Init
-        }
+        };
+
+        (reasoning_status, content_status)
     }
 
     /// Assembles streaming chunks into a complete chat completion response.
@@ -903,6 +929,73 @@ pub mod stream {
                 reasoning_status,
                 content_status,
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        fn stats(
+            index: i32,
+            reasoning: usize,
+            content: usize,
+            finish_reason: FinishReason,
+        ) -> OutputStats {
+            OutputStats {
+                index,
+                total_reasoning_tokens: reasoning,
+                total_content_tokens: content,
+                finish_reason,
+            }
+        }
+
+        #[test]
+        fn get_output_status_init_init() {
+            let s = stats(0, 0, 0, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s, None);
+            assert_eq!(r, PhaseStatus::Init);
+            assert_eq!(c, PhaseStatus::Init);
+        }
+
+        #[test]
+        fn get_output_status_pending_init() {
+            let s = stats(0, 1, 0, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s, None);
+            assert_eq!(r, PhaseStatus::Pending);
+            assert_eq!(c, PhaseStatus::Init);
+        }
+
+        #[test]
+        fn get_output_status_complete_pending() {
+            let s = stats(0, 0, 1, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s, None);
+            assert_eq!(r, PhaseStatus::Complete);
+            assert_eq!(c, PhaseStatus::Pending);
+        }
+
+        #[test]
+        fn get_output_status_complete_complete() {
+            let s = stats(0, 0, 0, FinishReason::ReasonStop);
+            let (r, c) = get_output_status(&s, None);
+            assert_eq!(r, PhaseStatus::Complete);
+            assert_eq!(c, PhaseStatus::Complete);
+        }
+
+        #[test]
+        fn get_output_status_complete_complete_with_tokens() {
+            let s = stats(0, 5, 10, FinishReason::ReasonStop);
+            let (r, c) = get_output_status(&s, None);
+            assert_eq!(r, PhaseStatus::Complete);
+            assert_eq!(c, PhaseStatus::Complete);
+        }
+
+        #[test]
+        fn get_output_status_tool_calls_only() {
+            let s = stats(0, 0, 0, FinishReason::ReasonToolCalls);
+            let (r, c) = get_output_status(&s, None);
+            assert_eq!(r, PhaseStatus::Complete);
+            assert_eq!(c, PhaseStatus::Complete);
         }
     }
 }

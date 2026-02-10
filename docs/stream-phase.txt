@@ -122,7 +122,7 @@ Stream phase tracking: analysis and implementation plan
 
   - is_finished = (cur_output_stats.finish_reason != FinishReason::ReasonInvalid)
   - Reasoning status:
-    - Complete: total_reasoning_tokens == 0 && (total_content_tokens > 0 || is_finished)
+    - Complete: is_finished, or (total_reasoning_tokens == 0 && total_content_tokens > 0)
     - Pending: total_reasoning_tokens > 0 && total_content_tokens == 0
     - Otherwise: Init
   - Content status:
