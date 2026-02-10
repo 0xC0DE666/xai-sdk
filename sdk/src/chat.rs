@@ -157,150 +157,140 @@ pub mod stream {
         mut consumer: Consumer<'_>,
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
-        let mut reasoning_complete_flags: HashMap<i32, bool> = HashMap::new();
-        let mut content_complete_flags: HashMap<i32, bool> = HashMap::new();
         let mut output_stats: HashMap<i32, OutputStats> = HashMap::new();
+        let mut reasoning_complete_fired: HashMap<i32, bool> = HashMap::new();
+        let mut content_complete_fired: HashMap<i32, bool> = HashMap::new();
         let mut last_chunk: Option<GetChatCompletionChunk> = None;
         let mut max_output_index_seen: i32 = -1;
 
         loop {
-            // Process each chunk as it arrives
             match stream.message().await {
                 Ok(chunk) => {
-                    // Stream complete
                     let Some(chunk) = chunk else {
                         break;
                     };
 
-                    // Handle the chunk
                     if let Some(ref mut on_chunk) = consumer.on_chunk {
                         on_chunk(&chunk).await;
                     }
 
-                    // Handle each output
                     for output in &chunk.outputs {
                         let cur_output_index = output.index;
+
+                        // Update max early so total_outputs is as accurate as possible
+                        max_output_index_seen = max_output_index_seen.max(cur_output_index);
+
+                        // Always start with the latest finish_reason from this chunk
                         let mut cur_output_stats =
                             OutputStats::init(cur_output_index, output.finish_reason());
 
-                        let Some(delta) = &output.delta else {
-                            continue;
-                        };
+                        let delta = output.delta.as_ref();
 
-                        // Track token stats per output
-                        cur_output_stats.inc(&delta.reasoning_content, &delta.content);
+                        // Increment token counts only if there is a delta
+                        if let Some(delta) = delta {
+                            cur_output_stats.inc(&delta.reasoning_content, &delta.content);
+                        }
 
-                        // Merge into map first so we have accumulated stats for this output
-                        output_stats
+                        // Merge current chunk data into accumulated stats
+                        // Chained to avoid the move error
+                        let merged = output_stats
                             .entry(cur_output_index)
-                            .and_modify(|c| c.merge(&cur_output_stats))
-                            .or_insert_with(|| cur_output_stats.clone());
-                        let merged = output_stats.get(&cur_output_index).unwrap();
-                        let prev_output_stats = output_stats.get(&(cur_output_index - 1));
-                        let (reasoning_status, content_status) =
-                            get_output_status(merged, prev_output_stats);
+                            .and_modify(|e| e.merge(&cur_output_stats))
+                            .or_insert(cur_output_stats);
+
+                        let (reasoning_status, content_status) = get_output_status(merged);
+
+                        let total_outputs = (max_output_index_seen + 1) as usize;
 
                         let output_ctx = OutputContext::new(
-                            (output.index + 1) as usize,
-                            output.index as usize,
+                            total_outputs,
+                            cur_output_index as usize,
                             reasoning_status.clone(),
                             content_status.clone(),
                         );
 
-                        // Fire completions for previous output when we transition to the next
-                        if cur_output_index >= 1 {
-                            let prev_index = cur_output_index - 1;
-                            if let Some(prev_stats) = output_stats.get(&prev_index) {
-                                let total_outputs = (cur_output_index + 1) as usize;
-                                let prev_ctx = OutputContext::new(
-                                    total_outputs,
-                                    prev_index as usize,
-                                    PhaseStatus::Complete,
-                                    PhaseStatus::Complete,
-                                );
-                                if reasoning_complete_flags
-                                    .get(&prev_index)
-                                    .copied()
-                                    .unwrap_or(false)
-                                    == false
-                                    && prev_stats.total_reasoning_tokens > 0
-                                {
-                                    if let Some(ref mut on_reasoning_complete) =
-                                        consumer.on_reasoning_complete
-                                    {
-                                        on_reasoning_complete(&prev_ctx).await;
-                                    }
-                                    reasoning_complete_flags.insert(prev_index, true);
-                                }
-                                if content_complete_flags
-                                    .get(&prev_index)
-                                    .copied()
-                                    .unwrap_or(false)
-                                    == false
-                                    && prev_stats.total_content_tokens > 0
-                                {
-                                    if let Some(ref mut on_content_complete) =
-                                        consumer.on_content_complete
-                                    {
-                                        on_content_complete(&prev_ctx).await;
-                                    }
-                                    content_complete_flags.insert(prev_index, true);
-                                }
-                            }
-                        }
-
-                        max_output_index_seen = max_output_index_seen.max(cur_output_index);
-
-                        // Reasoning
-                        if let Some(ref mut on_reason_token) = consumer.on_reason_token
-                            && !delta.reasoning_content.is_empty()
-                        {
-                            on_reason_token(&output_ctx, &delta.reasoning_content).await;
-                        }
-
-                        // Content
-                        if let Some(ref mut on_content_token) = consumer.on_content_token
-                            && !delta.content.is_empty()
-                        {
-                            on_content_token(&output_ctx, &delta.content).await;
-                        }
-
-                        // Inline citations
-                        if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
-                            && !delta.citations.is_empty()
-                        {
-                            on_inline_citations(&output_ctx, &delta.citations).await;
-                        }
-
-                        // Tool calls - filter by type and call appropriate callbacks
-                        if !delta.tool_calls.is_empty() {
-                            // Separate client-side and server-side tool calls
-                            let mut client_tool_calls = Vec::new();
-                            let mut server_tool_calls = Vec::new();
-
-                            for tool_call in &delta.tool_calls {
-                                if tool_call.r#type == ToolCallType::ClientSideTool.into() {
-                                    client_tool_calls.push(tool_call.clone());
-                                } else {
-                                    server_tool_calls.push(tool_call.clone());
-                                }
-                            }
-
-                            // Call client-side tool calls callback
-                            if let Some(ref mut on_client_tool_calls) =
-                                consumer.on_client_tool_calls
-                                && !client_tool_calls.is_empty()
+                        // Token / citation / tool callbacks – only when there is a delta
+                        if let Some(delta) = delta {
+                            // Reasoning token
+                            if let Some(ref mut on_reason_token) = consumer.on_reason_token
+                                && !delta.reasoning_content.is_empty()
                             {
-                                on_client_tool_calls(&output_ctx, &client_tool_calls).await;
+                                on_reason_token(&output_ctx, &delta.reasoning_content).await;
                             }
 
-                            // Call server-side tool calls callback
-                            if let Some(ref mut on_server_tool_calls) =
-                                consumer.on_server_tool_calls
-                                && !server_tool_calls.is_empty()
+                            // Content token
+                            if let Some(ref mut on_content_token) = consumer.on_content_token
+                                && !delta.content.is_empty()
                             {
-                                on_server_tool_calls(&output_ctx, &server_tool_calls).await;
+                                on_content_token(&output_ctx, &delta.content).await;
                             }
+
+                            // Inline citations
+                            if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
+                                && !delta.citations.is_empty()
+                            {
+                                on_inline_citations(&output_ctx, &delta.citations).await;
+                            }
+
+                            // Tool calls
+                            if !delta.tool_calls.is_empty() {
+                                let mut client_tool_calls = Vec::new();
+                                let mut server_tool_calls = Vec::new();
+                                for tool_call in &delta.tool_calls {
+                                    if tool_call.r#type == ToolCallType::ClientSideTool.into() {
+                                        client_tool_calls.push(tool_call.clone());
+                                    } else {
+                                        server_tool_calls.push(tool_call.clone());
+                                    }
+                                }
+
+                                if let Some(ref mut on_client_tool_calls) =
+                                    consumer.on_client_tool_calls
+                                    && !client_tool_calls.is_empty()
+                                {
+                                    on_client_tool_calls(&output_ctx, &client_tool_calls).await;
+                                }
+
+                                if let Some(ref mut on_server_tool_calls) =
+                                    consumer.on_server_tool_calls
+                                    && !server_tool_calls.is_empty()
+                                {
+                                    on_server_tool_calls(&output_ctx, &server_tool_calls).await;
+                                }
+                            }
+                        }
+
+                        // Phase completion callbacks – fire immediately when we detect Complete
+                        // (runs even on chunks without delta, in case finish_reason updated)
+                        if reasoning_status == PhaseStatus::Complete
+                            && reasoning_complete_fired
+                                .get(&cur_output_index)
+                                .copied()
+                                .unwrap_or(false)
+                                == false
+                            && merged.total_reasoning_tokens > 0
+                        {
+                            if let Some(ref mut on_reasoning_complete) =
+                                consumer.on_reasoning_complete
+                            {
+                                on_reasoning_complete(&output_ctx).await;
+                            }
+                            reasoning_complete_fired.insert(cur_output_index, true);
+                        }
+
+                        if content_status == PhaseStatus::Complete
+                            && content_complete_fired
+                                .get(&cur_output_index)
+                                .copied()
+                                .unwrap_or(false)
+                                == false
+                            && merged.total_content_tokens > 0
+                        {
+                            if let Some(ref mut on_content_complete) = consumer.on_content_complete
+                            {
+                                on_content_complete(&output_ctx).await;
+                            }
+                            content_complete_fired.insert(cur_output_index, true);
                         }
                     }
 
@@ -313,49 +303,13 @@ pub mod stream {
             }
         }
 
-        // Fire completions for the final output at stream end
-        if max_output_index_seen >= 0 {
-            if let Some(ref final_stats) = output_stats.get(&max_output_index_seen) {
-                let total_outputs = (max_output_index_seen + 1) as usize;
-                let final_ctx = OutputContext::new(
-                    total_outputs,
-                    max_output_index_seen as usize,
-                    PhaseStatus::Complete,
-                    PhaseStatus::Complete,
-                );
-                if reasoning_complete_flags
-                    .get(&max_output_index_seen)
-                    .copied()
-                    .unwrap_or(false)
-                    == false
-                    && final_stats.total_reasoning_tokens > 0
-                {
-                    if let Some(ref mut on_reasoning_complete) = consumer.on_reasoning_complete {
-                        on_reasoning_complete(&final_ctx).await;
-                    }
-                }
-                if content_complete_flags
-                    .get(&max_output_index_seen)
-                    .copied()
-                    .unwrap_or(false)
-                    == false
-                    && final_stats.total_content_tokens > 0
-                {
-                    if let Some(ref mut on_content_complete) = consumer.on_content_complete {
-                        on_content_complete(&final_ctx).await;
-                    }
-                }
-            }
-        }
-
-        // Call usage and citations callbacks on the last chunk
+        // Final metadata callbacks (only on last chunk)
         if let Some(ref last_chunk) = last_chunk {
             if let Some(ref mut on_usage) = consumer.on_usage {
                 if let Some(ref usage) = last_chunk.usage {
                     on_usage(usage).await;
                 }
             }
-
             if let Some(ref mut on_citations) = consumer.on_citations {
                 if !last_chunk.citations.is_empty() {
                     on_citations(&last_chunk.citations).await;
@@ -367,11 +321,7 @@ pub mod stream {
     }
 
     /// Returns (reasoning_status, content_status) for the current output from accumulated stats.
-    /// Used for OutputContext only; completion callbacks fire on output transition (see process loop).
-    fn get_output_status(
-        cur_output_stats: &OutputStats,
-        _prev_output_stats: Option<&OutputStats>,
-    ) -> (PhaseStatus, PhaseStatus) {
+    fn get_output_status(cur_output_stats: &OutputStats) -> (PhaseStatus, PhaseStatus) {
         let is_finished = cur_output_stats.finish_reason != FinishReason::ReasonInvalid;
         let r = cur_output_stats.total_reasoning_tokens;
         let c = cur_output_stats.total_content_tokens;
@@ -953,7 +903,7 @@ pub mod stream {
         #[test]
         fn get_output_status_init_init() {
             let s = stats(0, 0, 0, FinishReason::ReasonInvalid);
-            let (r, c) = get_output_status(&s, None);
+            let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Init);
             assert_eq!(c, PhaseStatus::Init);
         }
@@ -961,7 +911,7 @@ pub mod stream {
         #[test]
         fn get_output_status_pending_init() {
             let s = stats(0, 1, 0, FinishReason::ReasonInvalid);
-            let (r, c) = get_output_status(&s, None);
+            let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Pending);
             assert_eq!(c, PhaseStatus::Init);
         }
@@ -969,7 +919,7 @@ pub mod stream {
         #[test]
         fn get_output_status_complete_pending() {
             let s = stats(0, 0, 1, FinishReason::ReasonInvalid);
-            let (r, c) = get_output_status(&s, None);
+            let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Pending);
         }
@@ -977,7 +927,7 @@ pub mod stream {
         #[test]
         fn get_output_status_complete_complete() {
             let s = stats(0, 0, 0, FinishReason::ReasonStop);
-            let (r, c) = get_output_status(&s, None);
+            let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Complete);
         }
@@ -985,7 +935,7 @@ pub mod stream {
         #[test]
         fn get_output_status_complete_complete_with_tokens() {
             let s = stats(0, 5, 10, FinishReason::ReasonStop);
-            let (r, c) = get_output_status(&s, None);
+            let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Complete);
         }
@@ -993,7 +943,7 @@ pub mod stream {
         #[test]
         fn get_output_status_tool_calls_only() {
             let s = stats(0, 0, 0, FinishReason::ReasonToolCalls);
-            let (r, c) = get_output_status(&s, None);
+            let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Complete);
         }
