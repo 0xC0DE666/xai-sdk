@@ -248,10 +248,10 @@ async fn main() -> Result<()> {
                     println!("\n✅ Stream completed ({} chunks processed)", chunks.len());
 
                     // Write all chunks to chunks.txt in dbg format
-                    // let chunks_debug = format!("{:#?}", chunks);
-                    // write_file(PathBuf::from("chunks.txt"), chunks_debug)
-                    //     .context("Failed to write chunks to chunks.txt")?;
-                    // println!("📝 All chunks written to chunks.txt");
+                    let chunks_debug = format!("{:#?}", chunks);
+                    write_file(PathBuf::from("debug/chunks.txt"), chunks_debug)
+                        .context("Failed to write chunks to chunks.txt")?;
+                    println!("📝 All chunks written to chunks.txt");
 
                     // let res = chat::stream::assemble(chunks);
                     // dbg!(res);

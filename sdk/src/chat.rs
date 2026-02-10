@@ -190,12 +190,17 @@ pub mod stream {
                         // Track token stats per output
                         cur_output_stats.inc(&delta.reasoning_content, &delta.content);
 
+                        // AI TODO:
+                        // let (reasoning_status, content_status) = get_output_status(&cur_output_stats, prev_output_stats);
+
+                        // AI TO DELETE:
                         let reasoning_status = get_reasoning_status(
                             &delta.reasoning_content,
                             &delta.content,
                             output.finish_reason,
                         );
 
+                        // AI TO DELETE:
                         let content_status = get_content_status(
                             &delta.reasoning_content,
                             &delta.content,
@@ -318,12 +323,16 @@ pub mod stream {
         Ok(chunks)
     }
 
-    /// Determines the reasoning phase status based on delta content and finish reason.
-    // fn get_reasoning_status(
-    //     cur_output_stats: &OutputStats,
-    //     prev_output_stats: Option<&OutputStats>,
-    // ) -> PhaseStatus {
+    // AI TODO:
+    fn get_output_status(
+        cur_output_stats: &OutputStats,
+        prev_output_stats: Option<&OutputStats>,
+    ) -> (PhaseStatus, PhaseStatus) {
+        todo!();
+    }
 
+    // AI TO DELETE:
+    /// Determines the reasoning phase status based on delta content and finish reason.
     fn get_reasoning_status(
         reasoning_content: &str,
         content: &str,
@@ -342,6 +351,7 @@ pub mod stream {
         }
     }
 
+    // AI TO DELETE:
     /// Determines the content phase status based on delta content and finish reason.
     fn get_content_status(
         reasoning_content: &str,
