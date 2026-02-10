@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
-    let prompt = "What are the last two tweets from @elonmusk and @tsoding?";
+    let prompt = "What are the last two tweets from @elonmusk and @tsoding? Write their tweets to 'musk.txt' and 'tsoding.txt'";
     let model = "grok-4-latest";
 
     let mut cntnt = Content::default();
