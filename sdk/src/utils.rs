@@ -513,6 +513,7 @@ pub mod enums {
             let s = match self {
                 ImageResolution::ImgResolutionInvalid => "invalid",
                 ImageResolution::ImgResolution1k => "1k",
+                ImageResolution::ImgResolution2k => "2k",
             };
             f.write_str(s)
         }
