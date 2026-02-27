@@ -24,7 +24,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.8.2"
+xai-sdk = "0.8.3"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -235,6 +235,7 @@ The `OutputContext` provides:
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks
 - **`chat::stream::assemble`** - Convert collected chunks into complete responses
+- **`chat::stream::Consumer::new_static()`** - Empty consumer with `'static` lifetime for one-line chaining: `Consumer::new_static().on_content_token(...).on_usage(...)`
 - **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-output real-time output
 - **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-output buffered output
 

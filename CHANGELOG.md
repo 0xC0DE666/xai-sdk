@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-02-27
+
+### Added
+- **`Consumer::new_static()`**: Returns a `Consumer<'static>` for one-line builder style without a `let mut` binding, e.g. `Consumer::new_static().on_content_token(...).on_usage(...)`.
+
+### Changed
+- **Consumer builder methods** now take `&mut self` and return `&mut Self`. Use `let mut consumer = Consumer::new(); consumer.on_*(...)` or chain on the same variable; for chaining without `mut`, use `Consumer::new_static()`.
+
 ## [0.8.2] - 2026-02-27
 
 ### Added
