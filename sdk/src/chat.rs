@@ -651,6 +651,14 @@ pub mod stream {
             }
         }
 
+        /// Creates an empty [`Consumer`] with `'static` lifetime for one-line builder style.
+        ///
+        /// Equivalent to [`Consumer::new()`]. Use when you want to chain callbacks without
+        /// a `let mut` binding: `Consumer::new_static().on_content_token(...).on_usage(...)`.
+        pub fn new_static() -> Consumer<'static> {
+            Consumer::new()
+        }
+
         /// Creates a `Consumer` that prints tokens to stdout in real-time.
         ///
         /// Prints reasoning and content tokens as they arrive. Only handles the first output
