@@ -56,7 +56,8 @@ async fn main() -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            let consumer = Consumer::new()
+            let mut consumer = Consumer::new();
+            consumer
                 .on_reasoning_token(|_ctx: &OutputContext, token: &str| {
                     print!("{token}");
                     io::stdout().flush().unwrap();

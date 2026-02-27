@@ -80,14 +80,16 @@ fn test_consumer_default() {
 
 #[test]
 fn test_consumer_builder_on_content_token() {
-    let consumer = Consumer::new().on_content_token(|_ctx, _token| async move {});
+    let mut consumer = Consumer::new();
+    consumer.on_content_token(|_ctx, _token| async move {});
     // Consumer should have the callback set
     assert!(consumer.on_content_token.is_some());
 }
 
 #[test]
 fn test_consumer_builder_on_reason_token() {
-    let consumer = Consumer::new().on_reasoning_token(|_ctx, _token| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_reasoning_token(|_ctx, _token| async move {
         // Test callback
     });
 
@@ -96,7 +98,8 @@ fn test_consumer_builder_on_reason_token() {
 
 #[test]
 fn test_consumer_builder_on_chunk() {
-    let consumer = Consumer::new().on_chunk(|_chunk| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_chunk(|_chunk| async move {
         // Test callback
     });
 
@@ -105,7 +108,8 @@ fn test_consumer_builder_on_chunk() {
 
 #[test]
 fn test_consumer_builder_on_reasoning_complete() {
-    let consumer = Consumer::new().on_reasoning_complete(|_ctx| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_reasoning_complete(|_ctx| async move {
         // Test callback
     });
 
@@ -114,7 +118,8 @@ fn test_consumer_builder_on_reasoning_complete() {
 
 #[test]
 fn test_consumer_builder_on_content_complete() {
-    let consumer = Consumer::new().on_content_complete(|_ctx| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_content_complete(|_ctx| async move {
         // Test callback
     });
 
@@ -123,7 +128,8 @@ fn test_consumer_builder_on_content_complete() {
 
 #[test]
 fn test_consumer_builder_chain() {
-    let consumer = Consumer::new()
+    let mut consumer = Consumer::new();
+    consumer
         .on_chunk(|_chunk| async move {})
         .on_reasoning_token(|_ctx, _token| async move {})
         .on_reasoning_complete(|_ctx| async move {})
@@ -376,7 +382,8 @@ fn test_assemble_uses_last_chunk_for_usage() {
 
 #[test]
 fn test_consumer_builder_on_inline_citations() {
-    let consumer = Consumer::new().on_inline_citations(|_ctx, _citations| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_inline_citations(|_ctx, _citations| async move {
         // Test callback
     });
 
@@ -385,7 +392,8 @@ fn test_consumer_builder_on_inline_citations() {
 
 #[test]
 fn test_consumer_builder_on_client_tool_calls() {
-    let consumer = Consumer::new().on_client_tool_calls(|_ctx, _calls| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_client_tool_calls(|_ctx, _calls| async move {
         // Test callback
     });
 
@@ -394,7 +402,8 @@ fn test_consumer_builder_on_client_tool_calls() {
 
 #[test]
 fn test_consumer_builder_on_server_tool_calls() {
-    let consumer = Consumer::new().on_server_tool_calls(|_ctx, _calls| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_server_tool_calls(|_ctx, _calls| async move {
         // Test callback
     });
 
@@ -403,7 +412,8 @@ fn test_consumer_builder_on_server_tool_calls() {
 
 #[test]
 fn test_consumer_builder_on_usage() {
-    let consumer = Consumer::new().on_usage(|_usage| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_usage(|_usage| async move {
         // Test callback
     });
 
@@ -412,7 +422,8 @@ fn test_consumer_builder_on_usage() {
 
 #[test]
 fn test_consumer_builder_on_citations() {
-    let consumer = Consumer::new().on_citations(|_citations| async move {
+    let mut consumer = Consumer::new();
+    consumer.on_citations(|_citations| async move {
         // Test callback
     });
 

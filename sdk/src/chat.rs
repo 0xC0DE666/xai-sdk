@@ -785,7 +785,7 @@ pub mod stream {
         }
 
         /// Sets the chunk callback, invoked once per received chunk before token callbacks.
-        pub fn on_chunk<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_chunk<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&GetChatCompletionChunk) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -795,7 +795,7 @@ pub mod stream {
         }
 
         /// Sets the reasoning start callback, invoked once when the reasoning phase starts.
-        pub fn on_reasoning_start<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_reasoning_start<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -805,7 +805,7 @@ pub mod stream {
         }
 
         /// Sets the reasoning token callback, invoked for each reasoning token.
-        pub fn on_reasoning_token<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_reasoning_token<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -815,7 +815,7 @@ pub mod stream {
         }
 
         /// Sets the reasoning completion callback, invoked once when reasoning phase ends.
-        pub fn on_reasoning_complete<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_reasoning_complete<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -825,7 +825,7 @@ pub mod stream {
         }
 
         /// Sets the content start callback, invoked once when the content phase starts.
-        pub fn on_content_start<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_content_start<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -835,7 +835,7 @@ pub mod stream {
         }
 
         /// Sets the content token callback, invoked for each content token.
-        pub fn on_content_token<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_content_token<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext, &str) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -845,7 +845,7 @@ pub mod stream {
         }
 
         /// Sets the content completion callback, invoked once when content generation ends.
-        pub fn on_content_complete<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_content_complete<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -855,7 +855,7 @@ pub mod stream {
         }
 
         /// Sets the inline citations callback, invoked when citations appear in deltas.
-        pub fn on_inline_citations<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_inline_citations<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext, &[InlineCitation]) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -866,7 +866,7 @@ pub mod stream {
         }
 
         /// Sets the client-side tool calls callback, invoked for client-executable tool calls.
-        pub fn on_client_tool_calls<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_client_tool_calls<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -876,7 +876,7 @@ pub mod stream {
         }
 
         /// Sets the server-side tool calls callback, invoked for server-executed tool calls.
-        pub fn on_server_tool_calls<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_server_tool_calls<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&OutputContext, &[ToolCall]) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -886,7 +886,7 @@ pub mod stream {
         }
 
         /// Sets the usage callback, invoked once with final token usage statistics.
-        pub fn on_usage<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_usage<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&SamplingUsage) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
@@ -896,7 +896,7 @@ pub mod stream {
         }
 
         /// Sets the citations callback, invoked once with all citation URLs.
-        pub fn on_citations<F, Fut>(mut self, mut f: F) -> Self
+        pub fn on_citations<F, Fut>(&mut self, mut f: F) -> &mut Self
         where
             F: FnMut(&[String]) -> Fut + Send + Sync + 'a,
             Fut: Future<Output = ()> + Send + Sync + 'a,
