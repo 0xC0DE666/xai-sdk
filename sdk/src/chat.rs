@@ -158,7 +158,9 @@ pub mod stream {
     ) -> Result<Vec<GetChatCompletionChunk>, Status> {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut output_stats: HashMap<i32, OutputStats> = HashMap::new();
+        let mut reasoning_start_fired: HashMap<i32, bool> = HashMap::new();
         let mut reasoning_complete_fired: HashMap<i32, bool> = HashMap::new();
+        let mut content_start_fired: HashMap<i32, bool> = HashMap::new();
         let mut content_complete_fired: HashMap<i32, bool> = HashMap::new();
         let mut last_chunk: Option<GetChatCompletionChunk> = None;
         let mut max_output_index_seen: i32 = -1;
@@ -211,18 +213,44 @@ pub mod stream {
 
                         // Token / citation / tool callbacks – only when there is a delta
                         if let Some(delta) = delta {
-                            // Reasoning token
-                            if let Some(ref mut on_reasoning_token) = consumer.on_reasoning_token
-                                && !delta.reasoning_content.is_empty()
-                            {
-                                on_reasoning_token(&output_ctx, &delta.reasoning_content).await;
+                            // Reasoning start (once) then reasoning token
+                            if !delta.reasoning_content.is_empty() {
+                                if reasoning_start_fired
+                                    .get(&cur_output_index)
+                                    .copied()
+                                    .unwrap_or(false)
+                                    == false
+                                {
+                                    if let Some(ref mut on_reasoning_start) =
+                                        consumer.on_reasoning_start
+                                    {
+                                        on_reasoning_start(&output_ctx).await;
+                                    }
+                                    reasoning_start_fired.insert(cur_output_index, true);
+                                }
+                                if let Some(ref mut on_reasoning_token) = consumer.on_reasoning_token
+                                {
+                                    on_reasoning_token(&output_ctx, &delta.reasoning_content).await;
+                                }
                             }
 
-                            // Content token
-                            if let Some(ref mut on_content_token) = consumer.on_content_token
-                                && !delta.content.is_empty()
-                            {
-                                on_content_token(&output_ctx, &delta.content).await;
+                            // Content start (once) then content token
+                            if !delta.content.is_empty() {
+                                if content_start_fired
+                                    .get(&cur_output_index)
+                                    .copied()
+                                    .unwrap_or(false)
+                                    == false
+                                {
+                                    if let Some(ref mut on_content_start) = consumer.on_content_start
+                                    {
+                                        on_content_start(&output_ctx).await;
+                                    }
+                                    content_start_fired.insert(cur_output_index, true);
+                                }
+                                if let Some(ref mut on_content_token) = consumer.on_content_token {
+                                    on_content_token(&output_ctx, &delta.content).await;
+                                }
                             }
 
                             // Inline citations
@@ -332,7 +360,9 @@ pub mod stream {
             PhaseStatus::Complete // no-reasoning model, content started
         } else if r > 0 && c > 0 {
             PhaseStatus::Complete // reasoning done, content in progress
-        } else if r > 0 && c == 0 {
+        } else if r == 1 && c == 0 {
+            PhaseStatus::Start // first reasoning token
+        } else if r > 1 && c == 0 {
             PhaseStatus::Pending
         } else {
             PhaseStatus::Init // r == 0 && c == 0
@@ -340,7 +370,9 @@ pub mod stream {
 
         let content_status = if is_finished {
             PhaseStatus::Complete
-        } else if c > 0 {
+        } else if c == 1 {
+            PhaseStatus::Start // first content token
+        } else if c > 1 {
             PhaseStatus::Pending
         } else {
             PhaseStatus::Init
@@ -490,8 +522,10 @@ pub mod stream {
     /// # Callback Signatures (execution order)
     /// All callbacks are async with `Future<Output = ()>`. Use references to avoid cloning.
     /// - `on_chunk`: `&GetChatCompletionChunk`
+    /// - `on_reasoning_start`: `&OutputContext` (once per output, before first reasoning token)
     /// - `on_reasoning_token`: `(&OutputContext, &str)`
     /// - `on_reasoning_complete`: `&OutputContext`
+    /// - `on_content_start`: `&OutputContext` (once per output, before first content token)
     /// - `on_content_token`: `(&OutputContext, &str)`
     /// - `on_content_complete`: `&OutputContext`
     /// - `on_inline_citations`: `(&OutputContext, &[InlineCitation])`
@@ -506,6 +540,13 @@ pub mod stream {
         pub on_chunk:
             Option<Box<dyn FnMut(&GetChatCompletionChunk) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
+        /// Callback invoked once when the reasoning phase starts for an output.
+        ///
+        /// Fired exactly once per output, immediately before the first reasoning token.
+        /// Receives `&OutputContext` (with `reasoning_status == PhaseStatus::Start`).
+        pub on_reasoning_start:
+            Option<Box<dyn FnMut(&OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
+
         /// Callback invoked for each reasoning token in the stream.
         ///
         /// Receives `(&OutputContext, token: &str)` — no cloning.
@@ -519,6 +560,13 @@ pub mod stream {
         ///
         /// Receives `&OutputContext`.
         pub on_reasoning_complete:
+            Option<Box<dyn FnMut(&OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
+
+        /// Callback invoked once when the content phase starts for an output.
+        ///
+        /// Fired exactly once per output, immediately before the first content token.
+        /// Receives `&OutputContext` (with `content_status == PhaseStatus::Start`).
+        pub on_content_start:
             Option<Box<dyn FnMut(&OutputContext) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked for each content token in the stream.
@@ -587,8 +635,10 @@ pub mod stream {
         pub fn new() -> Self {
             Self {
                 on_chunk: None,
+                on_reasoning_start: None,
                 on_reasoning_token: None,
                 on_reasoning_complete: None,
+                on_content_start: None,
                 on_content_token: None,
                 on_content_complete: None,
                 on_inline_citations: None,
@@ -609,6 +659,7 @@ pub mod stream {
         pub fn with_stdout() -> Self {
             Self {
                 on_chunk: None,
+                on_reasoning_start: None,
                 on_reasoning_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
@@ -621,6 +672,7 @@ pub mod stream {
                         println!("\n");
                     })
                 })),
+                on_content_start: None,
                 on_content_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
@@ -698,6 +750,7 @@ pub mod stream {
                         }
                     })
                 })),
+                on_reasoning_start: None,
                 on_reasoning_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
                     let output_index = ctx.output_index as i32;
                     let token = token.to_string();
@@ -709,6 +762,7 @@ pub mod stream {
                     })
                 })),
                 on_reasoning_complete: None,
+                on_content_start: None,
                 on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
                     let output_index = ctx.output_index as i32;
                     let token = token.to_string();
@@ -738,6 +792,16 @@ pub mod stream {
             self
         }
 
+        /// Sets the reasoning start callback, invoked once when the reasoning phase starts.
+        pub fn on_reasoning_start<F, Fut>(mut self, mut f: F) -> Self
+        where
+            F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
+        {
+            self.on_reasoning_start = Some(Box::new(move |ctx| Box::pin(f(ctx))));
+            self
+        }
+
         /// Sets the reasoning token callback, invoked for each reasoning token.
         pub fn on_reasoning_token<F, Fut>(mut self, mut f: F) -> Self
         where
@@ -755,6 +819,16 @@ pub mod stream {
             Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_reasoning_complete = Some(Box::new(move |ctx| Box::pin(f(ctx))));
+            self
+        }
+
+        /// Sets the content start callback, invoked once when the content phase starts.
+        pub fn on_content_start<F, Fut>(mut self, mut f: F) -> Self
+        where
+            F: FnMut(&OutputContext) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
+        {
+            self.on_content_start = Some(Box::new(move |ctx| Box::pin(f(ctx))));
             self
         }
 
@@ -841,6 +915,8 @@ pub mod stream {
     pub enum PhaseStatus {
         /// Initial state - the phase has not started yet.
         Init,
+        /// The phase has just started (first token of this phase).
+        Start,
         /// The phase is currently in progress.
         Pending,
         /// The phase has completed.
@@ -912,7 +988,8 @@ pub mod stream {
 
         #[test]
         fn get_output_status_pending_init() {
-            let s = stats(0, 1, 0, FinishReason::ReasonInvalid);
+            // Reasoning in progress (more than one token), no content yet
+            let s = stats(0, 2, 0, FinishReason::ReasonInvalid);
             let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Pending);
             assert_eq!(c, PhaseStatus::Init);
@@ -920,7 +997,8 @@ pub mod stream {
 
         #[test]
         fn get_output_status_complete_pending() {
-            let s = stats(0, 0, 1, FinishReason::ReasonInvalid);
+            // No reasoning, content in progress (more than one token)
+            let s = stats(0, 0, 2, FinishReason::ReasonInvalid);
             let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Pending);
@@ -957,6 +1035,33 @@ pub mod stream {
             let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Pending);
+        }
+
+        #[test]
+        fn get_output_status_reasoning_start() {
+            // First reasoning token, no content yet
+            let s = stats(0, 1, 0, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s);
+            assert_eq!(r, PhaseStatus::Start);
+            assert_eq!(c, PhaseStatus::Init);
+        }
+
+        #[test]
+        fn get_output_status_content_start() {
+            // First content token (no reasoning), stream not finished
+            let s = stats(0, 0, 1, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s);
+            assert_eq!(r, PhaseStatus::Complete); // no-reasoning model
+            assert_eq!(c, PhaseStatus::Start);
+        }
+
+        #[test]
+        fn get_output_status_content_start_with_reasoning() {
+            // First content token after reasoning (r=1, c=1 in same or previous chunk)
+            let s = stats(0, 1, 1, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s);
+            assert_eq!(r, PhaseStatus::Complete);
+            assert_eq!(c, PhaseStatus::Start);
         }
     }
 }
