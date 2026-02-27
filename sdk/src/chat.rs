@@ -228,7 +228,8 @@ pub mod stream {
                                     }
                                     reasoning_start_fired.insert(cur_output_index, true);
                                 }
-                                if let Some(ref mut on_reasoning_token) = consumer.on_reasoning_token
+                                if let Some(ref mut on_reasoning_token) =
+                                    consumer.on_reasoning_token
                                 {
                                     on_reasoning_token(&output_ctx, &delta.reasoning_content).await;
                                 }
@@ -242,7 +243,8 @@ pub mod stream {
                                     .unwrap_or(false)
                                     == false
                                 {
-                                    if let Some(ref mut on_content_start) = consumer.on_content_start
+                                    if let Some(ref mut on_content_start) =
+                                        consumer.on_content_start
                                     {
                                         on_content_start(&output_ctx).await;
                                     }
