@@ -329,11 +329,13 @@ pub mod stream {
         let reasoning_status = if is_finished {
             PhaseStatus::Complete
         } else if r == 0 && c > 0 {
-            PhaseStatus::Complete
+            PhaseStatus::Complete // no-reasoning model, content started
+        } else if r > 0 && c > 0 {
+            PhaseStatus::Complete // reasoning done, content in progress
         } else if r > 0 && c == 0 {
             PhaseStatus::Pending
         } else {
-            PhaseStatus::Init
+            PhaseStatus::Init // r == 0 && c == 0
         };
 
         let content_status = if is_finished {
@@ -946,6 +948,15 @@ pub mod stream {
             let (r, c) = get_output_status(&s);
             assert_eq!(r, PhaseStatus::Complete);
             assert_eq!(c, PhaseStatus::Complete);
+        }
+
+        #[test]
+        fn get_output_status_reasoning_done_content_pending() {
+            // Reasoning phase finished, content streaming (not yet finished)
+            let s = stats(0, 5, 10, FinishReason::ReasonInvalid);
+            let (r, c) = get_output_status(&s);
+            assert_eq!(r, PhaseStatus::Complete);
+            assert_eq!(c, PhaseStatus::Pending);
         }
     }
 }
