@@ -24,7 +24,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.8.0"
+xai-sdk = "0.8.2"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -214,8 +214,10 @@ The SDK provides powerful utilities for working with streaming responses:
 ### Stream Consumer
 A flexible callback system for processing streaming data:
 - **`on_chunk(chunk)`** - Called for each complete chunk received
+- **`on_reasoning_start(&OutputContext)`** - Called once per output when the reasoning phase starts (before the first reasoning token)
 - **`on_reasoning_token(&OutputContext, token: &str)`** - Called for each piece of reasoning content
 - **`on_reasoning_complete(&OutputContext)`** - Called once when the reasoning phase completes for an output
+- **`on_content_start(&OutputContext)`** - Called once per output when the content phase starts (before the first content token)
 - **`on_content_token(&OutputContext, token: &str)`** - Called for each piece of response content
 - **`on_content_complete(&OutputContext)`** - Called once when the content phase completes for an output
 - **`on_inline_citations(&OutputContext, &[InlineCitation])`** - Called when inline citations are present in a delta
@@ -227,8 +229,8 @@ A flexible callback system for processing streaming data:
 The `OutputContext` provides:
 - `total_outputs` - Total number of outputs in the stream
 - `output_index` - Index of the output this context belongs to
-- `reasoning_status` - Current status of the reasoning phase (`Init`, `Pending`, or `Complete`)
-- `content_status` - Current status of the content phase (`Init`, `Pending`, or `Complete`)
+- `reasoning_status` - Current status of the reasoning phase (`Init`, `Start`, `Pending`, or `Complete`)
+- `content_status` - Current status of the content phase (`Init`, `Start`, `Pending`, or `Complete`)
 
 ### Stream Processing Functions
 - **`chat::stream::process`** - Process streaming responses with custom callbacks

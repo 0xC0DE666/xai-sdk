@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-02-27
+
+### Added
+- **PhaseStatus::Start**: New phase status for the first token of reasoning or content. `OutputContext.reasoning_status` and `content_status` now report `Start` on the chunk that delivers the first token of each phase (previously both were folded into `Pending`).
+- **Start callbacks**: `on_reasoning_start(&OutputContext)` and `on_content_start(&OutputContext)` on `chat::stream::Consumer`. Each fires exactly once per output, immediately before the first reasoning or content token, with the same once-per-output tracking as `on_reasoning_complete` and `on_content_complete`. Builder methods `on_reasoning_start()` and `on_content_start()` added.
+
+### Fixed
+- **Stream phase status**: Reasoning phase is now reported as `Complete` when content has started (`r > 0 && c > 0`), so `reasoning_status` no longer incorrectly stays `Init` after reasoning has finished and content is streaming.
+
 ## [0.8.1] - 2026-02-19
 
 ### Changed
