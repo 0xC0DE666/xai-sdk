@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-03-01
+
+### Fixed
+- **Stream callback order**: `on_reasoning_complete` now fires **before** the first `on_content_token` for each output. The processing loop is reordered so phase completion callbacks run immediately after their phase’s token section (reasoning → reasoning_complete → content → content_complete → citations/tool calls). Ensures downstream code can treat “reasoning done” before handling content tokens. Completion callbacks still run on chunks without a delta (e.g. finish-only chunks).
+
 ## [0.8.4] - 2026-03-01
 
 ### Added

@@ -1585,7 +1585,7 @@ dependencies = [
 
 [[package]]
 name = "xai-sdk"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "futures",
  "prost",
