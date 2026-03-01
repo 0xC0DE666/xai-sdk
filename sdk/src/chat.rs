@@ -92,20 +92,18 @@ pub mod client {
 /// Provides high-performance utilities for processing real-time chat completion streams,
 /// including flexible callback-based consumers and chunk assembly into complete responses.
 pub mod stream {
-    // Updated imports for mod stream in chat.rs
     use crate::export::Status;
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
-    use futures::Stream;
+    use futures::{Stream, StreamExt};
     use std::collections::HashMap;
     use std::future::Future;
     use std::io::Write;
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
-    
-    // (Rest of the mod stream code remains the same...)
+
     #[derive(Debug, Clone)]
     struct OutputStats {
         index: i32,
@@ -160,8 +158,8 @@ pub mod stream {
         mut consumer: Consumer<'_>,
     ) -> Result<Vec<GetChatCompletionChunk>, Status>
     where
-        S: Stream<Item = Result<GetChatCompletionChunk, Status>> + Send + 'static,
-{
+        S: Stream<Item = Result<GetChatCompletionChunk, Status>> + Send + Unpin + 'static,
+    {
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut output_stats: HashMap<i32, OutputStats> = HashMap::new();
         let mut reasoning_start_fired: HashMap<i32, bool> = HashMap::new();
@@ -173,11 +171,9 @@ pub mod stream {
 
         loop {
             match stream.next().await {
-                Ok(chunk) => {
-                    let Some(chunk) = chunk else {
-                        break;
-                    };
-
+                None => break,
+                Some(Err(status)) => return Err(status),
+                Some(Ok(chunk)) => {
                     if let Some(ref mut on_chunk) = consumer.on_chunk {
                         on_chunk(&chunk).await;
                     }
@@ -320,7 +316,6 @@ pub mod stream {
                                 .copied()
                                 .unwrap_or(false)
                                 == false
-                            && merged.total_content_tokens > 0
                         {
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
                             {
@@ -332,9 +327,6 @@ pub mod stream {
 
                     last_chunk = Some(chunk.clone());
                     chunks.push(chunk);
-                }
-                Err(status) => {
-                    return Err(status);
                 }
             }
         }

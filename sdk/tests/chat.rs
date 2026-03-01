@@ -1,12 +1,12 @@
 use futures::stream::{self, Stream};
 use std::sync::{Arc, Mutex};
-use tonic::{Status, Streaming};
+use tonic::Status;
 use xai_sdk::api::{
     CompletionMessage, CompletionOutput, CompletionOutputChunk, Delta, FinishReason,
     GetChatCompletionChunk, InlineCitation, MessageRole, SamplingUsage, ToolCall, ToolCallType,
     content::Content as ApiContent, FunctionCall
 };
-use xai_sdk::chat::stream::{BoxFuture, Consumer, OutputContext, PhaseStatus, assemble, process};
+use xai_sdk::chat::stream::{Consumer, OutputContext, PhaseStatus, assemble, process};
 use xai_sdk::chat::utils::to_messages;
 use xai_sdk::api::tool_call;
 
@@ -1166,17 +1166,19 @@ async fn test_process_basic_stream() {
     let mut consumer = Consumer::new();
     consumer.on_reasoning_token = Some(Box::new(move |_: &OutputContext, token: &str| {
         let collected = collected_reasoning_tokens_clone.clone();
+        let token = token.to_string();
         Box::pin(async move {
             if !token.is_empty() {
-                collected.lock().unwrap().push(token.to_string());
+                collected.lock().unwrap().push(token);
             }
         })
     }));
     consumer.on_content_token = Some(Box::new(move |_: &OutputContext, token: &str| {
         let collected = collected_content_tokens_clone.clone();
+        let token = token.to_string();
         Box::pin(async move {
             if !token.is_empty() {
-                collected.lock().unwrap().push(token.to_string());
+                collected.lock().unwrap().push(token);
             }
         })
     }));
@@ -1193,9 +1195,7 @@ async fn test_process_basic_stream() {
         })
     }));
 
-    let result = process(mock_stream(chunks.clone()), consumer)
-        .await
-        .unwrap();
+    let result = process(stream, consumer).await.unwrap();
 
     // Assertions
     assert_eq!(result.len(), chunks.len()); // All chunks collected
@@ -1302,14 +1302,16 @@ async fn test_process_multi_output() {
     let mut consumer = Consumer::new();
     consumer.on_reasoning_complete = Some(Box::new(move |ctx: &OutputContext| {
         let c = reasoning_completes_clone.clone();
+        let idx = ctx.output_index;
         Box::pin(async move {
-            c.lock().unwrap().push(ctx.output_index);
+            c.lock().unwrap().push(idx);
         })
     }));
     consumer.on_content_complete = Some(Box::new(move |ctx: &OutputContext| {
         let c = content_completes_clone.clone();
+        let idx = ctx.output_index;
         Box::pin(async move {
-            c.lock().unwrap().push(ctx.output_index);
+            c.lock().unwrap().push(idx);
         })
     }));
 
@@ -1395,14 +1397,16 @@ async fn test_process_with_tool_calls() {
     let mut consumer = Consumer::new();
     consumer.on_client_tool_calls = Some(Box::new(move |_: &OutputContext, calls: &[ToolCall]| {
         let c = client_tools_clone.clone();
+        let calls = calls.to_vec();
         Box::pin(async move {
-            c.lock().unwrap().extend(calls.to_vec());
+            c.lock().unwrap().extend(calls);
         })
     }));
     consumer.on_server_tool_calls = Some(Box::new(move |_: &OutputContext, calls: &[ToolCall]| {
         let c = server_tools_clone.clone();
+        let calls = calls.to_vec();
         Box::pin(async move {
-            c.lock().unwrap().extend(calls.to_vec());
+            c.lock().unwrap().extend(calls);
         })
     }));
 
