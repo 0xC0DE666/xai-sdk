@@ -166,6 +166,25 @@ fn test_assemble_empty_chunks() {
 }
 
 #[test]
+fn test_assemble_single_chunk_empty_outputs() {
+    let chunk = GetChatCompletionChunk {
+        id: "id".to_string(),
+        outputs: vec![],
+        created: None,
+        model: "m".to_string(),
+        system_fingerprint: String::new(),
+        usage: None,
+        citations: vec![],
+        debug_output: None,
+    };
+    let result = assemble(vec![chunk]);
+    assert!(result.is_some());
+    let response = result.unwrap();
+    assert!(response.outputs.is_empty());
+    assert_eq!(response.id, "id");
+}
+
+#[test]
 fn test_assemble_single_chunk_single_choice() {
     let mut chunk = GetChatCompletionChunk::default();
     chunk.id = "test-id".to_string();
@@ -1074,7 +1093,54 @@ fn mock_stream(
     stream::iter(chunks.into_iter().map(Ok))
 }
 
-// Test case 1: Basic single-output stream with reasoning and content
+fn make_simple_chunk(
+    index: i32,
+    reasoning: Option<&str>,
+    content: Option<&str>,
+) -> GetChatCompletionChunk {
+    GetChatCompletionChunk {
+        id: "id".to_string(),
+        outputs: vec![CompletionOutputChunk {
+            delta: Some(Delta {
+                reasoning_content: reasoning.unwrap_or("").to_string(),
+                content: content.unwrap_or("").to_string(),
+                role: 0,
+                tool_calls: vec![],
+                encrypted_content: String::new(),
+                citations: vec![],
+            }),
+            logprobs: None,
+            finish_reason: FinishReason::ReasonInvalid as i32,
+            index,
+        }],
+        created: None,
+        model: "model".to_string(),
+        system_fingerprint: String::new(),
+        usage: None,
+        citations: vec![],
+        debug_output: None,
+    }
+}
+
+fn make_finish_chunk(index: i32) -> GetChatCompletionChunk {
+    GetChatCompletionChunk {
+        id: "id".to_string(),
+        outputs: vec![CompletionOutputChunk {
+            delta: None,
+            logprobs: None,
+            finish_reason: FinishReason::ReasonStop as i32,
+            index,
+        }],
+        created: None,
+        model: "model".to_string(),
+        system_fingerprint: String::new(),
+        usage: None,
+        citations: vec![],
+        debug_output: None,
+    }
+}
+
+// Test case 1: Basic single-output stream with reasoning and content with reasoning and content
 #[tokio::test]
 async fn test_process_basic_stream() {
     let chunks = vec![
@@ -1444,4 +1510,184 @@ async fn test_process_error_in_stream() {
     let result = process(error_stream, consumer).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().message(), "Simulated error");
+}
+
+// Test case 6: Error as first stream item
+#[tokio::test]
+async fn test_process_error_as_first_item() {
+    let error_first = stream::iter(vec![Err(Status::cancelled("Cancelled"))]);
+    let consumer = Consumer::new();
+    let result = process(error_first, consumer).await;
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().message(), "Cancelled");
+}
+
+// Test case 7: on_chunk invoked for every chunk
+#[tokio::test]
+async fn test_process_on_chunk_invoked_per_chunk() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r1"), Some("c1")),
+        make_simple_chunk(0, Some(""), Some("c2")),
+        make_finish_chunk(0),
+    ];
+    let chunk_count = Arc::new(Mutex::new(0usize));
+    let count_clone = chunk_count.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_chunk = Some(Box::new(move |_chunk: &GetChatCompletionChunk| {
+        let c = count_clone.clone();
+        Box::pin(async move {
+            *c.lock().unwrap() += 1;
+        })
+    }));
+    let result = process(mock_stream(chunks), consumer).await.unwrap();
+    assert_eq!(result.len(), 3);
+    assert_eq!(*chunk_count.lock().unwrap(), 3);
+}
+
+// Test case 8: on_reasoning_start and on_content_start fire exactly once per output
+#[tokio::test]
+async fn test_process_reasoning_start_and_content_start_once() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("reason1"), Some("")),
+        make_simple_chunk(0, Some("reason2"), Some("")),
+        make_simple_chunk(0, Some(""), Some("content1")),
+        make_simple_chunk(0, Some(""), Some("content2")),
+        make_finish_chunk(0),
+    ];
+    let reasoning_starts = Arc::new(Mutex::new(0usize));
+    let content_starts = Arc::new(Mutex::new(0usize));
+    let rs = reasoning_starts.clone();
+    let cs = content_starts.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_reasoning_start = Some(Box::new(move |_ctx: &OutputContext| {
+        let r = rs.clone();
+        Box::pin(async move { *r.lock().unwrap() += 1 })
+    }));
+    consumer.on_content_start = Some(Box::new(move |_ctx: &OutputContext| {
+        let c = cs.clone();
+        Box::pin(async move { *c.lock().unwrap() += 1 })
+    }));
+    process(mock_stream(chunks), consumer).await.unwrap();
+    assert_eq!(*reasoning_starts.lock().unwrap(), 1);
+    assert_eq!(*content_starts.lock().unwrap(), 1);
+}
+
+// Test case 9: on_usage invoked with last chunk usage
+#[tokio::test]
+async fn test_process_on_usage_invoked() {
+    let usage = SamplingUsage {
+        completion_tokens: 10,
+        reasoning_tokens: 5,
+        prompt_tokens: 1,
+        total_tokens: 16,
+        prompt_text_tokens: 0,
+        cached_prompt_text_tokens: 0,
+        prompt_image_tokens: 0,
+        num_sources_used: 0,
+        server_side_tools_used: vec![],
+    };
+    let mut last = make_finish_chunk(0);
+    last.usage = Some(usage.clone());
+    let chunks = vec![make_simple_chunk(0, Some("r"), Some("c")), last];
+    let received_usage = Arc::new(Mutex::new(None));
+    let recv = received_usage.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_usage = Some(Box::new(move |u: &SamplingUsage| {
+        let recv = recv.clone();
+        let u = u.clone();
+        Box::pin(async move { *recv.lock().unwrap() = Some(u) })
+    }));
+    process(mock_stream(chunks), consumer).await.unwrap();
+    assert_eq!(received_usage.lock().unwrap().as_ref().unwrap().completion_tokens, 10);
+}
+
+// Test case 10: on_citations invoked when last chunk has citations
+#[tokio::test]
+async fn test_process_on_citations_invoked() {
+    let mut last = make_finish_chunk(0);
+    last.citations = vec!["https://a.com".to_string(), "https://b.com".to_string()];
+    let chunks = vec![make_simple_chunk(0, Some("r"), Some("c")), last];
+    let received = Arc::new(Mutex::new(Vec::<String>::new()));
+    let recv = received.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_citations = Some(Box::new(move |citations: &[String]| {
+        let recv = recv.clone();
+        let citations = citations.to_vec();
+        Box::pin(async move { recv.lock().unwrap().extend(citations) })
+    }));
+    process(mock_stream(chunks), consumer).await.unwrap();
+    let c = received.lock().unwrap();
+    assert_eq!(c.len(), 2);
+    assert_eq!(c[0], "https://a.com");
+    assert_eq!(c[1], "https://b.com");
+}
+
+// Test case 11: on_inline_citations invoked when delta has citations
+#[tokio::test]
+async fn test_process_on_inline_citations_invoked() {
+    let mut chunk = make_simple_chunk(0, Some(""), Some("text"));
+    if let Some(ref mut d) = chunk.outputs[0].delta {
+        d.citations = vec![
+            InlineCitation {
+                id: "1".to_string(),
+                start_index: 0,
+                end_index: 4,
+                citation: None,
+                ..Default::default()
+            },
+        ];
+    }
+    let chunks = vec![chunk, make_finish_chunk(0)];
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let recv = received.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_inline_citations = Some(Box::new(move |_ctx: &OutputContext, citations: &[InlineCitation]| {
+        let recv = recv.clone();
+        let ids: Vec<String> = citations.iter().map(|c| c.id.clone()).collect();
+        Box::pin(async move { recv.lock().unwrap().extend(ids) })
+    }));
+    process(mock_stream(chunks), consumer).await.unwrap();
+    assert_eq!(received.lock().unwrap().as_slice(), ["1"]);
+}
+
+// Test case 12: Chunk with empty outputs still collected
+#[tokio::test]
+async fn test_process_chunk_with_empty_outputs_collected() {
+    let chunks = vec![
+        GetChatCompletionChunk {
+            id: "id".to_string(),
+            outputs: vec![],
+            created: None,
+            model: "m".to_string(),
+            system_fingerprint: "".to_string(),
+            usage: None,
+            citations: vec![],
+            debug_output: None,
+        },
+    ];
+    let result = process(mock_stream(chunks.clone()), Consumer::new())
+        .await
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert!(result[0].outputs.is_empty());
+}
+
+// Test case 13: Multiple reasoning tokens across chunks, reasoning_complete fires once
+#[tokio::test]
+async fn test_process_multiple_reasoning_tokens_complete_once() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r1"), Some("")),
+        make_simple_chunk(0, Some("r2"), Some("")),
+        make_simple_chunk(0, Some("r3"), Some("")),
+        make_finish_chunk(0),
+    ];
+    let complete_count = Arc::new(Mutex::new(0usize));
+    let cc = complete_count.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_reasoning_complete = Some(Box::new(move |_ctx: &OutputContext| {
+        let c = cc.clone();
+        Box::pin(async move { *c.lock().unwrap() += 1 })
+    }));
+    process(mock_stream(chunks), consumer).await.unwrap();
+    assert_eq!(*complete_count.lock().unwrap(), 1);
 }
