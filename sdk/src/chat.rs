@@ -92,17 +92,20 @@ pub mod client {
 /// Provides high-performance utilities for processing real-time chat completion streams,
 /// including flexible callback-based consumers and chunk assembly into complete responses.
 pub mod stream {
-    use crate::export::{Status, Streaming};
+    // Updated imports for mod stream in chat.rs
+    use crate::export::Status;
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
+    use futures::Stream;
     use std::collections::HashMap;
     use std::future::Future;
     use std::io::Write;
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
-
+    
+    // (Rest of the mod stream code remains the same...)
     #[derive(Debug, Clone)]
     struct OutputStats {
         index: i32,
@@ -152,10 +155,13 @@ pub mod stream {
     /// # Returns
     /// * `Ok(Vec<GetChatCompletionChunk>)` - All chunks collected from the stream
     /// * `Err(Status)` - gRPC error if streaming failed
-    pub async fn process(
-        mut stream: Streaming<GetChatCompletionChunk>,
+    pub async fn process<S>(
+        mut stream: S,
         mut consumer: Consumer<'_>,
-    ) -> Result<Vec<GetChatCompletionChunk>, Status> {
+    ) -> Result<Vec<GetChatCompletionChunk>, Status>
+    where
+        S: Stream<Item = Result<GetChatCompletionChunk, Status>> + Send + 'static,
+{
         let mut chunks: Vec<GetChatCompletionChunk> = Vec::new();
         let mut output_stats: HashMap<i32, OutputStats> = HashMap::new();
         let mut reasoning_start_fired: HashMap<i32, bool> = HashMap::new();
@@ -166,7 +172,7 @@ pub mod stream {
         let mut max_output_index_seen: i32 = -1;
 
         loop {
-            match stream.message().await {
+            match stream.next().await {
                 Ok(chunk) => {
                     let Some(chunk) = chunk else {
                         break;
