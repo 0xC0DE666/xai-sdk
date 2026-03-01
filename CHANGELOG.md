@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-03-01
+
+### Added
+- **Stream processing**: `chat::stream::process()` now accepts any `Stream<Item = Result<GetChatCompletionChunk, Status>>` (e.g. tonic's `Streaming` or mock streams), not only gRPC streaming types. Enables easier unit testing and custom stream sources.
+- **Tests**: Broader coverage for stream processing—`on_chunk`, `on_reasoning_start`/`on_content_start` (once per output), `on_usage`, `on_citations`, `on_inline_citations`, error-as-first-item, chunks with empty outputs, multiple reasoning tokens, and `assemble` with empty outputs.
+
+### Changed
+- **`on_content_complete`**: Fires when the content phase is complete for an output even if it had zero content tokens (e.g. reasoning-only then finish), so phase completion is consistent.
+- **Dependencies**: `tonic` uses `default-features = false` with explicit features (`channel`, `tls-ring`, `tls-native-roots`, `codegen`), reducing the dependency tree (no router/transport/server stack).
+
+### Fixed
+- **Documentation**: `process()` docs describe the generic stream argument and required bounds; `on_usage`/`on_citations` state they are only called when the last chunk contains usage/citations; `chat::utils` module description completed.
+
 ## [0.8.3] - 2026-02-27
 
 ### Added
