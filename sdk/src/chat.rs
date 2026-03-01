@@ -147,7 +147,8 @@ pub mod stream {
     /// context tracking.
     ///
     /// # Arguments
-    /// * `stream` - gRPC streaming response from `get_completion_chunk`
+    /// * `stream` - Any stream yielding `Result<GetChatCompletionChunk, Status>` (e.g. from
+    ///   `get_completion_chunk` or a mock). Must implement `Stream + Send + Unpin + 'static`.
     /// * `consumer` - Configured callback consumer for handling stream events
     ///
     /// # Returns
@@ -613,16 +614,13 @@ pub mod stream {
 
         /// Callback invoked once on the last chunk with usage statistics.
         ///
-        /// This callback is called once when the stream completes, providing final usage statistics.
-        ///
+        /// Called after the stream completes, only if the last chunk includes usage data.
         /// Receives `&SamplingUsage` with token usage information.
         pub on_usage: Option<Box<dyn FnMut(&SamplingUsage) -> BoxFuture<'a> + Send + Sync + 'a>>,
 
         /// Callback invoked once on the last chunk with citations.
         ///
-        /// This callback is called once when the stream completes, providing all citations
-        /// from the final chunk.
-        ///
+        /// Called after the stream completes, only if the last chunk has non-empty citations.
         /// Receives `&[String]` with all citation URLs from the last chunk.
         pub on_citations: Option<Box<dyn FnMut(&[String]) -> BoxFuture<'a> + Send + Sync + 'a>>,
     }
@@ -1076,7 +1074,7 @@ pub mod stream {
 
 /// General utilities for chat related functionality.
 ///
-/// Provides utilities for processing real-time chat completion streams,
+/// Provides utilities for converting completion outputs to messages and related chat operations.
 pub mod utils {
     use crate::xai_api::{CompletionOutput, Content, Message, content};
 
