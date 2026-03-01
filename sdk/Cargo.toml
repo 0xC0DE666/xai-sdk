@@ -28,3 +28,9 @@ tonic-prost-build = { version = "0.14" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "chat"
+path = "benches/chat_bench.rs"
+harness = false
