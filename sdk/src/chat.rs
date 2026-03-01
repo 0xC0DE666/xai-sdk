@@ -214,50 +214,96 @@ pub mod stream {
                             content_status.clone(),
                         );
 
-                        // Token / citation / tool callbacks – only when there is a delta
+                        // ####################
+                        // Reasoning
+                        // ####################
+                        if let Some(delta) = delta
+                            && !delta.reasoning_content.is_empty()
+                        {
+                            // Reasoning start (once)
+                            if reasoning_start_fired
+                                .get(&cur_output_index)
+                                .copied()
+                                .unwrap_or(false)
+                                == false
+                            {
+                                if let Some(ref mut on_reasoning_start) =
+                                    consumer.on_reasoning_start
+                                {
+                                    on_reasoning_start(&output_ctx).await;
+                                }
+                                reasoning_start_fired.insert(cur_output_index, true);
+                            }
+                            // Reasoning tokens (multiple)
+                            if let Some(ref mut on_reasoning_token) = consumer.on_reasoning_token {
+                                on_reasoning_token(&output_ctx, &delta.reasoning_content).await;
+                            }
+                        }
+
+                        // Phase completion callback – fire immediately when we detect Complete
+                        // (runs even on chunks without delta, in case finish_reason updated)
+                        // Reasoning complete (once)
+                        if reasoning_status == PhaseStatus::Complete
+                            && reasoning_complete_fired
+                                .get(&cur_output_index)
+                                .copied()
+                                .unwrap_or(false)
+                                == false
+                            && merged.total_reasoning_tokens > 0
+                        {
+                            if let Some(ref mut on_reasoning_complete) =
+                                consumer.on_reasoning_complete
+                            {
+                                on_reasoning_complete(&output_ctx).await;
+                            }
+                            reasoning_complete_fired.insert(cur_output_index, true);
+                        }
+
+                        // ####################
+                        // Content
+                        // ####################
+                        if let Some(delta) = delta
+                            && !delta.content.is_empty()
+                        {
+                            // Content start (once)
+                            if content_start_fired
+                                .get(&cur_output_index)
+                                .copied()
+                                .unwrap_or(false)
+                                == false
+                            {
+                                if let Some(ref mut on_content_start) = consumer.on_content_start {
+                                    on_content_start(&output_ctx).await;
+                                }
+                                content_start_fired.insert(cur_output_index, true);
+                            }
+                            // Content tokens (multiple)
+                            if let Some(ref mut on_content_token) = consumer.on_content_token {
+                                on_content_token(&output_ctx, &delta.content).await;
+                            }
+                        }
+
+                        // Phase completion callback – fire immediately when we detect Complete
+                        // (runs even on chunks without delta, in case finish_reason updated)
+                        // Content complete (once)
+                        if content_status == PhaseStatus::Complete
+                            && content_complete_fired
+                                .get(&cur_output_index)
+                                .copied()
+                                .unwrap_or(false)
+                                == false
+                        {
+                            if let Some(ref mut on_content_complete) = consumer.on_content_complete
+                            {
+                                on_content_complete(&output_ctx).await;
+                            }
+                            content_complete_fired.insert(cur_output_index, true);
+                        }
+
+                        // ####################
+                        // Citations, tool calls
+                        // ####################
                         if let Some(delta) = delta {
-                            // Reasoning start (once) then reasoning token
-                            if !delta.reasoning_content.is_empty() {
-                                if reasoning_start_fired
-                                    .get(&cur_output_index)
-                                    .copied()
-                                    .unwrap_or(false)
-                                    == false
-                                {
-                                    if let Some(ref mut on_reasoning_start) =
-                                        consumer.on_reasoning_start
-                                    {
-                                        on_reasoning_start(&output_ctx).await;
-                                    }
-                                    reasoning_start_fired.insert(cur_output_index, true);
-                                }
-                                if let Some(ref mut on_reasoning_token) =
-                                    consumer.on_reasoning_token
-                                {
-                                    on_reasoning_token(&output_ctx, &delta.reasoning_content).await;
-                                }
-                            }
-
-                            // Content start (once) then content token
-                            if !delta.content.is_empty() {
-                                if content_start_fired
-                                    .get(&cur_output_index)
-                                    .copied()
-                                    .unwrap_or(false)
-                                    == false
-                                {
-                                    if let Some(ref mut on_content_start) =
-                                        consumer.on_content_start
-                                    {
-                                        on_content_start(&output_ctx).await;
-                                    }
-                                    content_start_fired.insert(cur_output_index, true);
-                                }
-                                if let Some(ref mut on_content_token) = consumer.on_content_token {
-                                    on_content_token(&output_ctx, &delta.content).await;
-                                }
-                            }
-
                             // Inline citations
                             if let Some(ref mut on_inline_citations) = consumer.on_inline_citations
                                 && !delta.citations.is_empty()
@@ -267,8 +313,10 @@ pub mod stream {
 
                             // Tool calls
                             if !delta.tool_calls.is_empty() {
-                                let mut client_tool_calls = Vec::new();
-                                let mut server_tool_calls = Vec::new();
+                                let capacity = delta.tool_calls.len();
+                                let mut client_tool_calls = Vec::with_capacity(capacity);
+                                let mut server_tool_calls = Vec::with_capacity(capacity);
+
                                 for tool_call in &delta.tool_calls {
                                     if tool_call.r#type == ToolCallType::ClientSideTool.into() {
                                         client_tool_calls.push(tool_call.clone());
@@ -291,38 +339,6 @@ pub mod stream {
                                     on_server_tool_calls(&output_ctx, &server_tool_calls).await;
                                 }
                             }
-                        }
-
-                        // Phase completion callbacks – fire immediately when we detect Complete
-                        // (runs even on chunks without delta, in case finish_reason updated)
-                        if reasoning_status == PhaseStatus::Complete
-                            && reasoning_complete_fired
-                                .get(&cur_output_index)
-                                .copied()
-                                .unwrap_or(false)
-                                == false
-                            && merged.total_reasoning_tokens > 0
-                        {
-                            if let Some(ref mut on_reasoning_complete) =
-                                consumer.on_reasoning_complete
-                            {
-                                on_reasoning_complete(&output_ctx).await;
-                            }
-                            reasoning_complete_fired.insert(cur_output_index, true);
-                        }
-
-                        if content_status == PhaseStatus::Complete
-                            && content_complete_fired
-                                .get(&cur_output_index)
-                                .copied()
-                                .unwrap_or(false)
-                                == false
-                        {
-                            if let Some(ref mut on_content_complete) = consumer.on_content_complete
-                            {
-                                on_content_complete(&output_ctx).await;
-                            }
-                            content_complete_fired.insert(cur_output_index, true);
                         }
                     }
 
