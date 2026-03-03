@@ -1,13 +1,16 @@
-//! Benchmarks for `chat::stream::process` and `chat::stream::assemble`.
+//! Benchmarks for `chat::stream`: `assemble`, `process` (minimal and with callbacks),
+//! and `Consumer::with_sink` (event-based path).
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use futures::channel::mpsc;
 use futures::stream::{self, Stream};
+use futures::StreamExt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use xai_sdk::api::{
     CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
 };
-use xai_sdk::chat::stream::{assemble, process, Consumer};
+use xai_sdk::chat::stream::{assemble, process, Consumer, Event};
 use xai_sdk::Status;
 
 fn make_content_chunk(index: i32, token: &str) -> GetChatCompletionChunk {
@@ -66,6 +69,43 @@ fn make_finish_chunk(index: i32) -> GetChatCompletionChunk {
 /// Builds `n` content chunks plus one finish chunk (single output, index 0).
 fn build_chunks(n: usize) -> Vec<GetChatCompletionChunk> {
     let mut chunks = Vec::with_capacity(n + 1);
+    for _ in 0..n {
+        chunks.push(make_content_chunk(0, "x"));
+    }
+    chunks.push(make_finish_chunk(0));
+    chunks
+}
+
+fn make_reasoning_chunk(index: i32, token: &str) -> GetChatCompletionChunk {
+    GetChatCompletionChunk {
+        id: "id".to_string(),
+        outputs: vec![CompletionOutputChunk {
+            delta: Some(Delta {
+                reasoning_content: token.to_string(),
+                content: String::new(),
+                role: 0,
+                tool_calls: vec![],
+                encrypted_content: String::new(),
+                citations: vec![],
+            }),
+            logprobs: None,
+            finish_reason: FinishReason::ReasonInvalid as i32,
+            index,
+        }],
+        created: None,
+        model: "model".to_string(),
+        system_fingerprint: String::new(),
+        usage: None,
+        citations: vec![],
+        debug_output: None,
+    }
+}
+
+/// Builds a stream with both reasoning and content tokens: one reasoning chunk, `n` content chunks, then finish.
+/// Exercises ReasoningStart, ReasoningToken, ContentStart, ContentToken, ReasoningComplete, ContentComplete.
+fn build_chunks_reasoning_then_content(n: usize) -> Vec<GetChatCompletionChunk> {
+    let mut chunks = Vec::with_capacity(n + 2);
+    chunks.push(make_reasoning_chunk(0, "think"));
     for _ in 0..n {
         chunks.push(make_content_chunk(0, "x"));
     }
@@ -156,5 +196,112 @@ fn bench_process_with_simple_callbacks(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_assemble, bench_process, bench_process_with_simple_callbacks);
+/// Process stream with `Consumer::with_sink(tx)` and drain all events from the receiver.
+/// Measures the event-based path (sink send + drain).
+fn bench_process_with_sink(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("process_with_sink");
+    for size in [10, 100, 1_000, 10_000] {
+        let chunks = build_chunks(size);
+        let count = chunks.len();
+        group.throughput(Throughput::Elements(count as u64));
+        group.bench_with_input(
+            format!("with_sink_{}_chunks", count),
+            &chunks,
+            |b, chunks| {
+                b.iter(|| {
+                    let (tx, mut rcv) = mpsc::unbounded();
+                    let consumer = Consumer::with_sink(tx);
+                    let stream = mock_stream(chunks.clone());
+                    let result = rt.block_on(async {
+                        let r = process(stream, consumer).await;
+                        let events: Vec<Event> = rcv.by_ref().collect().await;
+                        (r, events)
+                    });
+                    let (r, events) = result;
+                    let _ = r.expect("process should succeed in bench");
+                    black_box(events.len());
+                });
+            },
+        );
+    }
+    group.finish();
+}
+
+/// Process with with_sink on a stream that has both reasoning and content (more event types).
+fn bench_process_with_sink_reasoning_and_content(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("process_with_sink");
+    for size in [10, 100, 1_000] {
+        let chunks = build_chunks_reasoning_then_content(size);
+        let count = chunks.len();
+        group.throughput(Throughput::Elements(count as u64));
+        group.bench_with_input(
+            format!("with_sink_{}_chunks_reasoning_and_content", count),
+            &chunks,
+            |b, chunks| {
+                b.iter(|| {
+                    let (tx, mut rcv) = mpsc::unbounded();
+                    let consumer = Consumer::with_sink(tx);
+                    let stream = mock_stream(chunks.clone());
+                    let result = rt.block_on(async {
+                        let r = process(stream, consumer).await;
+                        let events: Vec<Event> = rcv.by_ref().collect().await;
+                        (r, events)
+                    });
+                    let (r, events) = result;
+                    let _ = r.expect("process should succeed in bench");
+                    black_box(events.len());
+                });
+            },
+        );
+    }
+    group.finish();
+}
+
+/// Process with with_sink and count only ContentToken events (simulates a handler that
+/// only cares about content tokens).
+fn bench_process_with_sink_count_content_tokens(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("process_with_sink");
+    for size in [10, 100, 1_000] {
+        let chunks = build_chunks(size);
+        let count = chunks.len();
+        group.throughput(Throughput::Elements(count as u64));
+        group.bench_with_input(
+            format!("with_sink_{}_chunks_count_content_tokens", count),
+            &chunks,
+            |b, chunks| {
+                b.iter(|| {
+                    let (tx, mut rcv) = mpsc::unbounded();
+                    let consumer = Consumer::with_sink(tx);
+                    let stream = mock_stream(chunks.clone());
+                    let (result, content_count) = rt.block_on(async {
+                        let r = process(stream, consumer).await;
+                        let mut n = 0usize;
+                        while let Some(ev) = rcv.next().await {
+                            if let Event::ContentToken(_, _) = ev {
+                                n += 1;
+                            }
+                        }
+                        (r, n)
+                    });
+                    let _ = result.expect("process should succeed in bench");
+                    black_box(content_count);
+                });
+            },
+        );
+    }
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_assemble,
+    bench_process,
+    bench_process_with_simple_callbacks,
+    bench_process_with_sink,
+    bench_process_with_sink_reasoning_and_content,
+    bench_process_with_sink_count_content_tokens
+);
 criterion_main!(benches);
