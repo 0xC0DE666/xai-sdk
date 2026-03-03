@@ -110,3 +110,15 @@ pub mod interceptor {
         })
     }
 }
+
+pub mod types {
+    use std::error::Error;
+    use std::pin::Pin;
+
+    /// Type-erased error that is `Send + Sync`, for use in types sent across threads or
+    /// with generic sink callbacks that require `Sync` futures.
+    pub type BoxError = Box<dyn Error + Send + Sync>;
+
+    /// Boxed future type for async callbacks. Allows references without `Send` requirement.
+    pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+}

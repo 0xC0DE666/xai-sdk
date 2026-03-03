@@ -92,6 +92,7 @@ pub mod client {
 /// Provides high-performance utilities for processing real-time chat completion streams,
 /// including flexible callback-based consumers and chunk assembly into complete responses.
 pub mod stream {
+    use crate::common::types::{BoxError, BoxFuture};
     use crate::export::Status;
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
@@ -100,10 +101,8 @@ pub mod stream {
     use futures::sink::Sink;
     use futures::{SinkExt, Stream, StreamExt};
     use std::collections::HashMap;
-    use std::error::Error;
     use std::future::Future;
     use std::io::Write;
-    use std::pin::Pin;
     use std::sync::{Arc, Mutex};
 
     #[derive(Debug, Clone)]
@@ -524,7 +523,7 @@ pub mod stream {
         logprobs: Option<LogProbs>,
     }
 
-    /// A single event from a streaming chat completion, as produced by [`Consumer::with_events`].
+    /// A single event from a streaming chat completion, as produced by [`Consumer::with_sink`].
     ///
     /// Events are emitted in stream order. Use [`OutputContext`] in variants to correlate
     /// reasoning, content, and tool-call events with the same output when `n > 1`.
@@ -567,13 +566,6 @@ pub mod stream {
         /// Stream or processing error.
         Error(BoxError),
     }
-
-    /// Type-erased error that is `Send + Sync`, so [`Event::Error`] can be sent across threads and
-    /// used with generic [`Sink`] callbacks (which require `Sync` futures).
-    pub type BoxError = Box<dyn Error + Send + Sync>;
-
-    /// Boxed future type for async callbacks. Allows references without `Send` requirement.
-    pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
     /// Callback-based consumer for processing streaming chat completion responses.
     ///
@@ -857,23 +849,23 @@ pub mod stream {
         /// Creates a `Consumer` that forwards all stream activity as [`Event`]s into a [`Sink`].
         ///
         /// Each callback (chunk, reasoning/content phases, tool calls, citations, usage) is
-        /// translated into an [`Event`] and sent via `snd`. Events are delivered in the same
+        /// translated into an [`Event`] and sent via `snk`. Events are delivered in the same
         /// order as the underlying stream. Use the consumer with [`process`] while draining
         /// the receiver (e.g. with `StreamExt::next()`) to process events.
         ///
         /// Create the channel yourself (e.g. [`mpsc::unbounded`] or [`mpsc::channel`]) and pass
-        /// the sender. Bounded senders apply backpressure when the receiver lags.
-        pub fn with_events<S>(snd: S) -> Consumer<'static>
+        /// the sender as the sink. Bounded senders apply backpressure when the receiver lags.
+        pub fn with_sink<S>(sink: S) -> Consumer<'static>
         where
             S: Sink<Event> + Clone + Send + Sync + Unpin + 'static,
             S::Error: Send,
         {
-            let snd = Arc::new(snd);
+            let snk = Arc::new(sink);
 
             let mut consumer = Consumer::new_static();
             consumer
                 .on_chunk({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |chunk| {
                         let snd = snd.clone();
                         let chunk = chunk.clone();
@@ -883,7 +875,7 @@ pub mod stream {
                     }
                 })
                 .on_reasoning_start({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -893,7 +885,7 @@ pub mod stream {
                     }
                 })
                 .on_reasoning_token({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx, token| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -904,7 +896,7 @@ pub mod stream {
                     }
                 })
                 .on_reasoning_complete({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -914,7 +906,7 @@ pub mod stream {
                     }
                 })
                 .on_content_start({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -924,7 +916,7 @@ pub mod stream {
                     }
                 })
                 .on_content_token({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx, token| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -935,7 +927,7 @@ pub mod stream {
                     }
                 })
                 .on_content_complete({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -945,7 +937,7 @@ pub mod stream {
                     }
                 })
                 .on_inline_citations({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx, citations| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -959,7 +951,7 @@ pub mod stream {
                     }
                 })
                 .on_client_tool_calls({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx, calls| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -973,7 +965,7 @@ pub mod stream {
                     }
                 })
                 .on_server_tool_calls({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |ctx, calls| {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
@@ -987,7 +979,7 @@ pub mod stream {
                     }
                 })
                 .on_citations({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |citations| {
                         let snd = snd.clone();
                         let citations = citations.to_vec();
@@ -997,7 +989,7 @@ pub mod stream {
                     }
                 })
                 .on_usage({
-                    let snd = snd.clone();
+                    let snd = snk.clone();
                     move |usage| {
                         let snd = snd.clone();
                         let usage = usage.clone();
