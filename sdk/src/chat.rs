@@ -97,8 +97,8 @@ pub mod stream {
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
-    use futures::channel::mpsc;
-    use futures::{Stream, StreamExt};
+    use futures::sink::Sink;
+    use futures::{SinkExt, Stream, StreamExt};
     use std::collections::HashMap;
     use std::error::Error;
     use std::future::Future;
@@ -568,8 +568,9 @@ pub mod stream {
         Error(BoxError),
     }
 
-    /// Type-erased error that is `Send`, so [`Event::Error`] can be sent across threads (e.g. via channels).
-    pub type BoxError = Box<dyn Error + Send>;
+    /// Type-erased error that is `Send + Sync`, so [`Event::Error`] can be sent across threads and
+    /// used with generic [`Sink`] callbacks (which require `Sync` futures).
+    pub type BoxError = Box<dyn Error + Send + Sync>;
 
     /// Boxed future type for async callbacks. Allows references without `Send` requirement.
     pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
@@ -853,17 +854,20 @@ pub mod stream {
             }
         }
 
-        /// Creates a `Consumer` that forwards all stream activity as [`Event`]s to an unbounded channel.
+        /// Creates a `Consumer` that forwards all stream activity as [`Event`]s into a [`Sink`].
         ///
         /// Each callback (chunk, reasoning/content phases, tool calls, citations, usage) is
-        /// translated into a `Event` and sent on the returned receiver. Events are
-        /// delivered in the same order as the underlying stream.
+        /// translated into an [`Event`] and sent via `snd`. Events are delivered in the same
+        /// order as the underlying stream. Use the consumer with [`process`] while draining
+        /// the receiver (e.g. with `StreamExt::next()`) to process events.
         ///
-        /// Returns a `Consumer<'static>` and an [`mpsc::UnboundedReceiver`] of events. Use the consumer
-        /// with [`process`] while draining the receiver (e.g. with `StreamExt::next()`) to process
-        /// events. The receiver must be read for the stream to make progress if the channel fills.
-        ///
-        pub fn with_events(snd: mpsc::UnboundedSender<Event>) -> Consumer<'static> {
+        /// Create the channel yourself (e.g. [`mpsc::unbounded`] or [`mpsc::channel`]) and pass
+        /// the sender. Bounded senders apply backpressure when the receiver lags.
+        pub fn with_events<S>(snd: S) -> Consumer<'static>
+        where
+            S: Sink<Event> + Clone + Send + Sync + Unpin + 'static,
+            S::Error: Send,
+        {
             let snd = Arc::new(snd);
 
             let mut consumer = Consumer::new_static();
@@ -874,7 +878,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let chunk = chunk.clone();
                         async move {
-                            let _ = snd.unbounded_send(Event::Chunk(chunk));
+                            let _ = (*snd).clone().send(Event::Chunk(chunk)).await;
                         }
                     }
                 })
@@ -884,7 +888,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = snd.unbounded_send(Event::ReasoningStart(ctx));
+                            let _ = (*snd).clone().send(Event::ReasoningStart(ctx)).await;
                         }
                     }
                 })
@@ -895,7 +899,7 @@ pub mod stream {
                         let ctx = ctx.clone();
                         let token = token.to_string();
                         async move {
-                            let _ = snd.unbounded_send(Event::ReasoningToken(ctx, token));
+                            let _ = (*snd).clone().send(Event::ReasoningToken(ctx, token)).await;
                         }
                     }
                 })
@@ -905,7 +909,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = snd.unbounded_send(Event::ReasoningComplete(ctx));
+                            let _ = (*snd).clone().send(Event::ReasoningComplete(ctx)).await;
                         }
                     }
                 })
@@ -915,7 +919,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = snd.unbounded_send(Event::ContentStart(ctx));
+                            let _ = (*snd).clone().send(Event::ContentStart(ctx)).await;
                         }
                     }
                 })
@@ -926,7 +930,7 @@ pub mod stream {
                         let ctx = ctx.clone();
                         let token = token.to_string();
                         async move {
-                            let _ = snd.unbounded_send(Event::ContentToken(ctx, token));
+                            let _ = (*snd).clone().send(Event::ContentToken(ctx, token)).await;
                         }
                     }
                 })
@@ -936,7 +940,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = snd.unbounded_send(Event::ContentComplete(ctx));
+                            let _ = (*snd).clone().send(Event::ContentComplete(ctx)).await;
                         }
                     }
                 })
@@ -947,7 +951,10 @@ pub mod stream {
                         let ctx = ctx.clone();
                         let citations = citations.to_vec();
                         async move {
-                            let _ = snd.unbounded_send(Event::InlineCitations(ctx, citations));
+                            let _ = (*snd)
+                                .clone()
+                                .send(Event::InlineCitations(ctx, citations))
+                                .await;
                         }
                     }
                 })
@@ -958,7 +965,10 @@ pub mod stream {
                         let ctx = ctx.clone();
                         let calls = calls.to_vec();
                         async move {
-                            let _ = snd.unbounded_send(Event::ClientToolCalls(ctx, calls));
+                            let _ = (*snd)
+                                .clone()
+                                .send(Event::ClientToolCalls(ctx, calls))
+                                .await;
                         }
                     }
                 })
@@ -969,7 +979,10 @@ pub mod stream {
                         let ctx = ctx.clone();
                         let calls = calls.to_vec();
                         async move {
-                            let _ = snd.unbounded_send(Event::ServerToolCalls(ctx, calls));
+                            let _ = (*snd)
+                                .clone()
+                                .send(Event::ServerToolCalls(ctx, calls))
+                                .await;
                         }
                     }
                 })
@@ -979,7 +992,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let citations = citations.to_vec();
                         async move {
-                            let _ = snd.unbounded_send(Event::Citations(citations));
+                            let _ = (*snd).clone().send(Event::Citations(citations)).await;
                         }
                     }
                 })
@@ -989,7 +1002,7 @@ pub mod stream {
                         let snd = snd.clone();
                         let usage = usage.clone();
                         async move {
-                            let _ = snd.unbounded_send(Event::Usage(Some(usage)));
+                            let _ = (*snd).clone().send(Event::Usage(Some(usage))).await;
                         }
                     }
                 });
