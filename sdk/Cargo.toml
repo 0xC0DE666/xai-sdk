@@ -28,3 +28,4 @@ tonic-prost-build = { version = "0.14" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }

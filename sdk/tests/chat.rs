@@ -1,4 +1,6 @@
+use futures::channel::mpsc;
 use futures::stream::{self, Stream};
+use futures::StreamExt;
 use std::sync::{Arc, Mutex};
 use tonic::Status;
 use xai_sdk::api::{
@@ -6,9 +8,9 @@ use xai_sdk::api::{
     GetChatCompletionChunk, InlineCitation, MessageRole, SamplingUsage, ToolCall, ToolCallType,
     content::Content as ApiContent, FunctionCall
 };
-use xai_sdk::chat::stream::{Consumer, OutputContext, PhaseStatus, assemble, process};
-use xai_sdk::chat::utils::to_messages;
 use xai_sdk::api::tool_call;
+use xai_sdk::chat::stream::{Consumer, Event, OutputContext, PhaseStatus, assemble, process};
+use xai_sdk::chat::utils::to_messages;
 
 #[test]
 fn test_output_context_new() {
@@ -1690,4 +1692,436 @@ async fn test_process_multiple_reasoning_tokens_complete_once() {
     }));
     process(mock_stream(chunks), consumer).await.unwrap();
     assert_eq!(*complete_count.lock().unwrap(), 1);
+}
+
+// ########################################
+// Consumer::with_sink() INTEGRATION TESTS
+// ########################################
+
+/// Collect all events from the receiver after process completes.
+async fn collect_events(mut rcv: mpsc::UnboundedReceiver<Event>) -> Vec<Event> {
+    let mut out = Vec::new();
+    while let Some(ev) = rcv.next().await {
+        out.push(ev);
+    }
+    out
+}
+
+#[tokio::test]
+async fn test_with_sink_basic_stream() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r1"), Some("")),
+        make_simple_chunk(0, Some(""), Some("c1")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks.clone()), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+
+    let chunk_events = events.iter().filter(|e| matches!(e, Event::Chunk(_))).count();
+    assert_eq!(chunk_events, 3, "expected 3 Chunk events");
+
+    let reasoning_tokens: Vec<String> = events
+        .iter()
+        .filter_map(|e| match e {
+            Event::ReasoningToken(_, t) => Some(t.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(reasoning_tokens, ["r1"]);
+
+    let content_tokens: Vec<String> = events
+        .iter()
+        .filter_map(|e| match e {
+            Event::ContentToken(_, t) => Some(t.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(content_tokens, ["c1"]);
+
+    assert!(events.iter().any(|e| matches!(e, Event::ReasoningStart(_))));
+    assert!(events.iter().any(|e| matches!(e, Event::ContentStart(_))));
+    assert!(events.iter().any(|e| matches!(e, Event::ReasoningComplete(_))));
+    assert!(events.iter().any(|e| matches!(e, Event::ContentComplete(_))));
+}
+
+#[tokio::test]
+async fn test_with_sink_empty_stream() {
+    let chunks: Vec<GetChatCompletionChunk> = vec![];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let result = process(mock_stream(chunks), consumer).await.unwrap();
+    assert!(result.is_empty());
+    let events = collect_events(rcv).await;
+    assert!(events.is_empty());
+}
+
+#[tokio::test]
+async fn test_with_sink_chunk_per_chunk() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r"), Some("c")),
+        make_simple_chunk(0, Some(""), Some("")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let chunk_count = events.iter().filter(|e| matches!(e, Event::Chunk(_))).count();
+    assert_eq!(chunk_count, 3);
+}
+
+#[tokio::test]
+async fn test_with_sink_usage_event() {
+    let usage = SamplingUsage {
+        completion_tokens: 10,
+        reasoning_tokens: 5,
+        prompt_tokens: 1,
+        total_tokens: 16,
+        prompt_text_tokens: 0,
+        cached_prompt_text_tokens: 0,
+        prompt_image_tokens: 0,
+        num_sources_used: 0,
+        server_side_tools_used: vec![],
+    };
+    let mut last = make_finish_chunk(0);
+    last.usage = Some(usage);
+    let chunks = vec![make_simple_chunk(0, Some("r"), Some("c")), last];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let usage_ev = events.iter().find_map(|e| match e {
+        Event::Usage(u) => u.as_ref(),
+        _ => None,
+    });
+    assert!(usage_ev.is_some());
+    assert_eq!(usage_ev.unwrap().completion_tokens, 10);
+    assert_eq!(usage_ev.unwrap().reasoning_tokens, 5);
+}
+
+#[tokio::test]
+async fn test_with_sink_citations_event() {
+    let mut last = make_finish_chunk(0);
+    last.citations = vec!["https://a.com".to_string(), "https://b.com".to_string()];
+    let chunks = vec![make_simple_chunk(0, Some("r"), Some("c")), last];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let citations_ev = events.iter().find_map(|e| match e {
+        Event::Citations(c) => Some(c),
+        _ => None,
+    });
+    let expected = vec!["https://a.com".to_string(), "https://b.com".to_string()];
+    assert_eq!(citations_ev.map(|v| v.as_slice()), Some(expected.as_slice()));
+}
+
+#[tokio::test]
+async fn test_with_sink_inline_citations_event() {
+    let mut chunk = make_simple_chunk(0, Some(""), Some("text"));
+    if let Some(ref mut d) = chunk.outputs[0].delta {
+        d.citations = vec![
+            InlineCitation {
+                id: "cite-1".to_string(),
+                start_index: 0,
+                end_index: 4,
+                citation: None,
+                ..Default::default()
+            },
+        ];
+    }
+    let chunks = vec![chunk, make_finish_chunk(0)];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let inline_ev = events.iter().find_map(|e| match e {
+        Event::InlineCitations(_, c) => Some(c),
+        _ => None,
+    });
+    assert!(inline_ev.is_some());
+    assert_eq!(inline_ev.unwrap().len(), 1);
+    assert_eq!(inline_ev.unwrap()[0].id, "cite-1");
+}
+
+#[tokio::test]
+async fn test_with_sink_client_and_server_tool_calls() {
+    let chunks = vec![GetChatCompletionChunk {
+        id: "id".to_string(),
+        outputs: vec![CompletionOutputChunk {
+            delta: Some(Delta {
+                reasoning_content: "".to_string(),
+                content: "".to_string(),
+                role: 0,
+                tool_calls: vec![
+                    ToolCall {
+                        id: "client-1".to_string(),
+                        r#type: ToolCallType::ClientSideTool as i32,
+                        status: 0,
+                        error_message: None,
+                        tool: Some(tool_call::Tool::Function(FunctionCall {
+                            name: "client_tool".to_string(),
+                            arguments: "{}".to_string(),
+                        })),
+                    },
+                    ToolCall {
+                        id: "server-1".to_string(),
+                        r#type: ToolCallType::WebSearchTool as i32,
+                        status: 0,
+                        error_message: None,
+                        tool: Some(tool_call::Tool::Function(FunctionCall {
+                            name: "web_search".to_string(),
+                            arguments: "{}".to_string(),
+                        })),
+                    },
+                ],
+                encrypted_content: "".to_string(),
+                citations: vec![],
+            }),
+            logprobs: None,
+            finish_reason: FinishReason::ReasonToolCalls as i32,
+            index: 0,
+        }],
+        created: None,
+        model: "m".to_string(),
+        system_fingerprint: String::new(),
+        usage: None,
+        citations: vec![],
+        debug_output: None,
+    }];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let client_ev = events.iter().find_map(|e| match e {
+        Event::ClientToolCalls(_, c) => Some(c),
+        _ => None,
+    });
+    let server_ev = events.iter().find_map(|e| match e {
+        Event::ServerToolCalls(_, c) => Some(c),
+        _ => None,
+    });
+    assert!(client_ev.is_some());
+    assert_eq!(client_ev.unwrap().len(), 1);
+    assert_eq!(client_ev.unwrap()[0].id, "client-1");
+    assert!(server_ev.is_some());
+    assert_eq!(server_ev.unwrap().len(), 1);
+    assert_eq!(server_ev.unwrap()[0].id, "server-1");
+}
+
+#[tokio::test]
+async fn test_with_sink_reasoning_start_once_per_output() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("reason1"), Some("")),
+        make_simple_chunk(0, Some("reason2"), Some("")),
+        make_simple_chunk(0, Some(""), Some("content1")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let reasoning_starts = events.iter().filter(|e| matches!(e, Event::ReasoningStart(_))).count();
+    assert_eq!(reasoning_starts, 1);
+}
+
+#[tokio::test]
+async fn test_with_sink_content_start_once_per_output() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r"), Some("")),
+        make_simple_chunk(0, Some(""), Some("c1")),
+        make_simple_chunk(0, Some(""), Some("c2")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let content_starts = events.iter().filter(|e| matches!(e, Event::ContentStart(_))).count();
+    assert_eq!(content_starts, 1);
+}
+
+#[tokio::test]
+async fn test_with_sink_reasoning_complete_once() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r1"), Some("")),
+        make_simple_chunk(0, Some("r2"), Some("")),
+        make_simple_chunk(0, Some("r3"), Some("")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let reasoning_complete = events.iter().filter(|e| matches!(e, Event::ReasoningComplete(_))).count();
+    assert_eq!(reasoning_complete, 1);
+}
+
+#[tokio::test]
+async fn test_with_sink_content_complete_once() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r"), Some("c1")),
+        make_simple_chunk(0, Some(""), Some("c2")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let content_complete = events.iter().filter(|e| matches!(e, Event::ContentComplete(_))).count();
+    assert_eq!(content_complete, 1);
+}
+
+#[tokio::test]
+async fn test_with_sink_multi_output_output_context() {
+    let chunks = vec![
+        GetChatCompletionChunk {
+            id: "id".to_string(),
+            outputs: vec![
+                CompletionOutputChunk {
+                    delta: Some(Delta {
+                        reasoning_content: "r0".to_string(),
+                        content: "".to_string(),
+                        role: 0,
+                        tool_calls: vec![],
+                        encrypted_content: String::new(),
+                        citations: vec![],
+                    }),
+                    logprobs: None,
+                    finish_reason: FinishReason::ReasonInvalid as i32,
+                    index: 0,
+                },
+                CompletionOutputChunk {
+                    delta: Some(Delta {
+                        reasoning_content: "".to_string(),
+                        content: "c1".to_string(),
+                        role: 0,
+                        tool_calls: vec![],
+                        encrypted_content: String::new(),
+                        citations: vec![],
+                    }),
+                    logprobs: None,
+                    finish_reason: FinishReason::ReasonInvalid as i32,
+                    index: 1,
+                },
+            ],
+            created: None,
+            model: "m".to_string(),
+            system_fingerprint: String::new(),
+            usage: None,
+            citations: vec![],
+            debug_output: None,
+        },
+        GetChatCompletionChunk {
+            id: "id".to_string(),
+            outputs: vec![
+                CompletionOutputChunk {
+                    delta: None,
+                    logprobs: None,
+                    finish_reason: FinishReason::ReasonStop as i32,
+                    index: 0,
+                },
+                CompletionOutputChunk {
+                    delta: None,
+                    logprobs: None,
+                    finish_reason: FinishReason::ReasonStop as i32,
+                    index: 1,
+                },
+            ],
+            created: None,
+            model: "m".to_string(),
+            system_fingerprint: String::new(),
+            usage: None,
+            citations: vec![],
+            debug_output: None,
+        },
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let reasoning_ctx: Vec<_> = events
+        .iter()
+        .filter_map(|e| match e {
+            Event::ReasoningToken(ctx, _) => Some(ctx.output_index),
+            _ => None,
+        })
+        .collect();
+    let content_ctx: Vec<_> = events
+        .iter()
+        .filter_map(|e| match e {
+            Event::ContentToken(ctx, _) => Some(ctx.output_index),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(reasoning_ctx, [0]);
+    assert_eq!(content_ctx, [1]);
+}
+
+#[tokio::test]
+async fn test_with_sink_chunk_empty_outputs() {
+    let chunks = vec![GetChatCompletionChunk {
+        id: "id".to_string(),
+        outputs: vec![],
+        created: None,
+        model: "m".to_string(),
+        system_fingerprint: String::new(),
+        usage: None,
+        citations: vec![],
+        debug_output: None,
+    }];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks.clone()), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let chunk_events: Vec<_> = events.iter().filter_map(|e| match e {
+        Event::Chunk(c) => Some(c.outputs.len()),
+        _ => None,
+    }).collect();
+    assert_eq!(chunk_events, [0]);
+    assert!(!events.iter().any(|e| matches!(e, Event::ReasoningStart(_))));
+    assert!(!events.iter().any(|e| matches!(e, Event::ContentStart(_))));
+}
+
+#[tokio::test]
+async fn test_with_sink_stream_error_returns_err() {
+    let error_stream = stream::iter(vec![
+        Ok(GetChatCompletionChunk {
+            id: "id".to_string(),
+            outputs: vec![],
+            created: None,
+            model: "m".to_string(),
+            system_fingerprint: String::new(),
+            usage: None,
+            citations: vec![],
+            debug_output: None,
+        }),
+        Err(Status::internal("simulated error")),
+    ]);
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let result = process(error_stream, consumer).await;
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().message(), "simulated error");
+    let events = collect_events(rcv).await;
+    assert!(!events.is_empty());
+}
+
+#[tokio::test]
+async fn test_with_sink_event_order_chunk_before_phase_events() {
+    let chunks = vec![
+        make_simple_chunk(0, Some("r"), Some("")),
+        make_finish_chunk(0),
+    ];
+    let (tx, rcv) = mpsc::unbounded();
+    let consumer = Consumer::with_sink(tx);
+    let _ = process(mock_stream(chunks), consumer).await.unwrap();
+    let events = collect_events(rcv).await;
+    let first_chunk_pos = events.iter().position(|e| matches!(e, Event::Chunk(_)));
+    let reasoning_start_pos = events.iter().position(|e| matches!(e, Event::ReasoningStart(_)));
+    assert!(first_chunk_pos.is_some());
+    assert!(reasoning_start_pos.is_some());
+    assert!(first_chunk_pos.unwrap() < reasoning_start_pos.unwrap());
 }
