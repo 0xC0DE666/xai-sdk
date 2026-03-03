@@ -863,8 +863,7 @@ pub mod stream {
         /// with [`process`] while draining the receiver (e.g. with `StreamExt::next()`) to process
         /// events. The receiver must be read for the stream to make progress if the channel fills.
         ///
-        pub fn with_events() -> (Consumer<'static>, mpsc::UnboundedReceiver<Event>) {
-            let (snd, rcv) = mpsc::unbounded();
+        pub fn with_events(snd: mpsc::UnboundedSender<Event>) -> Consumer<'static> {
             let snd = Arc::new(snd);
 
             let mut consumer = Consumer::new_static();
@@ -995,7 +994,7 @@ pub mod stream {
                     }
                 });
 
-            (consumer, rcv)
+            consumer
         }
 
         /// Sets the chunk callback, invoked once per received chunk before token callbacks.
