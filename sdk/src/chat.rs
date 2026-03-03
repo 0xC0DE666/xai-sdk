@@ -97,8 +97,10 @@ pub mod stream {
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
+    use futures::channel::mpsc;
     use futures::{Stream, StreamExt};
     use std::collections::HashMap;
+    use std::error::Error;
     use std::future::Future;
     use std::io::Write;
     use std::pin::Pin;
@@ -522,6 +524,53 @@ pub mod stream {
         logprobs: Option<LogProbs>,
     }
 
+    /// A single event from a streaming chat completion, as produced by [`Consumer::with_events`].
+    ///
+    /// Events are emitted in stream order. Use [`OutputContext`] in variants to correlate
+    /// reasoning, content, and tool-call events with the same output when `n > 1`.
+    #[derive(Debug)]
+    pub enum Event {
+        /// Raw gRPC chunk as received from the API.
+        Chunk(GetChatCompletionChunk),
+
+        /// Reasoning phase started for an output (once per output, before first reasoning token).
+        ReasoningStart(OutputContext),
+        /// One reasoning token for an output.
+        ReasoningToken(OutputContext, String),
+        /// Reasoning phase finished for an output.
+        ReasoningComplete(OutputContext),
+
+        /// Content phase started for an output (once per output, before first content token).
+        ContentStart(OutputContext),
+        /// One content token for an output.
+        ContentToken(OutputContext, String),
+        /// Content phase finished for an output.
+        ContentComplete(OutputContext),
+
+        /// Inline citations for an output (e.g. from RAG).
+        InlineCitations(OutputContext, Vec<InlineCitation>),
+
+        /// Client-side tool calls (to be executed by the client).
+        ClientToolCalls(OutputContext, Vec<ToolCall>),
+        /// Server-side tool calls (e.g. XSearch, code execution).
+        ServerToolCalls(OutputContext, Vec<ToolCall>),
+
+        /// Final citation URLs from the last chunk.
+        Citations(Vec<String>),
+
+        /// Token usage from the last chunk, if present.
+        Usage(Option<SamplingUsage>),
+
+        /// Stream finished (reserved for future use).
+        Complete,
+
+        /// Stream or processing error.
+        Error(BoxError),
+    }
+
+    /// Type-erased error that is `Send`, so [`Event::Error`] can be sent across threads (e.g. via channels).
+    pub type BoxError = Box<dyn Error + Send>;
+
     /// Boxed future type for async callbacks. Allows references without `Send` requirement.
     pub type BoxFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -671,11 +720,11 @@ pub mod stream {
             Consumer::new()
         }
 
-        /// Creates a `Consumer` that prints tokens to stdout in real-time.
+        /// Creates a [`Consumer`] that prints tokens to stdout in real-time.
         ///
         /// Prints reasoning and content tokens as they arrive. Only handles the first output
         /// (index 0) to avoid interleaved output. For multi-output streams, use
-        /// [`with_buffered_stdout()`] instead.
+        /// [`Consumer::with_buffered_stdout()`] instead.
         ///
         /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
         pub fn with_stdout() -> Self {
@@ -802,6 +851,127 @@ pub mod stream {
                 on_usage: None,
                 on_citations: None,
             }
+        }
+
+        /// Creates a `Consumer` that forwards all stream activity as [`Event`]s to an unbounded channel.
+        ///
+        /// Each callback (chunk, reasoning/content phases, tool calls, citations, usage) is
+        /// translated into a `Event` and sent on the returned receiver. Events are
+        /// delivered in the same order as the underlying stream.
+        ///
+        /// Returns a `Consumer<'static>` and an [`mpsc::UnboundedReceiver`] of events. Use the consumer
+        /// with [`process`] while draining the receiver (e.g. with `StreamExt::next()`) to process
+        /// events. The receiver must be read for the stream to make progress if the channel fills.
+        ///
+        pub fn with_events() -> (Consumer<'static>, mpsc::UnboundedReceiver<Event>) {
+            let (snd, rcv) = mpsc::unbounded();
+
+            let snd_chunk = snd.clone();
+            let snd_rs = snd.clone();
+            let snd_rt = snd.clone();
+            let snd_rc = snd.clone();
+            let snd_cs = snd.clone();
+            let snd_ct = snd.clone();
+            let snd_cc = snd.clone();
+            let snd_ic = snd.clone();
+            let snd_ctc = snd.clone();
+            let snd_stc = snd.clone();
+            let snd_ci = snd.clone();
+            let snd_us = snd.clone();
+
+            let mut consumer = Consumer::new_static();
+            consumer
+                .on_chunk(move |chunk| {
+                    let tx = snd_chunk.clone();
+                    let chunk = chunk.clone();
+                    async move {
+                        let _ = tx.unbounded_send(Event::Chunk(chunk));
+                    }
+                })
+                .on_reasoning_start(move |ctx| {
+                    let tx = snd_rs.clone();
+                    let ctx = ctx.clone();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ReasoningStart(ctx));
+                    }
+                })
+                .on_reasoning_token(move |ctx, token| {
+                    let tx = snd_rt.clone();
+                    let ctx = ctx.clone();
+                    let token = token.to_string();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ReasoningToken(ctx, token));
+                    }
+                })
+                .on_reasoning_complete(move |ctx| {
+                    let tx = snd_rc.clone();
+                    let ctx = ctx.clone();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ReasoningComplete(ctx));
+                    }
+                })
+                .on_content_start(move |ctx| {
+                    let tx = snd_cs.clone();
+                    let ctx = ctx.clone();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ContentStart(ctx));
+                    }
+                })
+                .on_content_token(move |ctx, token| {
+                    let tx = snd_ct.clone();
+                    let ctx = ctx.clone();
+                    let token = token.to_string();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ContentToken(ctx, token));
+                    }
+                })
+                .on_content_complete(move |ctx| {
+                    let tx = snd_cc.clone();
+                    let ctx = ctx.clone();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ContentComplete(ctx));
+                    }
+                })
+                .on_inline_citations(move |ctx, citations| {
+                    let tx = snd_ic.clone();
+                    let ctx = ctx.clone();
+                    let citations = citations.to_vec();
+                    async move {
+                        let _ = tx.unbounded_send(Event::InlineCitations(ctx, citations));
+                    }
+                })
+                .on_client_tool_calls(move |ctx, calls| {
+                    let tx = snd_ctc.clone();
+                    let ctx = ctx.clone();
+                    let calls = calls.to_vec();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ClientToolCalls(ctx, calls));
+                    }
+                })
+                .on_server_tool_calls(move |ctx, calls| {
+                    let tx = snd_stc.clone();
+                    let ctx = ctx.clone();
+                    let calls = calls.to_vec();
+                    async move {
+                        let _ = tx.unbounded_send(Event::ServerToolCalls(ctx, calls));
+                    }
+                })
+                .on_citations(move |citations| {
+                    let tx = snd_ci.clone();
+                    let citations = citations.to_vec();
+                    async move {
+                        let _ = tx.unbounded_send(Event::Citations(citations));
+                    }
+                })
+                .on_usage(move |usage| {
+                    let tx = snd_us.clone();
+                    let usage = usage.clone();
+                    async move {
+                        let _ = tx.unbounded_send(Event::Usage(Some(usage)));
+                    }
+                });
+
+            (consumer, rcv)
         }
 
         /// Sets the chunk callback, invoked once per received chunk before token callbacks.

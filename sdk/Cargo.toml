@@ -21,7 +21,7 @@ prost-wkt-types = { version = "0.7" }
 tonic = { version = "0.14", default-features = false, features = ["channel", "tls-ring", "tls-native-roots", "codegen"] }
 tonic-prost = { version = "0.14" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-futures = { version = "0.3", default-features = false }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
 
 [build-dependencies]
 tonic-prost-build = { version = "0.14" }
