@@ -236,6 +236,8 @@ The `OutputContext` provides:
 - **`chat::stream::process`** - Process streaming responses with custom callbacks
 - **`chat::stream::assemble`** - Convert collected chunks into complete responses
 - **`chat::stream::Consumer::new_static()`** - Empty consumer with `'static` lifetime for one-line chaining: `Consumer::new_static().on_content_token(...).on_usage(...)`
+- **`chat::stream::Consumer::with_sink(snk)`** - Consumer that forwards all stream activity as [`Event`](https://docs.rs/xai-sdk/latest/xai_sdk/chat/stream/enum.Event.html)s into any `Sink<Event>` (e.g. `futures::channel::mpsc::unbounded()`). Create the channel, pass the sender, then drain the receiver for a single event stream. Bounded senders apply backpressure.
+- **`chat::stream::Event`** - Enum of streaming events: `Chunk`, `ReasoningStart`/`ReasoningToken`/`ReasoningComplete`, `ContentStart`/`ContentToken`/`ContentComplete`, `InlineCitations`, `ClientToolCalls`, `ServerToolCalls`, `Citations`, `Usage`, `Complete`, `Error`.
 - **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-output real-time output
 - **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-output buffered output
 

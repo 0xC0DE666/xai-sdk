@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-03-03
+
+### Added
+- **Event-based streaming**: `chat::stream::Event` enum and `Consumer::with_sink(snk)` for forwarding all stream activity into any `Sink<Event>`. Create a channel (e.g. `futures::channel::mpsc::unbounded()`), pass the sender to `with_sink`, and drain the receiver for a single stream of events (`Chunk`, `ReasoningStart`/`ReasoningToken`/`ReasoningComplete`, `ContentStart`/`ContentToken`/`ContentComplete`, `InlineCitations`, `ClientToolCalls`, `ServerToolCalls`, `Citations`, `Usage`). Bounded senders apply backpressure.
+- **Common types**: `common::types::BoxError` and `common::types::BoxFuture` for shared use (e.g. `Event::Error(BoxError)`).
+
+### Changed
+- **Consumer::with_sink**: Takes a generic `S: Sink<Event>` (e.g. unbounded or bounded channel sender) instead of creating a channel internally, so callers choose the channel type.
+
 ## [0.8.6] - 2026-03-01
 **Update**: upgraded deps.
 
