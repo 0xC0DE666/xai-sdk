@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-03-04
+
+### Fixed
+- **`on_content_complete`**: Now fires only when the output had at least one content token, matching the existing behavior of `on_reasoning_complete` (which already required `total_reasoning_tokens > 0`). Avoids firing content complete for outputs that never streamed content (e.g. tool-calls-only or reasoning-only finishes).
+
 ## [0.8.7] - 2026-03-03
 
 ### Added
