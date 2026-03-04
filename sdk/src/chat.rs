@@ -293,6 +293,7 @@ pub mod stream {
                                 .copied()
                                 .unwrap_or(false)
                                 == false
+                            && merged.total_content_tokens > 0
                         {
                             if let Some(ref mut on_content_complete) = consumer.on_content_complete
                             {
