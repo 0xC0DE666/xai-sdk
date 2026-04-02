@@ -74,6 +74,7 @@ pub mod enums {
                 DeferredStatus::Done => "done",
                 DeferredStatus::Expired => "expired",
                 DeferredStatus::Pending => "pending",
+                DeferredStatus::Failed => "failed",
             };
             f.write_str(s)
         }

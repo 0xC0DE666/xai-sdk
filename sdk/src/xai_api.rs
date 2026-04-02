@@ -190,6 +190,9 @@ pub enum DeferredStatus {
     Expired = 2,
     /// The request is still being processed.
     Pending = 3,
+    /// The request failed due to an internal service error.
+    /// The error message is in the `error` field of the response.
+    Failed = 4,
 }
 impl DeferredStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -202,6 +205,7 @@ impl DeferredStatus {
             Self::Done => "DONE",
             Self::Expired => "EXPIRED",
             Self::Pending => "PENDING",
+            Self::Failed => "FAILED",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -211,6 +215,7 @@ impl DeferredStatus {
             "DONE" => Some(Self::Done),
             "EXPIRED" => Some(Self::Expired),
             "PENDING" => Some(Self::Pending),
+            "FAILED" => Some(Self::Failed),
             _ => None,
         }
     }
@@ -1522,6 +1527,10 @@ pub struct GetCompletionsRequest {
     /// Allow the users to control what optional fields to be returned in the response.
     #[prost(enumeration = "IncludeOption", repeated, tag = "26")]
     pub include: ::prost::alloc::vec::Vec<i32>,
+    /// Number of agents to use for multi-agent models.
+    /// Only valid when model is a `multi-agent` model. Defaults to `AGENT_COUNT_UNSPECIFIED`.
+    #[prost(enumeration = "AgentCount", optional, tag = "29")]
+    pub agent_count: ::core::option::Option<i32>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1845,10 +1854,37 @@ pub mod content {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct FileContent {
-    /// The file ID returned by the Files API when a user uploads a file.
-    /// This ID is used to reference the uploaded file in chat conversations.
+    /// The file ID from the Files API.
+    ///
+    /// When set, the file content will be fetched via the Files API.
     #[prost(string, tag = "1")]
     pub file_id: ::prost::alloc::string::String,
+    /// Inline file bytes (optional).
+    ///
+    /// When set, the file content is provided directly in the chat request and does
+    /// NOT require uploading to the Files API first.
+    ///
+    /// Exactly one of `file_id`, `data`, or `url` SHOULD be set.
+    #[prost(bytes = "vec", tag = "2")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+    /// Filename for inline uploads.
+    ///
+    /// Recommended when `data` is set. Used for display and may be used by
+    /// downstream systems to infer file type.
+    #[prost(string, tag = "3")]
+    pub filename: ::prost::alloc::string::String,
+    /// Optional MIME type for inline uploads (e.g. "application/pdf").
+    ///
+    /// If unset, downstream systems may attempt to infer the MIME type from the
+    /// content and/or filename.
+    #[prost(string, tag = "4")]
+    pub mime_type: ::prost::alloc::string::String,
+    /// Public URL to a file attachment.
+    ///
+    /// When set, the file will be fetched from this URL as an attachment.
+    /// Exactly one of `file_id`, `data`, or `url` SHOULD be set.
+    #[prost(string, tag = "5")]
+    pub url: ::prost::alloc::string::String,
 }
 /// A message in a conversation. This message is part of the model input. Each
 /// message originates from a "role", which indicates the entity type who sent
@@ -2600,6 +2636,40 @@ impl ReasoningEffort {
             "EFFORT_LOW" => Some(Self::EffortLow),
             "EFFORT_MEDIUM" => Some(Self::EffortMedium),
             "EFFORT_HIGH" => Some(Self::EffortHigh),
+            _ => None,
+        }
+    }
+}
+/// Number of agents to use for multi-agent models.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum AgentCount {
+    /// Unspecified / unset value.
+    Unspecified = 0,
+    /// Use 4 agents.
+    AgentCount4 = 1,
+    /// Use 16 agents.
+    AgentCount16 = 2,
+}
+impl AgentCount {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "AGENT_COUNT_UNSPECIFIED",
+            Self::AgentCount4 => "AGENT_COUNT_4",
+            Self::AgentCount16 => "AGENT_COUNT_16",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "AGENT_COUNT_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGENT_COUNT_4" => Some(Self::AgentCount4),
+            "AGENT_COUNT_16" => Some(Self::AgentCount16),
             _ => None,
         }
     }
@@ -3892,17 +3962,9 @@ pub struct VideoUrlContent {
     #[prost(string, tag = "1")]
     pub url: ::prost::alloc::string::String,
 }
-/// Output destination for generated video.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct VideoOutput {
-    /// Signed URL to upload the generated video via HTTP PUT.
-    #[prost(string, tag = "1")]
-    pub upload_url: ::prost::alloc::string::String,
-}
 /// Request message for generating a video.
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenerateVideoRequest {
     /// Input prompt to generate a video from.
     #[prost(string, tag = "1")]
@@ -3932,6 +3994,11 @@ pub struct GenerateVideoRequest {
     /// Defaults to 480p if not specified.
     #[prost(enumeration = "VideoResolution", optional, tag = "8")]
     pub resolution: ::core::option::Option<i32>,
+    /// Optional reference images for reference-to-video (R2V) generation.
+    /// When provided (and `image` is not set), generates video using these images
+    /// as style/content references.
+    #[prost(message, repeated, tag = "13")]
+    pub reference_images: ::prost::alloc::vec::Vec<ImageUrlContent>,
 }
 /// Request for retrieving deferred video generation results.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -3951,9 +4018,22 @@ pub struct VideoResponse {
     /// The model used to generate the video (ignoring aliases).
     #[prost(string, tag = "2")]
     pub model: ::prost::alloc::string::String,
-    /// The usage of the request.
+    /// Billing and cost information for this request.
     #[prost(message, optional, tag = "3")]
     pub usage: ::core::option::Option<SamplingUsage>,
+    /// Structured error describing why video generation failed.
+    /// Only present when the background generation encountered a failure
+    /// (either client error 4xx or server error 5xx).
+    #[prost(message, optional, tag = "6")]
+    pub error: ::core::option::Option<VideoError>,
+    /// Approximate completion percentage for the video generation task (0-100).
+    ///
+    /// * When status is `PENDING`: progress is between 0-99, indicating current
+    ///   completion.
+    /// * When status is `DONE`: progress is 100.
+    /// * When status is `FAILED`: progress is 0.
+    #[prost(int32, tag = "7")]
+    pub progress: i32,
 }
 /// Contains all data related to a generated video.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -3979,9 +4059,41 @@ pub struct GetDeferredVideoResponse {
     /// Current status of the request.
     #[prost(enumeration = "DeferredStatus", tag = "1")]
     pub status: i32,
-    /// Response. Only present if `status=DONE`
+    /// Response. Only present if `status=DONE` or `status=FAILED`.
+    /// When failed, the `error` field in VideoResponse describes the failure.
     #[prost(message, optional, tag = "2")]
     pub response: ::core::option::Option<VideoResponse>,
+}
+/// Structured error returned when video generation fails.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct VideoError {
+    /// Machine-readable error code (e.g. "invalid_argument", "internal_error").
+    #[prost(string, tag = "1")]
+    pub code: ::prost::alloc::string::String,
+    /// Human-readable error message describing the failure.
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Request message for extending an existing video.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ExtendVideoRequest {
+    /// Prompt describing what should happen next in the video.
+    #[prost(string, tag = "1")]
+    pub prompt: ::prost::alloc::string::String,
+    /// Input video to extend. The extension continues from the end of this video.
+    /// Supports URL or base64-encoded video data.
+    /// Input video must be between 2 and 30 seconds long.
+    #[prost(message, optional, tag = "2")]
+    pub video: ::core::option::Option<VideoUrlContent>,
+    /// Name or alias of the video generation model to be used.
+    #[prost(string, tag = "3")]
+    pub model: ::prost::alloc::string::String,
+    /// Duration of the extension segment to generate in seconds (1-10).
+    /// Defaults to 6 seconds if not specified.
+    #[prost(int32, optional, tag = "4")]
+    pub duration: ::core::option::Option<i32>,
 }
 /// Aspect ratio for video generation.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -4166,11 +4278,12 @@ pub mod video_client {
             self
         }
         /// Create a video based on a text prompt and optionally an image.
-        /// If an image is provided, generates video with the image as the first frame (image-to-video).
-        /// If no image is provided, generates video from text only (text-to-video).
+        /// If an image is provided, generates video with the image as the first frame
+        /// (image-to-video). If no image is provided, generates video from text only
+        /// (text-to-video).
         ///
-        /// This is an asynchronous operation. The method returns immediately with a request_id
-        /// that can be used to poll for the result using GetDeferredVideo.
+        /// This is an asynchronous operation. The method returns immediately with a
+        /// request_id that can be used to poll for the result using GetDeferredVideo.
         pub async fn generate_video(
             &mut self,
             request: impl tonic::IntoRequest<super::GenerateVideoRequest>,
@@ -4195,7 +4308,35 @@ pub mod video_client {
                 .insert(GrpcMethod::new("xai_api.Video", "GenerateVideo"));
             self.inner.unary(req, path, codec).await
         }
-        /// Gets the result of a video generation started by calling `GenerateVideo`.
+        /// Extend an existing video by generating continuation content.
+        ///
+        /// This is an asynchronous operation. The method returns immediately with a
+        /// request_id that can be used to poll for the result using GetDeferredVideo.
+        pub async fn extend_video(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ExtendVideoRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::StartDeferredResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Video/ExtendVideo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("xai_api.Video", "ExtendVideo"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Gets the result of a video generation started by calling `GenerateVideo` or
+        /// `ExtendVideo`.
         pub async fn get_deferred_video(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDeferredVideoRequest>,
