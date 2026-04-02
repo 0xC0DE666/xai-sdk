@@ -1287,11 +1287,43 @@ pub mod stream {
     }
 }
 
+pub mod traits {
+    use crate::xai_api::{Content, Message};
+
+    pub trait ToContent {
+        fn to_content(&self) -> Content;
+    }
+
+    pub trait ToContentVec {
+        fn to_content_vec(&self) -> Vec<Content>;
+    }
+
+    pub trait ToMessage {
+        fn to_message(&self) -> Message;
+    }
+
+    pub trait ToMessageVec {
+        fn to_message_vec(&self) -> Vec<Message>;
+    }
+}
+
 /// General utilities for chat related functionality.
 ///
 /// Provides utilities for converting completion outputs to messages and related chat operations.
 pub mod utils {
-    use crate::xai_api::{CompletionOutput, Content, Message, content};
+    use crate::xai_api::{CompletionOutput, Content, Message, MessageRole, content};
+
+    impl From<(MessageRole, &str)> for Message {
+        fn from(value: (MessageRole, &str)) -> Self {
+            todo!()
+        }
+    }
+
+    impl From<(MessageRole, String)> for Message {
+        fn from(value: (MessageRole, String)) -> Self {
+            todo!()
+        }
+    }
 
     /// Converts a slice of `CompletionOutput` to a vector of `Message`.
     ///
