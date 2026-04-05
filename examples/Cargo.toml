@@ -37,3 +37,7 @@ path = "src/billing.rs"
 [[example]]
 name = "tool_calls"
 path = "src/tool_calls.rs"
+
+[[example]]
+name = "video_generate"
+path = "src/video_generate.rs"
