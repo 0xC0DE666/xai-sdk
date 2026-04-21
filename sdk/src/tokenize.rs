@@ -62,7 +62,8 @@ pub mod client {
         interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<TokenizeClient, Error> {
         let channel = common::channel::new().await?;
-        let client = XTokenizeClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
+        let client =
+            XTokenizeClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
         Ok(client)
     }
 

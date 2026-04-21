@@ -18,10 +18,9 @@ path = "src/lib.rs"
 
 [dependencies]
 prost = { version = "0.14" }
-prost-wkt-types = { version = "0.7" }
+prost-types = { version = "0.14" }
 tonic = { version = "0.14", default-features = false, features = ["channel", "tls-ring", "tls-native-roots", "codegen"] }
 tonic-prost = { version = "0.14" }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
 futures = { version = "0.3", default-features = false }
 
 [build-dependencies]

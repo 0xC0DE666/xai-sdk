@@ -62,7 +62,8 @@ pub mod client {
         interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<EmbedClient, Error> {
         let channel = common::channel::new().await?;
-        let client = XEmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
+        let client =
+            XEmbedderClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
         Ok(client)
     }
 

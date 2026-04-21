@@ -201,9 +201,12 @@ async fn main() -> Result<()> {
                 if let Some(hard_auto) = limits.hard_sl_auto {
                     println!("💵 Hard Limit (Auto): ${:.2}", hard_auto.val as f64 / 100.0);
                 }
-                
+
                 if let Some(effective_hard) = limits.effective_hard_sl {
-                    println!("💵 Effective Hard Limit: ${:.2}", effective_hard.val as f64 / 100.0);
+                    println!(
+                        "💵 Effective Hard Limit: ${:.2}",
+                        effective_hard.val as f64 / 100.0
+                    );
                 }
 
                 if let Some(soft) = limits.soft_sl {
@@ -213,7 +216,10 @@ async fn main() -> Result<()> {
                 }
 
                 if let Some(effective) = limits.effective_sl {
-                    println!("💵 Effective Limit (Enforced): ${:.2}", effective.val as f64 / 100.0);
+                    println!(
+                        "💵 Effective Limit (Enforced): ${:.2}",
+                        effective.val as f64 / 100.0
+                    );
                 }
             } else {
                 println!("ℹ️  No spending limits information available");

@@ -5,7 +5,10 @@ use xai_sdk::utils::enums::*;
 
 #[test]
 fn test_deferred_status_display() {
-    assert_eq!(DeferredStatus::InvalidDeferredStatus.to_string(), "invalid_deferred_status");
+    assert_eq!(
+        DeferredStatus::InvalidDeferredStatus.to_string(),
+        "invalid_deferred_status"
+    );
     assert_eq!(DeferredStatus::Done.to_string(), "done");
     assert_eq!(DeferredStatus::Expired.to_string(), "expired");
     assert_eq!(DeferredStatus::Pending.to_string(), "pending");
@@ -13,14 +16,38 @@ fn test_deferred_status_display() {
 
 #[test]
 fn test_deferred_status_from_str() {
-    assert_eq!(DeferredStatus::from_str("invalid").unwrap(), DeferredStatus::InvalidDeferredStatus);
-    assert_eq!(DeferredStatus::from_str("INVALID").unwrap(), DeferredStatus::InvalidDeferredStatus);
-    assert_eq!(DeferredStatus::from_str("done").unwrap(), DeferredStatus::Done);
-    assert_eq!(DeferredStatus::from_str("DONE").unwrap(), DeferredStatus::Done);
-    assert_eq!(DeferredStatus::from_str("expired").unwrap(), DeferredStatus::Expired);
-    assert_eq!(DeferredStatus::from_str("EXPIRED").unwrap(), DeferredStatus::Expired);
-    assert_eq!(DeferredStatus::from_str("pending").unwrap(), DeferredStatus::Pending);
-    assert_eq!(DeferredStatus::from_str("PENDING").unwrap(), DeferredStatus::Pending);
+    assert_eq!(
+        DeferredStatus::from_str("invalid").unwrap(),
+        DeferredStatus::InvalidDeferredStatus
+    );
+    assert_eq!(
+        DeferredStatus::from_str("INVALID").unwrap(),
+        DeferredStatus::InvalidDeferredStatus
+    );
+    assert_eq!(
+        DeferredStatus::from_str("done").unwrap(),
+        DeferredStatus::Done
+    );
+    assert_eq!(
+        DeferredStatus::from_str("DONE").unwrap(),
+        DeferredStatus::Done
+    );
+    assert_eq!(
+        DeferredStatus::from_str("expired").unwrap(),
+        DeferredStatus::Expired
+    );
+    assert_eq!(
+        DeferredStatus::from_str("EXPIRED").unwrap(),
+        DeferredStatus::Expired
+    );
+    assert_eq!(
+        DeferredStatus::from_str("pending").unwrap(),
+        DeferredStatus::Pending
+    );
+    assert_eq!(
+        DeferredStatus::from_str("PENDING").unwrap(),
+        DeferredStatus::Pending
+    );
     assert!(DeferredStatus::from_str("invalid_status").is_err());
 }
 
@@ -28,21 +55,54 @@ fn test_deferred_status_from_str() {
 fn test_ranking_metric_display() {
     assert_eq!(RankingMetric::Unknown.to_string(), "unknown");
     assert_eq!(RankingMetric::L2Distance.to_string(), "l2_distance");
-    assert_eq!(RankingMetric::CosineSimilarity.to_string(), "cosine_similarity");
+    assert_eq!(
+        RankingMetric::CosineSimilarity.to_string(),
+        "cosine_similarity"
+    );
 }
 
 #[test]
 fn test_ranking_metric_from_str() {
-    assert_eq!(RankingMetric::from_str("unknown").unwrap(), RankingMetric::Unknown);
-    assert_eq!(RankingMetric::from_str("UNKNOWN").unwrap(), RankingMetric::Unknown);
-    assert_eq!(RankingMetric::from_str("l2_distance").unwrap(), RankingMetric::L2Distance);
-    assert_eq!(RankingMetric::from_str("L2_DISTANCE").unwrap(), RankingMetric::L2Distance);
-    assert_eq!(RankingMetric::from_str("l2").unwrap(), RankingMetric::L2Distance);
-    assert_eq!(RankingMetric::from_str("L2").unwrap(), RankingMetric::L2Distance);
-    assert_eq!(RankingMetric::from_str("cosine_similarity").unwrap(), RankingMetric::CosineSimilarity);
-    assert_eq!(RankingMetric::from_str("COSINE_SIMILARITY").unwrap(), RankingMetric::CosineSimilarity);
-    assert_eq!(RankingMetric::from_str("cosine").unwrap(), RankingMetric::CosineSimilarity);
-    assert_eq!(RankingMetric::from_str("COSINE").unwrap(), RankingMetric::CosineSimilarity);
+    assert_eq!(
+        RankingMetric::from_str("unknown").unwrap(),
+        RankingMetric::Unknown
+    );
+    assert_eq!(
+        RankingMetric::from_str("UNKNOWN").unwrap(),
+        RankingMetric::Unknown
+    );
+    assert_eq!(
+        RankingMetric::from_str("l2_distance").unwrap(),
+        RankingMetric::L2Distance
+    );
+    assert_eq!(
+        RankingMetric::from_str("L2_DISTANCE").unwrap(),
+        RankingMetric::L2Distance
+    );
+    assert_eq!(
+        RankingMetric::from_str("l2").unwrap(),
+        RankingMetric::L2Distance
+    );
+    assert_eq!(
+        RankingMetric::from_str("L2").unwrap(),
+        RankingMetric::L2Distance
+    );
+    assert_eq!(
+        RankingMetric::from_str("cosine_similarity").unwrap(),
+        RankingMetric::CosineSimilarity
+    );
+    assert_eq!(
+        RankingMetric::from_str("COSINE_SIMILARITY").unwrap(),
+        RankingMetric::CosineSimilarity
+    );
+    assert_eq!(
+        RankingMetric::from_str("cosine").unwrap(),
+        RankingMetric::CosineSimilarity
+    );
+    assert_eq!(
+        RankingMetric::from_str("COSINE").unwrap(),
+        RankingMetric::CosineSimilarity
+    );
     assert!(RankingMetric::from_str("invalid").is_err());
 }
 
@@ -56,14 +116,38 @@ fn test_image_detail_display() {
 
 #[test]
 fn test_image_detail_from_str() {
-    assert_eq!(ImageDetail::from_str("invalid").unwrap(), ImageDetail::DetailInvalid);
-    assert_eq!(ImageDetail::from_str("INVALID").unwrap(), ImageDetail::DetailInvalid);
-    assert_eq!(ImageDetail::from_str("auto").unwrap(), ImageDetail::DetailAuto);
-    assert_eq!(ImageDetail::from_str("AUTO").unwrap(), ImageDetail::DetailAuto);
-    assert_eq!(ImageDetail::from_str("low").unwrap(), ImageDetail::DetailLow);
-    assert_eq!(ImageDetail::from_str("LOW").unwrap(), ImageDetail::DetailLow);
-    assert_eq!(ImageDetail::from_str("high").unwrap(), ImageDetail::DetailHigh);
-    assert_eq!(ImageDetail::from_str("HIGH").unwrap(), ImageDetail::DetailHigh);
+    assert_eq!(
+        ImageDetail::from_str("invalid").unwrap(),
+        ImageDetail::DetailInvalid
+    );
+    assert_eq!(
+        ImageDetail::from_str("INVALID").unwrap(),
+        ImageDetail::DetailInvalid
+    );
+    assert_eq!(
+        ImageDetail::from_str("auto").unwrap(),
+        ImageDetail::DetailAuto
+    );
+    assert_eq!(
+        ImageDetail::from_str("AUTO").unwrap(),
+        ImageDetail::DetailAuto
+    );
+    assert_eq!(
+        ImageDetail::from_str("low").unwrap(),
+        ImageDetail::DetailLow
+    );
+    assert_eq!(
+        ImageDetail::from_str("LOW").unwrap(),
+        ImageDetail::DetailLow
+    );
+    assert_eq!(
+        ImageDetail::from_str("high").unwrap(),
+        ImageDetail::DetailHigh
+    );
+    assert_eq!(
+        ImageDetail::from_str("HIGH").unwrap(),
+        ImageDetail::DetailHigh
+    );
     assert!(ImageDetail::from_str("invalid_detail").is_err());
 }
 
@@ -76,12 +160,30 @@ fn test_image_format_display() {
 
 #[test]
 fn test_image_format_from_str() {
-    assert_eq!(ImageFormat::from_str("invalid").unwrap(), ImageFormat::ImgFormatInvalid);
-    assert_eq!(ImageFormat::from_str("INVALID").unwrap(), ImageFormat::ImgFormatInvalid);
-    assert_eq!(ImageFormat::from_str("base64").unwrap(), ImageFormat::ImgFormatBase64);
-    assert_eq!(ImageFormat::from_str("BASE64").unwrap(), ImageFormat::ImgFormatBase64);
-    assert_eq!(ImageFormat::from_str("url").unwrap(), ImageFormat::ImgFormatUrl);
-    assert_eq!(ImageFormat::from_str("URL").unwrap(), ImageFormat::ImgFormatUrl);
+    assert_eq!(
+        ImageFormat::from_str("invalid").unwrap(),
+        ImageFormat::ImgFormatInvalid
+    );
+    assert_eq!(
+        ImageFormat::from_str("INVALID").unwrap(),
+        ImageFormat::ImgFormatInvalid
+    );
+    assert_eq!(
+        ImageFormat::from_str("base64").unwrap(),
+        ImageFormat::ImgFormatBase64
+    );
+    assert_eq!(
+        ImageFormat::from_str("BASE64").unwrap(),
+        ImageFormat::ImgFormatBase64
+    );
+    assert_eq!(
+        ImageFormat::from_str("url").unwrap(),
+        ImageFormat::ImgFormatUrl
+    );
+    assert_eq!(
+        ImageFormat::from_str("URL").unwrap(),
+        ImageFormat::ImgFormatUrl
+    );
     assert!(ImageFormat::from_str("invalid_format").is_err());
 }
 
@@ -97,18 +199,54 @@ fn test_finish_reason_display() {
 
 #[test]
 fn test_finish_reason_from_str() {
-    assert_eq!(FinishReason::from_str("invalid").unwrap(), FinishReason::ReasonInvalid);
-    assert_eq!(FinishReason::from_str("INVALID").unwrap(), FinishReason::ReasonInvalid);
-    assert_eq!(FinishReason::from_str("max_len").unwrap(), FinishReason::ReasonMaxLen);
-    assert_eq!(FinishReason::from_str("MAX_LEN").unwrap(), FinishReason::ReasonMaxLen);
-    assert_eq!(FinishReason::from_str("max_context").unwrap(), FinishReason::ReasonMaxContext);
-    assert_eq!(FinishReason::from_str("MAX_CONTEXT").unwrap(), FinishReason::ReasonMaxContext);
-    assert_eq!(FinishReason::from_str("stop").unwrap(), FinishReason::ReasonStop);
-    assert_eq!(FinishReason::from_str("STOP").unwrap(), FinishReason::ReasonStop);
-    assert_eq!(FinishReason::from_str("tool_calls").unwrap(), FinishReason::ReasonToolCalls);
-    assert_eq!(FinishReason::from_str("TOOL_CALLS").unwrap(), FinishReason::ReasonToolCalls);
-    assert_eq!(FinishReason::from_str("time_limit").unwrap(), FinishReason::ReasonTimeLimit);
-    assert_eq!(FinishReason::from_str("TIME_LIMIT").unwrap(), FinishReason::ReasonTimeLimit);
+    assert_eq!(
+        FinishReason::from_str("invalid").unwrap(),
+        FinishReason::ReasonInvalid
+    );
+    assert_eq!(
+        FinishReason::from_str("INVALID").unwrap(),
+        FinishReason::ReasonInvalid
+    );
+    assert_eq!(
+        FinishReason::from_str("max_len").unwrap(),
+        FinishReason::ReasonMaxLen
+    );
+    assert_eq!(
+        FinishReason::from_str("MAX_LEN").unwrap(),
+        FinishReason::ReasonMaxLen
+    );
+    assert_eq!(
+        FinishReason::from_str("max_context").unwrap(),
+        FinishReason::ReasonMaxContext
+    );
+    assert_eq!(
+        FinishReason::from_str("MAX_CONTEXT").unwrap(),
+        FinishReason::ReasonMaxContext
+    );
+    assert_eq!(
+        FinishReason::from_str("stop").unwrap(),
+        FinishReason::ReasonStop
+    );
+    assert_eq!(
+        FinishReason::from_str("STOP").unwrap(),
+        FinishReason::ReasonStop
+    );
+    assert_eq!(
+        FinishReason::from_str("tool_calls").unwrap(),
+        FinishReason::ReasonToolCalls
+    );
+    assert_eq!(
+        FinishReason::from_str("TOOL_CALLS").unwrap(),
+        FinishReason::ReasonToolCalls
+    );
+    assert_eq!(
+        FinishReason::from_str("time_limit").unwrap(),
+        FinishReason::ReasonTimeLimit
+    );
+    assert_eq!(
+        FinishReason::from_str("TIME_LIMIT").unwrap(),
+        FinishReason::ReasonTimeLimit
+    );
     assert!(FinishReason::from_str("invalid_reason").is_err());
 }
 
@@ -125,20 +263,62 @@ fn test_message_role_display() {
 
 #[test]
 fn test_message_role_from_str() {
-    assert_eq!(MessageRole::from_str("invalid").unwrap(), MessageRole::InvalidRole);
-    assert_eq!(MessageRole::from_str("INVALID").unwrap(), MessageRole::InvalidRole);
-    assert_eq!(MessageRole::from_str("user").unwrap(), MessageRole::RoleUser);
-    assert_eq!(MessageRole::from_str("USER").unwrap(), MessageRole::RoleUser);
-    assert_eq!(MessageRole::from_str("assistant").unwrap(), MessageRole::RoleAssistant);
-    assert_eq!(MessageRole::from_str("ASSISTANT").unwrap(), MessageRole::RoleAssistant);
-    assert_eq!(MessageRole::from_str("system").unwrap(), MessageRole::RoleSystem);
-    assert_eq!(MessageRole::from_str("SYSTEM").unwrap(), MessageRole::RoleSystem);
-    assert_eq!(MessageRole::from_str("function").unwrap(), MessageRole::RoleFunction);
-    assert_eq!(MessageRole::from_str("FUNCTION").unwrap(), MessageRole::RoleFunction);
-    assert_eq!(MessageRole::from_str("tool").unwrap(), MessageRole::RoleTool);
-    assert_eq!(MessageRole::from_str("TOOL").unwrap(), MessageRole::RoleTool);
-    assert_eq!(MessageRole::from_str("developer").unwrap(), MessageRole::RoleDeveloper);
-    assert_eq!(MessageRole::from_str("DEVELOPER").unwrap(), MessageRole::RoleDeveloper);
+    assert_eq!(
+        MessageRole::from_str("invalid").unwrap(),
+        MessageRole::InvalidRole
+    );
+    assert_eq!(
+        MessageRole::from_str("INVALID").unwrap(),
+        MessageRole::InvalidRole
+    );
+    assert_eq!(
+        MessageRole::from_str("user").unwrap(),
+        MessageRole::RoleUser
+    );
+    assert_eq!(
+        MessageRole::from_str("USER").unwrap(),
+        MessageRole::RoleUser
+    );
+    assert_eq!(
+        MessageRole::from_str("assistant").unwrap(),
+        MessageRole::RoleAssistant
+    );
+    assert_eq!(
+        MessageRole::from_str("ASSISTANT").unwrap(),
+        MessageRole::RoleAssistant
+    );
+    assert_eq!(
+        MessageRole::from_str("system").unwrap(),
+        MessageRole::RoleSystem
+    );
+    assert_eq!(
+        MessageRole::from_str("SYSTEM").unwrap(),
+        MessageRole::RoleSystem
+    );
+    assert_eq!(
+        MessageRole::from_str("function").unwrap(),
+        MessageRole::RoleFunction
+    );
+    assert_eq!(
+        MessageRole::from_str("FUNCTION").unwrap(),
+        MessageRole::RoleFunction
+    );
+    assert_eq!(
+        MessageRole::from_str("tool").unwrap(),
+        MessageRole::RoleTool
+    );
+    assert_eq!(
+        MessageRole::from_str("TOOL").unwrap(),
+        MessageRole::RoleTool
+    );
+    assert_eq!(
+        MessageRole::from_str("developer").unwrap(),
+        MessageRole::RoleDeveloper
+    );
+    assert_eq!(
+        MessageRole::from_str("DEVELOPER").unwrap(),
+        MessageRole::RoleDeveloper
+    );
     // Note: from_str_name might parse some variants, so use a definitely invalid string
     assert!(MessageRole::from_str("definitely_not_a_role_xyz123").is_err());
 }
@@ -153,14 +333,38 @@ fn test_reasoning_effort_display() {
 
 #[test]
 fn test_reasoning_effort_from_str() {
-    assert_eq!(ReasoningEffort::from_str("invalid").unwrap(), ReasoningEffort::InvalidEffort);
-    assert_eq!(ReasoningEffort::from_str("INVALID").unwrap(), ReasoningEffort::InvalidEffort);
-    assert_eq!(ReasoningEffort::from_str("low").unwrap(), ReasoningEffort::EffortLow);
-    assert_eq!(ReasoningEffort::from_str("LOW").unwrap(), ReasoningEffort::EffortLow);
-    assert_eq!(ReasoningEffort::from_str("medium").unwrap(), ReasoningEffort::EffortMedium);
-    assert_eq!(ReasoningEffort::from_str("MEDIUM").unwrap(), ReasoningEffort::EffortMedium);
-    assert_eq!(ReasoningEffort::from_str("high").unwrap(), ReasoningEffort::EffortHigh);
-    assert_eq!(ReasoningEffort::from_str("HIGH").unwrap(), ReasoningEffort::EffortHigh);
+    assert_eq!(
+        ReasoningEffort::from_str("invalid").unwrap(),
+        ReasoningEffort::InvalidEffort
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("INVALID").unwrap(),
+        ReasoningEffort::InvalidEffort
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("low").unwrap(),
+        ReasoningEffort::EffortLow
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("LOW").unwrap(),
+        ReasoningEffort::EffortLow
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("medium").unwrap(),
+        ReasoningEffort::EffortMedium
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("MEDIUM").unwrap(),
+        ReasoningEffort::EffortMedium
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("high").unwrap(),
+        ReasoningEffort::EffortHigh
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("HIGH").unwrap(),
+        ReasoningEffort::EffortHigh
+    );
     // Note: from_str_name might parse some variants, so use a definitely invalid string
     assert!(ReasoningEffort::from_str("definitely_not_an_effort_xyz123").is_err());
 }
@@ -196,18 +400,48 @@ fn test_format_type_display() {
 
 #[test]
 fn test_format_type_from_str() {
-    assert_eq!(FormatType::from_str("invalid").unwrap(), FormatType::Invalid);
-    assert_eq!(FormatType::from_str("INVALID").unwrap(), FormatType::Invalid);
+    assert_eq!(
+        FormatType::from_str("invalid").unwrap(),
+        FormatType::Invalid
+    );
+    assert_eq!(
+        FormatType::from_str("INVALID").unwrap(),
+        FormatType::Invalid
+    );
     assert_eq!(FormatType::from_str("text").unwrap(), FormatType::Text);
     assert_eq!(FormatType::from_str("TEXT").unwrap(), FormatType::Text);
-    assert_eq!(FormatType::from_str("json_object").unwrap(), FormatType::JsonObject);
-    assert_eq!(FormatType::from_str("JSON_OBJECT").unwrap(), FormatType::JsonObject);
-    assert_eq!(FormatType::from_str("json").unwrap(), FormatType::JsonObject);
-    assert_eq!(FormatType::from_str("JSON").unwrap(), FormatType::JsonObject);
-    assert_eq!(FormatType::from_str("json_schema").unwrap(), FormatType::JsonSchema);
-    assert_eq!(FormatType::from_str("JSON_SCHEMA").unwrap(), FormatType::JsonSchema);
-    assert_eq!(FormatType::from_str("schema").unwrap(), FormatType::JsonSchema);
-    assert_eq!(FormatType::from_str("SCHEMA").unwrap(), FormatType::JsonSchema);
+    assert_eq!(
+        FormatType::from_str("json_object").unwrap(),
+        FormatType::JsonObject
+    );
+    assert_eq!(
+        FormatType::from_str("JSON_OBJECT").unwrap(),
+        FormatType::JsonObject
+    );
+    assert_eq!(
+        FormatType::from_str("json").unwrap(),
+        FormatType::JsonObject
+    );
+    assert_eq!(
+        FormatType::from_str("JSON").unwrap(),
+        FormatType::JsonObject
+    );
+    assert_eq!(
+        FormatType::from_str("json_schema").unwrap(),
+        FormatType::JsonSchema
+    );
+    assert_eq!(
+        FormatType::from_str("JSON_SCHEMA").unwrap(),
+        FormatType::JsonSchema
+    );
+    assert_eq!(
+        FormatType::from_str("schema").unwrap(),
+        FormatType::JsonSchema
+    );
+    assert_eq!(
+        FormatType::from_str("SCHEMA").unwrap(),
+        FormatType::JsonSchema
+    );
     assert!(FormatType::from_str("invalid_format").is_err());
 }
 
@@ -221,14 +455,38 @@ fn test_search_mode_display() {
 
 #[test]
 fn test_search_mode_from_str() {
-    assert_eq!(SearchMode::from_str("invalid").unwrap(), SearchMode::InvalidSearchMode);
-    assert_eq!(SearchMode::from_str("INVALID").unwrap(), SearchMode::InvalidSearchMode);
-    assert_eq!(SearchMode::from_str("off").unwrap(), SearchMode::OffSearchMode);
-    assert_eq!(SearchMode::from_str("OFF").unwrap(), SearchMode::OffSearchMode);
-    assert_eq!(SearchMode::from_str("on").unwrap(), SearchMode::OnSearchMode);
-    assert_eq!(SearchMode::from_str("ON").unwrap(), SearchMode::OnSearchMode);
-    assert_eq!(SearchMode::from_str("auto").unwrap(), SearchMode::AutoSearchMode);
-    assert_eq!(SearchMode::from_str("AUTO").unwrap(), SearchMode::AutoSearchMode);
+    assert_eq!(
+        SearchMode::from_str("invalid").unwrap(),
+        SearchMode::InvalidSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("INVALID").unwrap(),
+        SearchMode::InvalidSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("off").unwrap(),
+        SearchMode::OffSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("OFF").unwrap(),
+        SearchMode::OffSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("on").unwrap(),
+        SearchMode::OnSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("ON").unwrap(),
+        SearchMode::OnSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("auto").unwrap(),
+        SearchMode::AutoSearchMode
+    );
+    assert_eq!(
+        SearchMode::from_str("AUTO").unwrap(),
+        SearchMode::AutoSearchMode
+    );
     assert!(SearchMode::from_str("invalid_mode").is_err());
 }
 
@@ -241,12 +499,30 @@ fn test_embed_encoding_format_display() {
 
 #[test]
 fn test_embed_encoding_format_from_str() {
-    assert_eq!(EmbedEncodingFormat::from_str("invalid").unwrap(), EmbedEncodingFormat::FormatInvalid);
-    assert_eq!(EmbedEncodingFormat::from_str("INVALID").unwrap(), EmbedEncodingFormat::FormatInvalid);
-    assert_eq!(EmbedEncodingFormat::from_str("float").unwrap(), EmbedEncodingFormat::FormatFloat);
-    assert_eq!(EmbedEncodingFormat::from_str("FLOAT").unwrap(), EmbedEncodingFormat::FormatFloat);
-    assert_eq!(EmbedEncodingFormat::from_str("base64").unwrap(), EmbedEncodingFormat::FormatBase64);
-    assert_eq!(EmbedEncodingFormat::from_str("BASE64").unwrap(), EmbedEncodingFormat::FormatBase64);
+    assert_eq!(
+        EmbedEncodingFormat::from_str("invalid").unwrap(),
+        EmbedEncodingFormat::FormatInvalid
+    );
+    assert_eq!(
+        EmbedEncodingFormat::from_str("INVALID").unwrap(),
+        EmbedEncodingFormat::FormatInvalid
+    );
+    assert_eq!(
+        EmbedEncodingFormat::from_str("float").unwrap(),
+        EmbedEncodingFormat::FormatFloat
+    );
+    assert_eq!(
+        EmbedEncodingFormat::from_str("FLOAT").unwrap(),
+        EmbedEncodingFormat::FormatFloat
+    );
+    assert_eq!(
+        EmbedEncodingFormat::from_str("base64").unwrap(),
+        EmbedEncodingFormat::FormatBase64
+    );
+    assert_eq!(
+        EmbedEncodingFormat::from_str("BASE64").unwrap(),
+        EmbedEncodingFormat::FormatBase64
+    );
     assert!(EmbedEncodingFormat::from_str("invalid_format").is_err());
 }
 
@@ -260,14 +536,26 @@ fn test_modality_display() {
 
 #[test]
 fn test_modality_from_str() {
-    assert_eq!(Modality::from_str("invalid").unwrap(), Modality::InvalidModality);
-    assert_eq!(Modality::from_str("INVALID").unwrap(), Modality::InvalidModality);
+    assert_eq!(
+        Modality::from_str("invalid").unwrap(),
+        Modality::InvalidModality
+    );
+    assert_eq!(
+        Modality::from_str("INVALID").unwrap(),
+        Modality::InvalidModality
+    );
     assert_eq!(Modality::from_str("text").unwrap(), Modality::Text);
     assert_eq!(Modality::from_str("TEXT").unwrap(), Modality::Text);
     assert_eq!(Modality::from_str("image").unwrap(), Modality::Image);
     assert_eq!(Modality::from_str("IMAGE").unwrap(), Modality::Image);
-    assert_eq!(Modality::from_str("embedding").unwrap(), Modality::Embedding);
-    assert_eq!(Modality::from_str("EMBEDDING").unwrap(), Modality::Embedding);
+    assert_eq!(
+        Modality::from_str("embedding").unwrap(),
+        Modality::Embedding
+    );
+    assert_eq!(
+        Modality::from_str("EMBEDDING").unwrap(),
+        Modality::Embedding
+    );
     // Note: from_str_name might parse some variants, so use a definitely invalid string
     assert!(Modality::from_str("definitely_not_a_modality_xyz123").is_err());
 }

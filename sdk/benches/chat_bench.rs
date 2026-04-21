@@ -1,17 +1,17 @@
 //! Benchmarks for `chat::stream`: `assemble`, `process` (minimal and with callbacks),
 //! and `Consumer::with_sink` (event-based path).
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+use futures::StreamExt;
 use futures::channel::mpsc;
 use futures::stream::{self, Stream};
-use futures::StreamExt;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
+use xai_sdk::Status;
 use xai_sdk::api::{
     CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
 };
-use xai_sdk::chat::stream::{assemble, process, Consumer, Event};
-use xai_sdk::Status;
+use xai_sdk::chat::stream::{Consumer, Event, assemble, process};
 
 fn make_content_chunk(index: i32, token: &str) -> GetChatCompletionChunk {
     GetChatCompletionChunk {

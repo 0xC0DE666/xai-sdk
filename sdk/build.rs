@@ -11,11 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build_server(false)
             .emit_rerun_if_changed(true)
             .out_dir(&"src/")
-            .type_attribute(".", "#[derive(serde::Serialize,serde::Deserialize)]")
-            .extern_path(".google.protobuf.Any", "::prost_wkt_types::Any")
-            .extern_path(".google.protobuf.Timestamp", "::prost_wkt_types::Timestamp")
-            .extern_path(".google.protobuf.Value", "::prost_wkt_types::Value")
-        // .compile_well_known_types(true)
+            .compile_well_known_types(false)
     };
 
     let proto_dir = "xai/proto";
