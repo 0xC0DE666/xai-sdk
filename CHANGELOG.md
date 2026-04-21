@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-21
+
+### Added
+- **Batch API**: Full support for the Batch Management API (`BatchMgmt` service)
+  - `create_batch`, `get_batch`, `list_batches`, `cancel_batch`
+  - `add_batch_requests`, `list_batch_request_metadata`, `list_batch_results`, `get_batch_request_result`
+  - Comprehensive types: `Batch`, `BatchState`, `BatchRequest`, `BatchResult`, `BatchCostBreakdown`, etc.
+- **Google RPC Status**: Added `google.rpc.Status` support for better error handling
+
+### Changed
+- **Consumer API**: Major refactoring of `Consumer::with_stdout()` and `Consumer::with_buffered_stdout()` to use builder pattern
+  - Now uses `Consumer::new_static()` + chained `.on_*()` methods instead of manual struct construction
+  - Updated return types to `Consumer<'static>` for consistency
+  - Improved code maintainability and API ergonomics
+- **Async Stream Processing**: Switched to `futures::lock::Mutex` with proper `.await` instead of `.lock().unwrap()`
+- **Protobuf Generation**: Switched well-known types from local generation to external `prost-types` crate
+  - Updated `build.rs` to use `compile_well_known_types(false)`
+  - Cleaner dependency management and reduced generated code
+- **Dependencies**: Updated `futures` with `std` feature, various crate updates
+
+### Infrastructure
+- Switched proto submodule to custom fork to include Google RPC definitions
+- Updated module structure in `lib.rs` to include `google::rpc`
+
 ## [0.8.8] - 2026-03-04
 
 ### Fixed
