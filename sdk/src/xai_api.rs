@@ -3035,6 +3035,614 @@ pub mod chat_client {
         }
     }
 }
+/// Holds basic information about a batch process.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Batch {
+    /// The ID of the batch. Can be used to retrieve batch results and metadata, etc.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+    /// The name of the batch.
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    /// The time when the batch was created.
+    #[prost(message, optional, tag = "3")]
+    pub create_time: ::core::option::Option<::prost_types::Timestamp>,
+    /// The time when the batch expires.
+    #[prost(message, optional, tag = "4")]
+    pub expire_time: ::core::option::Option<::prost_types::Timestamp>,
+    /// ID of the API key that was used to create the batch.
+    #[prost(string, tag = "5")]
+    pub create_api_key_id: ::prost::alloc::string::String,
+    /// Time when the batch was cancelled.
+    #[prost(message, optional, tag = "6")]
+    pub cancel_time: ::core::option::Option<::prost_types::Timestamp>,
+    /// If the batch was cancelled by xAI, an error message explaining why.
+    #[prost(string, optional, tag = "7")]
+    pub cancel_by_xai_message: ::core::option::Option<::prost::alloc::string::String>,
+    /// The state information of the batch. Not always populated.
+    #[prost(message, optional, tag = "8")]
+    pub state: ::core::option::Option<BatchState>,
+    /// Cost breakdown for processed requests.
+    #[prost(message, optional, tag = "9")]
+    pub cost_breakdown: ::core::option::Option<BatchCostBreakdown>,
+}
+/// Holds aggregate information about the current state of a batch process.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct BatchState {
+    /// Total number of requests in the batch.
+    #[prost(int64, tag = "1")]
+    pub num_requests: i64,
+    /// Total number of pending requests.
+    #[prost(int64, tag = "2")]
+    pub num_pending: i64,
+    /// Total number of requests that have finished successfully.
+    #[prost(int64, tag = "3")]
+    pub num_success: i64,
+    /// Total number of requests that finished with an error.
+    #[prost(int64, tag = "4")]
+    pub num_error: i64,
+    /// Total number of requests that have been cancelled.
+    #[prost(int64, tag = "5")]
+    pub num_cancelled: i64,
+}
+/// Holds cost information for processed batch requests.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchCostBreakdown {
+    /// Total cost across all processed requests of all endpoints in USD ticks ($0.0000000001 / $1e-10).
+    #[prost(int64, tag = "1")]
+    pub total_cost_usd_ticks: i64,
+    /// Cost breakdown by endpoint.
+    #[prost(message, repeated, tag = "2")]
+    pub endpoint_costs: ::prost::alloc::vec::Vec<EndpointCost>,
+    /// Timestamp when the cost was calculated.
+    #[prost(message, optional, tag = "3")]
+    pub calculation_time: ::core::option::Option<::prost_types::Timestamp>,
+}
+/// Cost breakdown for a specific endpoint.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct EndpointCost {
+    /// Endpoint for cost aggregation.
+    #[prost(string, tag = "1")]
+    pub endpoint: ::prost::alloc::string::String,
+    /// Cost for this endpoint in USD ticks ($0.0000000001 / $1e-10).
+    #[prost(int64, tag = "2")]
+    pub cost_usd_ticks: i64,
+    /// Number of requests processed for this endpoint.
+    #[prost(int64, tag = "3")]
+    pub request_count: i64,
+}
+/// A request that can be added to a batch for processing.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchRequest {
+    /// An optional user-provided identifier for the input request. If provided, it must be unique within the batch.
+    /// Used to identify the corresponding result when the response is returned to the user.
+    /// This is because the order of the returned results is not guaranteed to be the same as the order of the requests.
+    #[prost(string, optional, tag = "1")]
+    pub batch_request_id: ::core::option::Option<::prost::alloc::string::String>,
+    /// The request to add for processing in the batch.
+    #[prost(oneof = "batch_request::Request", tags = "2")]
+    pub request: ::core::option::Option<batch_request::Request>,
+}
+/// Nested message and enum types in `BatchRequest`.
+pub mod batch_request {
+    /// The request to add for processing in the batch.
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Request {
+        /// A completion request to send for processing in the batch.
+        #[prost(message, tag = "2")]
+        CompletionRequest(super::GetCompletionsRequest),
+    }
+}
+/// A container for the completion response that is returned in a `BatchResult`.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchResultData {
+    /// The response from the batch request.
+    #[prost(oneof = "batch_result_data::Response", tags = "2")]
+    pub response: ::core::option::Option<batch_result_data::Response>,
+}
+/// Nested message and enum types in `BatchResultData`.
+pub mod batch_result_data {
+    /// The response from the batch request.
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Response {
+        /// A completion response that has finished processing in the batch.
+        #[prost(message, tag = "2")]
+        CompletionResponse(super::GetChatCompletionResponse),
+    }
+}
+/// The result corresponding to a `BatchRequest`. Returns the result if processing is successful, or error if processing
+/// has failed.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchResult {
+    /// User-provided or generated identifier for the batch request. If a user has provided `batch_request_id` in the
+    /// `BatchRequest`, the value will match the user-provided value.
+    /// The value is unique within the batch.
+    #[prost(string, tag = "1")]
+    pub batch_request_id: ::prost::alloc::string::String,
+    /// The result data, or error status if processing has failed.
+    #[prost(oneof = "batch_result::Result", tags = "4, 3")]
+    pub result: ::core::option::Option<batch_result::Result>,
+}
+/// Nested message and enum types in `BatchResult`.
+pub mod batch_result {
+    /// The result data, or error status if processing has failed.
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Result {
+        #[prost(message, tag = "4")]
+        Response(super::BatchResultData),
+        #[prost(message, tag = "3")]
+        Error(super::super::google::rpc::Status),
+    }
+}
+/// Metadata about an individual batch request.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct BatchRequestMetadata {
+    /// User-provided or generated identifier for the batch request. The value is unique within the batch.
+    #[prost(string, tag = "1")]
+    pub batch_request_id: ::prost::alloc::string::String,
+    /// API endpoint to query.
+    #[prost(string, tag = "2")]
+    pub endpoint: ::prost::alloc::string::String,
+    /// Model name to query.
+    #[prost(string, tag = "3")]
+    pub model: ::prost::alloc::string::String,
+    #[prost(enumeration = "batch_request_metadata::State", tag = "4")]
+    pub state: i32,
+    /// Time when the request was recorded.
+    #[prost(message, optional, tag = "5")]
+    pub create_time: ::core::option::Option<::prost_types::Timestamp>,
+    /// Time when the response was recorded.
+    #[prost(message, optional, tag = "6")]
+    pub finish_time: ::core::option::Option<::prost_types::Timestamp>,
+}
+/// Nested message and enum types in `BatchRequestMetadata`.
+pub mod batch_request_metadata {
+    /// The processing state of this batch request.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum State {
+        Unknown = 0,
+        Pending = 1,
+        Succeeded = 2,
+        Cancelled = 3,
+        Failed = 4,
+    }
+    impl State {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unknown => "STATE_UNKNOWN",
+                Self::Pending => "STATE_PENDING",
+                Self::Succeeded => "STATE_SUCCEEDED",
+                Self::Cancelled => "STATE_CANCELLED",
+                Self::Failed => "STATE_FAILED",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "STATE_UNKNOWN" => Some(Self::Unknown),
+                "STATE_PENDING" => Some(Self::Pending),
+                "STATE_SUCCEEDED" => Some(Self::Succeeded),
+                "STATE_CANCELLED" => Some(Self::Cancelled),
+                "STATE_FAILED" => Some(Self::Failed),
+                _ => None,
+            }
+        }
+    }
+}
+/// Request to create a new batch.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CreateBatchRequest {
+    /// The name of the batch to be created.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
+/// Request to add `BatchRequest`s to an existing batch for processing.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AddBatchRequestsRequest {
+    /// The ID of the batch to add the requests to.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+    /// The requests to add to the batch.
+    #[prost(message, repeated, tag = "2")]
+    pub batch_requests: ::prost::alloc::vec::Vec<BatchRequest>,
+}
+/// Request to get the information of a batch.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetBatchRequest {
+    /// The ID of the batch.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+}
+/// Request to list all batches in the team.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListBatchesRequest {
+    /// Number of batches to return on a page. Defaults to 100.
+    #[prost(int32, tag = "1")]
+    pub limit: i32,
+    /// Optional pagination token to retrieve a specific page. Provided by `pagination_token` in `ListBatchesResponse`.
+    #[prost(string, optional, tag = "2")]
+    pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Response containing all the batches on a page.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListBatchesResponse {
+    /// The information about the batches.
+    #[prost(message, repeated, tag = "1")]
+    pub batches: ::prost::alloc::vec::Vec<Batch>,
+    /// The pagination token to retrieve batches from the next page. Will be empty if this is the last page.
+    #[prost(string, optional, tag = "2")]
+    pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Request to cancel processing of all the batch requests in a batch.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CancelBatchRequest {
+    /// The ID of the batch that we are cancelling the requests.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+}
+/// Request for the request metadata within a batch.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListBatchRequestMetadataRequest {
+    /// ID of the batch whose batch requests' metadata shall be listed.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+    /// Number of batch request metadata to return on a page. Defaults to 100.
+    #[prost(int32, tag = "2")]
+    pub limit: i32,
+    /// Optional pagination token to retrieve a specific page. Provided by `pagination_token` in `ListBatchRequestMetadataResponse`.
+    #[prost(string, optional, tag = "3")]
+    pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Response with the metadata of batch requests within a batch.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListBatchRequestMetadataResponse {
+    /// The batch requests' metadata for the given batch.
+    #[prost(message, repeated, tag = "1")]
+    pub batch_request_metadata: ::prost::alloc::vec::Vec<BatchRequestMetadata>,
+    /// The pagination token to retrieve results from the next page. Will be empty if this is the last page.
+    #[prost(string, optional, tag = "2")]
+    pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Request to list a batch's processing results.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListBatchResultsRequest {
+    /// The ID of the batch we are retrieving the results from.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+    /// Number of batch request results to return on a page. Defaults to 100.
+    #[prost(int32, tag = "2")]
+    pub limit: i32,
+    /// Optional pagination token to retrieve a specific page. Provided by `pagination_token` in `ListBatchResultsResponse`.
+    #[prost(string, optional, tag = "3")]
+    pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+}
+/// Response with the batch's processing results.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListBatchResultsResponse {
+    /// The results that has been processed.
+    #[prost(message, repeated, tag = "1")]
+    pub results: ::prost::alloc::vec::Vec<BatchResult>,
+    /// The pagination token to retrieve results from the next page. Will be empty if this is the last page.
+    #[prost(string, optional, tag = "2")]
+    pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetBatchRequestResultRequest {
+    /// The ID of the batch we are retrieving the request from.
+    #[prost(string, tag = "1")]
+    pub batch_id: ::prost::alloc::string::String,
+    /// The ID of the request we are retrieving.
+    #[prost(string, tag = "2")]
+    pub batch_request_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetBatchRequestResultResponse {
+    /// The request that was processed.
+    #[prost(message, optional, tag = "1")]
+    pub request: ::core::option::Option<BatchRequest>,
+    /// The response that was returned.
+    #[prost(message, optional, tag = "2")]
+    pub result: ::core::option::Option<BatchResult>,
+}
+/// Generated client implementations.
+pub mod batch_mgmt_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    /// An API service for processing batch requests asynchronously at lower priority than chat service.
+    #[derive(Debug, Clone)]
+    pub struct BatchMgmtClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl BatchMgmtClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> BatchMgmtClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::Body>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> BatchMgmtClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            BatchMgmtClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        /// Creates a new batch.
+        pub async fn create_batch(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateBatchRequest>,
+        ) -> std::result::Result<tonic::Response<super::Batch>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/CreateBatch",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "CreateBatch"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Retrieves an individual batch.
+        pub async fn get_batch(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetBatchRequest>,
+        ) -> std::result::Result<tonic::Response<super::Batch>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/GetBatch",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "GetBatch"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Retrieves a list of all batches owned by the team.
+        pub async fn list_batches(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListBatchesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListBatchesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/ListBatches",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "ListBatches"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Stops processing of all outstanding requests in the batch.
+        pub async fn cancel_batch(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CancelBatchRequest>,
+        ) -> std::result::Result<tonic::Response<super::Batch>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/CancelBatch",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "CancelBatch"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Adds requests to a batch.
+        pub async fn add_batch_requests(
+            &mut self,
+            request: impl tonic::IntoRequest<super::AddBatchRequestsRequest>,
+        ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/AddBatchRequests",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "AddBatchRequests"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Lists metadata about individual requests in a batch.
+        pub async fn list_batch_request_metadata(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListBatchRequestMetadataRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListBatchRequestMetadataResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/ListBatchRequestMetadata",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("xai_api.BatchMgmt", "ListBatchRequestMetadata"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Lists processing results of a batch.
+        pub async fn list_batch_results(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListBatchResultsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListBatchResultsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/ListBatchResults",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "ListBatchResults"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Retrieves an individual request in a batch.
+        pub async fn get_batch_request_result(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetBatchRequestResultRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetBatchRequestResultResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.BatchMgmt/GetBatchRequestResult",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.BatchMgmt", "GetBatchRequestResult"));
+            self.inner.unary(req, path, codec).await
+        }
+    }
+}
 /// Request message for generating embeddings.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EmbedRequest {

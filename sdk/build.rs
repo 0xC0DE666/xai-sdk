@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     configure().compile_protos(
         &[
             "xai/proto/xai/api/v1/auth.proto",
-            // "xai/proto/xai/api/v1/batch.proto",
+            "xai/proto/xai/api/v1/batch.proto",
             "xai/proto/xai/api/v1/chat.proto",
             "xai/proto/xai/api/v1/deferred.proto",
             "xai/proto/xai/api/v1/documents.proto",
