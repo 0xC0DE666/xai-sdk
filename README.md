@@ -8,11 +8,12 @@ A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services 
 
 ## Features
 
-- **Complete API Coverage**: Full gRPC client implementation for all xAI services
+- **Complete API Coverage**: Full gRPC client implementation for all xAI services including chat completions, embeddings, image generation, video generation, batch processing, and billing management
 - **Type Safety**: Auto-generated Rust types from Protocol Buffers
 - **Multiple Models**: Support for all xAI language models (Grok-3, Grok-4, etc.)
 - **Streaming Support**: Real-time streaming for chat completions and text generation
 - **Response Assembly**: Convert streaming chunks into complete responses
+- **Batch Processing**: Asynchronous batch processing for large-scale requests
 - **Secure**: TLS encryption with automatic certificate validation
 
 ## Quick Start
@@ -124,6 +125,16 @@ The SDK provides clients for all xAI services:
 - **`get_spending_limits`** - Get spending limits
 - **`set_soft_spending_limit`** - Set soft spending limit
 
+### Batch Service
+- **`create_batch`** - Create a new batch for asynchronous processing
+- **`get_batch`** - Retrieve information about a specific batch
+- **`list_batches`** - List all batches owned by the team
+- **`cancel_batch`** - Cancel processing of all requests in a batch
+- **`add_batch_requests`** - Add completion requests to an existing batch
+- **`list_batch_request_metadata`** - List metadata for individual requests in a batch
+- **`list_batch_results`** - List processing results for a batch
+- **`get_batch_request_result`** - Retrieve the result of a specific batch request
+
 ## Client Modules
 
 The SDK is organized into focused modules, each providing easy client creation:
@@ -139,6 +150,7 @@ The SDK is organized into focused modules, each providing easy client creation:
 - **`sample`** - Text sampling and generation
 - **`tokenize`** - Text tokenization
 - **`video`** - Video generation with deferred processing
+- **`batch`** - Batch processing and management
 
 ### Complete Example
 Here's a complete example showing multiple services using the modular architecture:
