@@ -722,41 +722,34 @@ pub mod stream {
         /// [`Consumer::with_buffered_stdout()`] instead.
         ///
         /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
-        pub fn with_stdout() -> Self {
-            Self {
-                on_chunk: None,
-                on_reasoning_start: None,
-                on_reasoning_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
+        pub fn with_stdout() -> Consumer<'static> {
+            let mut consumer = Consumer::new_static();
+            consumer
+                .on_reasoning_token(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
                         print!("{token}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     })
-                })),
-                on_reasoning_complete: Some(Box::new(move |_ctx: &OutputContext| {
+                })
+                .on_reasoning_complete(move |_ctx: &OutputContext| {
                     Box::pin(async move {
                         println!("\n");
                     })
-                })),
-                on_content_start: None,
-                on_content_token: Some(Box::new(move |_ctx: &OutputContext, token: &str| {
+                })
+                .on_content_token(move |_ctx: &OutputContext, token: &str| {
                     let token = token.to_string();
                     Box::pin(async move {
                         print!("{token}");
                         std::io::stdout().flush().expect("Error flushing stdout");
                     })
-                })),
-                on_content_complete: Some(Box::new(move |_ctx: &OutputContext| {
+                })
+                .on_content_complete(move |_ctx: &OutputContext| {
                     Box::pin(async move {
                         println!("\n");
                     })
-                })),
-                on_inline_citations: None,
-                on_client_tool_calls: None,
-                on_server_tool_calls: None,
-                on_usage: None,
-                on_citations: None,
-            }
+                });
+            consumer
         }
 
         /// Creates a `Consumer` that buffers and prints multi-output streams cleanly.
@@ -765,7 +758,7 @@ pub mod stream {
         /// labeled blocks. Prevents output interleaving in multi-output streams.
         ///
         /// Returns `'static` lifetime consumer that can be extended with additional callbacks.
-        pub fn with_buffered_stdout() -> Self {
+        pub fn with_buffered_stdout() -> Consumer<'static> {
             #[derive(Default)]
             struct ChoiceBuffer {
                 content: String,
@@ -784,8 +777,9 @@ pub mod stream {
             let buffers_reason_clone = buffers_reason.clone();
             let buffers_content_clone = buffers_content.clone();
 
-            Self {
-                on_chunk: Some(Box::new(move |chunk: &GetChatCompletionChunk| {
+            let mut consumer = Consumer::new_static();
+            consumer
+                .on_chunk(move |chunk: &GetChatCompletionChunk| {
                     let buffers_chunk = buffers_chunk.clone();
                     let finished_clone = finished_clone.clone();
                     let outputs = chunk.outputs.clone();
@@ -815,9 +809,8 @@ pub mod stream {
                             }
                         }
                     })
-                })),
-                on_reasoning_start: None,
-                on_reasoning_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                })
+                .on_reasoning_token(move |ctx: &OutputContext, token: &str| {
                     let output_index = ctx.output_index as i32;
                     let token = token.to_string();
                     let buffers_reason = buffers_reason_clone.clone();
@@ -826,10 +819,8 @@ pub mod stream {
                         let output_buf = buffers.entry(output_index).or_default();
                         output_buf.reasoning.push_str(&token);
                     })
-                })),
-                on_reasoning_complete: None,
-                on_content_start: None,
-                on_content_token: Some(Box::new(move |ctx: &OutputContext, token: &str| {
+                })
+                .on_content_token(move |ctx: &OutputContext, token: &str| {
                     let output_index = ctx.output_index as i32;
                     let token = token.to_string();
                     let buffers_content = buffers_content_clone.clone();
@@ -838,14 +829,8 @@ pub mod stream {
                         let output_buf = buffers.entry(output_index).or_default();
                         output_buf.content.push_str(&token);
                     })
-                })),
-                on_content_complete: None,
-                on_inline_citations: None,
-                on_client_tool_calls: None,
-                on_server_tool_calls: None,
-                on_usage: None,
-                on_citations: None,
-            }
+                });
+            consumer
         }
 
         /// Creates a `Consumer` that forwards all stream activity as [`Event`]s into a [`Sink`].
