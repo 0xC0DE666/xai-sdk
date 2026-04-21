@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     let mut client = video::client::new(&api_key).await?;
 
     let gen_req = GenerateVideoRequest {
-        prompt: "Geneate a video of a hybrid creature consisting of a genetic cross between a Congolise gorrila and a bengal tiger. The creature should mainly be gorrila with the camo of a tiger, claws and also the instincts and ferocity of a tiger.".into(),
+        prompt: "Geneate a video of a hybrid creature consisting of a genetic cross between a gorrila and a salt water crocodile.".into(),
         model: MODEL.into(),
         duration: Some(DURATION_SECS),
         // 1:1 at 480p minimizes pixel count vs wider aspect ratios at the same tier.
