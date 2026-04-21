@@ -145,8 +145,9 @@ pub struct GetAmountToPayResp {
 pub struct AnalyzeBillingItemsRequest {
     /// The actual analysis request.
     #[prost(message, optional, tag = "1")]
-    pub analytics_request:
-        ::core::option::Option<super::prod::clickhouse_analytics::AnalyticsRequest>,
+    pub analytics_request: ::core::option::Option<
+        super::prod::clickhouse_analytics::AnalyticsRequest,
+    >,
     /// The team whose billing records to analyze.
     #[prost(string, tag = "2")]
     pub team_id: ::prost::alloc::string::String,
@@ -184,10 +185,14 @@ pub struct MonthlyInvoiceBundle {
     pub prepaid_tokens_to_spend: ::core::option::Option<super::prod_charger::Cent>,
     /// The billing items csv file suffix, used by xAI processes.
     #[prost(string, optional, tag = "40")]
-    pub billing_items_csv_asset_key_suffix: ::core::option::Option<::prost::alloc::string::String>,
+    pub billing_items_csv_asset_key_suffix: ::core::option::Option<
+        ::prost::alloc::string::String,
+    >,
     /// The billing items corrections csv file suffix, used by xAI processes.
     #[prost(string, optional, tag = "50")]
-    pub corrections_csv_asset_key_suffix: ::core::option::Option<::prost::alloc::string::String>,
+    pub corrections_csv_asset_key_suffix: ::core::option::Option<
+        ::prost::alloc::string::String,
+    >,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct PrepaidInvoiceBundle {}
@@ -238,7 +243,17 @@ pub struct InvoiceBundle {
 /// Nested message and enum types in `InvoiceBundle`.
 pub mod invoice_bundle {
     /// Charging status of the invoice.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum Status {
         Invalid = 0,
@@ -330,11 +345,7 @@ pub struct PrepaidBalanceChange {
     #[prost(enumeration = "prepaid_balance_change::ChangeOrigin", tag = "20")]
     pub change_origin: i32,
     /// Status of the top up.
-    #[prost(
-        enumeration = "prepaid_balance_change::TopUpStatus",
-        optional,
-        tag = "30"
-    )]
+    #[prost(enumeration = "prepaid_balance_change::TopUpStatus", optional, tag = "30")]
     pub topup_status: ::core::option::Option<i32>,
     /// Amount in USD cents.
     #[prost(message, optional, tag = "40")]
@@ -361,7 +372,17 @@ pub struct PrepaidBalanceChange {
 /// Nested message and enum types in `PrepaidBalanceChange`.
 pub mod prepaid_balance_change {
     /// The reason for the change.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ChangeOrigin {
         InvalidOrigin = 0,
@@ -401,7 +422,17 @@ pub mod prepaid_balance_change {
         }
     }
     /// Status of the top up.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum TopUpStatus {
         InvalidStatus = 0,
@@ -531,10 +562,10 @@ pub mod ui_svc_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// gRPC API service to interact with the xAI billing system.
     #[derive(Debug, Clone)]
     pub struct UiSvcClient<T> {
@@ -574,13 +605,14 @@ pub mod ui_svc_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                    http::Request<tonic::body::Body>,
-                    Response = http::Response<
-                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
-                    >,
+                http::Request<tonic::body::Body>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
-                Into<StdError> + std::marker::Send + std::marker::Sync,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             UiSvcClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -619,14 +651,22 @@ pub mod ui_svc_client {
         pub async fn set_billing_info(
             &mut self,
             request: impl tonic::IntoRequest<super::SetBillingInfoReq>,
-        ) -> std::result::Result<tonic::Response<super::SetBillingInfoResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::SetBillingInfoResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/SetBillingInfo");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/SetBillingInfo",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("prod_mc_billing.UISvc", "SetBillingInfo"));
@@ -636,14 +676,22 @@ pub mod ui_svc_client {
         pub async fn get_billing_info(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBillingInfoReq>,
-        ) -> std::result::Result<tonic::Response<super::GetBillingInfoResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetBillingInfoResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/GetBillingInfo");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/GetBillingInfo",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("prod_mc_billing.UISvc", "GetBillingInfo"));
@@ -653,53 +701,74 @@ pub mod ui_svc_client {
         pub async fn list_payment_methods(
             &mut self,
             request: impl tonic::IntoRequest<super::ListPaymentMethodsReq>,
-        ) -> std::result::Result<tonic::Response<super::ListPaymentMethodsResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ListPaymentMethodsResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/ListPaymentMethods");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/ListPaymentMethods",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "ListPaymentMethods",
-            ));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("prod_mc_billing.UISvc", "ListPaymentMethods"));
             self.inner.unary(req, path, codec).await
         }
         /// Set default payment method to an existing payment method on file.
         pub async fn set_default_payment_method(
             &mut self,
             request: impl tonic::IntoRequest<super::SetDefaultPaymentMethodReq>,
-        ) -> std::result::Result<tonic::Response<super::SetDefaultPaymentMethodResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::SetDefaultPaymentMethodResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/prod_mc_billing.UISvc/SetDefaultPaymentMethod",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "SetDefaultPaymentMethod",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("prod_mc_billing.UISvc", "SetDefaultPaymentMethod"),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Preview the amount to pay for postpaid usage in the current billing period.
         pub async fn get_amount_to_pay(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAmountToPayReq>,
-        ) -> std::result::Result<tonic::Response<super::GetAmountToPayResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAmountToPayResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/GetAmountToPay");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/GetAmountToPay",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("prod_mc_billing.UISvc", "GetAmountToPay"));
@@ -713,29 +782,43 @@ pub mod ui_svc_client {
             tonic::Response<super::super::prod::clickhouse_analytics::AnalyticsResponse>,
             tonic::Status,
         > {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/AnalyzeBillingItems");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/AnalyzeBillingItems",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "AnalyzeBillingItems",
-            ));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("prod_mc_billing.UISvc", "AnalyzeBillingItems"));
             self.inner.unary(req, path, codec).await
         }
         /// List invoices that belong to a team.
         pub async fn list_invoices(
             &mut self,
             request: impl tonic::IntoRequest<super::ListInvoicesReq>,
-        ) -> std::result::Result<tonic::Response<super::ListInvoicesResp>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ListInvoicesResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/ListInvoices");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/ListInvoices",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("prod_mc_billing.UISvc", "ListInvoices"));
@@ -745,20 +828,27 @@ pub mod ui_svc_client {
         pub async fn list_prepaid_balance_changes(
             &mut self,
             request: impl tonic::IntoRequest<super::ListPrepaidBalanceChangesReq>,
-        ) -> std::result::Result<tonic::Response<super::ListPrepaidBalanceChangesResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ListPrepaidBalanceChangesResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/prod_mc_billing.UISvc/ListPrepaidBalanceChanges",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "ListPrepaidBalanceChanges",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("prod_mc_billing.UISvc", "ListPrepaidBalanceChanges"),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Top up prepaid credit using the default payment method.
@@ -769,18 +859,26 @@ pub mod ui_svc_client {
             tonic::Response<super::TopUpOrGetExistingPendingChangeResp>,
             tonic::Status,
         > {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/prod_mc_billing.UISvc/TopUpOrGetExistingPendingChange",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "TopUpOrGetExistingPendingChange",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "prod_mc_billing.UISvc",
+                        "TopUpOrGetExistingPendingChange",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Get the postpaid monthly spending limits. The API will stop functioning once the team has consumed all of the
@@ -788,19 +886,25 @@ pub mod ui_svc_client {
         pub async fn get_spending_limits(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSpendingLimitsReq>,
-        ) -> std::result::Result<tonic::Response<super::GetSpendingLimitsResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSpendingLimitsResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/GetSpendingLimits");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/GetSpendingLimits",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "GetSpendingLimits",
-            ));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("prod_mc_billing.UISvc", "GetSpendingLimits"));
             self.inner.unary(req, path, codec).await
         }
         /// Set the postpaid monthly spending limit of a team. This can be used to restrict the maximum amount of postpaid API
@@ -809,19 +913,27 @@ pub mod ui_svc_client {
         pub async fn set_soft_spending_limit(
             &mut self,
             request: impl tonic::IntoRequest<super::SetSoftSpendingLimitReq>,
-        ) -> std::result::Result<tonic::Response<super::SetSoftSpendingLimitResp>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::SetSoftSpendingLimitResp>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/prod_mc_billing.UISvc/SetSoftSpendingLimit");
+            let path = http::uri::PathAndQuery::from_static(
+                "/prod_mc_billing.UISvc/SetSoftSpendingLimit",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "prod_mc_billing.UISvc",
-                "SetSoftSpendingLimit",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("prod_mc_billing.UISvc", "SetSoftSpendingLimit"),
+                );
             self.inner.unary(req, path, codec).await
         }
     }

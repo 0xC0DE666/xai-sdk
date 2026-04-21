@@ -22,7 +22,7 @@ pub mod utils;
 pub mod video;
 pub use export::*;
 
-pub mod google {
+pub(crate) mod google {
     pub mod rpc {
         include!("google.rpc.rs");
     }
