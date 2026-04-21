@@ -98,12 +98,13 @@ pub mod stream {
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
+    use futures::lock::Mutex;
     use futures::sink::Sink;
     use futures::{SinkExt, Stream, StreamExt};
     use std::collections::HashMap;
     use std::future::Future;
     use std::io::Write;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     #[derive(Debug, Clone)]
     struct OutputStats {
