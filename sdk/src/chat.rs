@@ -790,8 +790,8 @@ pub mod stream {
                     let finished_clone = finished_clone.clone();
                     let outputs = chunk.outputs.clone();
                     Box::pin(async move {
-                        let mut buffers = buffers_chunk.lock().unwrap();
-                        let mut finished = finished_clone.lock().unwrap();
+                        let mut buffers = buffers_chunk.lock().await;
+                        let mut finished = finished_clone.lock().await;
 
                         for output in &outputs {
                             let idx = output.index;
@@ -822,7 +822,7 @@ pub mod stream {
                     let token = token.to_string();
                     let buffers_reason = buffers_reason_clone.clone();
                     Box::pin(async move {
-                        let mut buffers = buffers_reason.lock().unwrap();
+                        let mut buffers = buffers_reason.lock().await;
                         let output_buf = buffers.entry(output_index).or_default();
                         output_buf.reasoning.push_str(&token);
                     })
@@ -834,7 +834,7 @@ pub mod stream {
                     let token = token.to_string();
                     let buffers_content = buffers_content_clone.clone();
                     Box::pin(async move {
-                        let mut buffers = buffers_content.lock().unwrap();
+                        let mut buffers = buffers_content.lock().await;
                         let output_buf = buffers.entry(output_index).or_default();
                         output_buf.content.push_str(&token);
                     })
