@@ -22,6 +22,12 @@ pub mod utils;
 pub mod video;
 pub use export::*;
 
+pub mod google {
+    pub mod rpc {
+        include!("google.rpc.rs");
+    }
+}
+
 // Generated proto files (from build.rs)
 #[path = "prod.clickhouse_analytics.rs"]
 mod clickhouse_analytics;
