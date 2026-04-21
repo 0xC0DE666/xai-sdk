@@ -8,6 +8,7 @@ pub const XAI_API_URL: &str = "https://api.x.ai:443";
 
 pub mod api;
 pub mod auth;
+pub mod batch;
 pub mod billing;
 pub mod chat;
 pub mod common;
