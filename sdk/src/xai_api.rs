@@ -48,10 +48,10 @@ pub mod auth_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service to check status of an API key.
     #[derive(Debug, Clone)]
     pub struct AuthClient<T> {
@@ -83,22 +83,18 @@ pub mod auth_client {
             let inner = tonic::client::Grpc::with_origin(inner, origin);
             Self { inner }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> AuthClient<InterceptedService<T, F>>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> AuthClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             AuthClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -138,18 +134,11 @@ pub mod auth_client {
             &mut self,
             request: impl tonic::IntoRequest<()>,
         ) -> std::result::Result<tonic::Response<super::ApiKey>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Auth/get_api_key_info",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Auth/get_api_key_info");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Auth", "get_api_key_info"));
@@ -399,10 +388,10 @@ pub mod documents_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct DocumentsClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -441,14 +430,13 @@ pub mod documents_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             DocumentsClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -487,18 +475,14 @@ pub mod documents_client {
             &mut self,
             request: impl tonic::IntoRequest<super::SearchRequest>,
         ) -> std::result::Result<tonic::Response<super::SearchResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/xai_api.Documents/Search");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("xai_api.Documents", "Search"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Documents", "Search"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -934,10 +918,10 @@ pub mod image_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service for interaction with image generation models.
     #[derive(Debug, Clone)]
     pub struct ImageClient<T> {
@@ -977,14 +961,13 @@ pub mod image_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             ImageClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -1024,18 +1007,11 @@ pub mod image_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GenerateImageRequest>,
         ) -> std::result::Result<tonic::Response<super::ImageResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Image/GenerateImage",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Image/GenerateImage");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Image", "GenerateImage"));
@@ -1225,10 +1201,10 @@ pub mod sample_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service for sampling the responses of available language models.
     #[derive(Debug, Clone)]
     pub struct SampleClient<T> {
@@ -1268,14 +1244,13 @@ pub mod sample_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             SampleClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -1314,24 +1289,16 @@ pub mod sample_client {
         pub async fn sample_text(
             &mut self,
             request: impl tonic::IntoRequest<super::SampleTextRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::SampleTextResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::SampleTextResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Sample/SampleText",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Sample/SampleText");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("xai_api.Sample", "SampleText"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Sample", "SampleText"));
             self.inner.unary(req, path, codec).await
         }
         /// Get streaming raw sampling of text response from the model inference.
@@ -1342,18 +1309,11 @@ pub mod sample_client {
             tonic::Response<tonic::codec::Streaming<super::SampleTextResponse>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Sample/SampleTextStreaming",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Sample/SampleTextStreaming");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Sample", "SampleTextStreaming"));
@@ -1934,10 +1894,8 @@ pub struct Mcp {
     pub authorization: ::core::option::Option<::prost::alloc::string::String>,
     /// Extra headers that will be included in the request to the MCP server.
     #[prost(map = "string, string", tag = "6")]
-    pub extra_headers: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub extra_headers:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct WebSearch {
@@ -2440,12 +2398,8 @@ impl IncludeOption {
             Self::WebSearchCallOutput => "INCLUDE_OPTION_WEB_SEARCH_CALL_OUTPUT",
             Self::XSearchCallOutput => "INCLUDE_OPTION_X_SEARCH_CALL_OUTPUT",
             Self::CodeExecutionCallOutput => "INCLUDE_OPTION_CODE_EXECUTION_CALL_OUTPUT",
-            Self::CollectionsSearchCallOutput => {
-                "INCLUDE_OPTION_COLLECTIONS_SEARCH_CALL_OUTPUT"
-            }
-            Self::AttachmentSearchCallOutput => {
-                "INCLUDE_OPTION_ATTACHMENT_SEARCH_CALL_OUTPUT"
-            }
+            Self::CollectionsSearchCallOutput => "INCLUDE_OPTION_COLLECTIONS_SEARCH_CALL_OUTPUT",
+            Self::AttachmentSearchCallOutput => "INCLUDE_OPTION_ATTACHMENT_SEARCH_CALL_OUTPUT",
             Self::McpCallOutput => "INCLUDE_OPTION_MCP_CALL_OUTPUT",
             Self::InlineCitations => "INCLUDE_OPTION_INLINE_CITATIONS",
             Self::VerboseStreaming => "INCLUDE_OPTION_VERBOSE_STREAMING",
@@ -2457,9 +2411,7 @@ impl IncludeOption {
             "INCLUDE_OPTION_INVALID" => Some(Self::Invalid),
             "INCLUDE_OPTION_WEB_SEARCH_CALL_OUTPUT" => Some(Self::WebSearchCallOutput),
             "INCLUDE_OPTION_X_SEARCH_CALL_OUTPUT" => Some(Self::XSearchCallOutput),
-            "INCLUDE_OPTION_CODE_EXECUTION_CALL_OUTPUT" => {
-                Some(Self::CodeExecutionCallOutput)
-            }
+            "INCLUDE_OPTION_CODE_EXECUTION_CALL_OUTPUT" => Some(Self::CodeExecutionCallOutput),
             "INCLUDE_OPTION_COLLECTIONS_SEARCH_CALL_OUTPUT" => {
                 Some(Self::CollectionsSearchCallOutput)
             }
@@ -2516,7 +2468,10 @@ impl MessageRole {
             "ROLE_USER" => Some(Self::RoleUser),
             "ROLE_ASSISTANT" => Some(Self::RoleAssistant),
             "ROLE_SYSTEM" => Some(Self::RoleSystem),
-            "ROLE_FUNCTION" => Some(#[allow(deprecated)] Self::RoleFunction),
+            "ROLE_FUNCTION" => Some(
+                #[allow(deprecated)]
+                Self::RoleFunction,
+            ),
             "ROLE_TOOL" => Some(Self::RoleTool),
             "ROLE_DEVELOPER" => Some(Self::RoleDeveloper),
             _ => None,
@@ -2794,10 +2749,10 @@ pub mod chat_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API that exposes our language models via a Chat interface.
     #[derive(Debug, Clone)]
     pub struct ChatClient<T> {
@@ -2829,22 +2784,18 @@ pub mod chat_client {
             let inner = tonic::client::Grpc::with_origin(inner, origin);
             Self { inner }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> ChatClient<InterceptedService<T, F>>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> ChatClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             ChatClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -2884,22 +2835,13 @@ pub mod chat_client {
         pub async fn get_completion(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCompletionsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetChatCompletionResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetChatCompletionResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Chat/GetCompletion",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Chat/GetCompletion");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "GetCompletion"));
@@ -2914,18 +2856,11 @@ pub mod chat_client {
             tonic::Response<tonic::codec::Streaming<super::GetChatCompletionChunk>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Chat/GetCompletionChunk",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Chat/GetCompletionChunk");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "GetCompletionChunk"));
@@ -2937,22 +2872,14 @@ pub mod chat_client {
         pub async fn start_deferred_completion(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCompletionsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartDeferredResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::StartDeferredResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Chat/StartDeferredCompletion",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/xai_api.Chat/StartDeferredCompletion");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "StartDeferredCompletion"));
@@ -2962,22 +2889,13 @@ pub mod chat_client {
         pub async fn get_deferred_completion(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDeferredRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetDeferredCompletionResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetDeferredCompletionResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Chat/GetDeferredCompletion",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Chat/GetDeferredCompletion");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "GetDeferredCompletion"));
@@ -2987,22 +2905,13 @@ pub mod chat_client {
         pub async fn get_stored_completion(
             &mut self,
             request: impl tonic::IntoRequest<super::GetStoredCompletionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetChatCompletionResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetChatCompletionResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Chat/GetStoredCompletion",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Chat/GetStoredCompletion");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "GetStoredCompletion"));
@@ -3016,18 +2925,11 @@ pub mod chat_client {
             tonic::Response<super::DeleteStoredCompletionResponse>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Chat/DeleteStoredCompletion",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Chat/DeleteStoredCompletion");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "DeleteStoredCompletion"));
@@ -3198,17 +3100,7 @@ pub struct BatchRequestMetadata {
 /// Nested message and enum types in `BatchRequestMetadata`.
 pub mod batch_request_metadata {
     /// The processing state of this batch request.
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum State {
         Unknown = 0,
@@ -3366,10 +3258,10 @@ pub mod batch_mgmt_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service for processing batch requests asynchronously at lower priority than chat service.
     #[derive(Debug, Clone)]
     pub struct BatchMgmtClient<T> {
@@ -3409,14 +3301,13 @@ pub mod batch_mgmt_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             BatchMgmtClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -3456,18 +3347,11 @@ pub mod batch_mgmt_client {
             &mut self,
             request: impl tonic::IntoRequest<super::CreateBatchRequest>,
         ) -> std::result::Result<tonic::Response<super::Batch>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/CreateBatch",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/CreateBatch");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.BatchMgmt", "CreateBatch"));
@@ -3478,18 +3362,11 @@ pub mod batch_mgmt_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetBatchRequest>,
         ) -> std::result::Result<tonic::Response<super::Batch>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/GetBatch",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/GetBatch");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.BatchMgmt", "GetBatch"));
@@ -3499,22 +3376,13 @@ pub mod batch_mgmt_client {
         pub async fn list_batches(
             &mut self,
             request: impl tonic::IntoRequest<super::ListBatchesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListBatchesResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListBatchesResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/ListBatches",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/ListBatches");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.BatchMgmt", "ListBatches"));
@@ -3525,18 +3393,11 @@ pub mod batch_mgmt_client {
             &mut self,
             request: impl tonic::IntoRequest<super::CancelBatchRequest>,
         ) -> std::result::Result<tonic::Response<super::Batch>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/CancelBatch",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/CancelBatch");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.BatchMgmt", "CancelBatch"));
@@ -3547,18 +3408,11 @@ pub mod batch_mgmt_client {
             &mut self,
             request: impl tonic::IntoRequest<super::AddBatchRequestsRequest>,
         ) -> std::result::Result<tonic::Response<()>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/AddBatchRequests",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/AddBatchRequests");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.BatchMgmt", "AddBatchRequests"));
@@ -3572,45 +3426,30 @@ pub mod batch_mgmt_client {
             tonic::Response<super::ListBatchRequestMetadataResponse>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/ListBatchRequestMetadata",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/ListBatchRequestMetadata");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("xai_api.BatchMgmt", "ListBatchRequestMetadata"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "xai_api.BatchMgmt",
+                "ListBatchRequestMetadata",
+            ));
             self.inner.unary(req, path, codec).await
         }
         /// Lists processing results of a batch.
         pub async fn list_batch_results(
             &mut self,
             request: impl tonic::IntoRequest<super::ListBatchResultsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListBatchResultsResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListBatchResultsResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/ListBatchResults",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/ListBatchResults");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.BatchMgmt", "ListBatchResults"));
@@ -3620,25 +3459,19 @@ pub mod batch_mgmt_client {
         pub async fn get_batch_request_result(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBatchRequestResultRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetBatchRequestResultResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetBatchRequestResultResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.BatchMgmt/GetBatchRequestResult",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/xai_api.BatchMgmt/GetBatchRequestResult");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("xai_api.BatchMgmt", "GetBatchRequestResult"));
+            req.extensions_mut().insert(GrpcMethod::new(
+                "xai_api.BatchMgmt",
+                "GetBatchRequestResult",
+            ));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -3767,10 +3600,10 @@ pub mod embedder_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service for interaction with available embedding models.
     #[derive(Debug, Clone)]
     pub struct EmbedderClient<T> {
@@ -3810,14 +3643,13 @@ pub mod embedder_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             EmbedderClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -3858,18 +3690,14 @@ pub mod embedder_client {
             &mut self,
             request: impl tonic::IntoRequest<super::EmbedRequest>,
         ) -> std::result::Result<tonic::Response<super::EmbedResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/xai_api.Embedder/Embed");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("xai_api.Embedder", "Embed"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Embedder", "Embed"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -4060,10 +3888,10 @@ pub mod models_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service that let users get details of available models on the
     /// platform.
     #[derive(Debug, Clone)]
@@ -4104,14 +3932,13 @@ pub mod models_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             ModelsClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -4150,22 +3977,13 @@ pub mod models_client {
         pub async fn list_language_models(
             &mut self,
             request: impl tonic::IntoRequest<()>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListLanguageModelsResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListLanguageModelsResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Models/ListLanguageModels",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Models/ListLanguageModels");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Models", "ListLanguageModels"));
@@ -4175,22 +3993,13 @@ pub mod models_client {
         pub async fn list_embedding_models(
             &mut self,
             request: impl tonic::IntoRequest<()>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListEmbeddingModelsResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListEmbeddingModelsResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Models/ListEmbeddingModels",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Models/ListEmbeddingModels");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Models", "ListEmbeddingModels"));
@@ -4204,21 +4013,17 @@ pub mod models_client {
             tonic::Response<super::ListImageGenerationModelsResponse>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Models/ListImageGenerationModels",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/xai_api.Models/ListImageGenerationModels");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("xai_api.Models", "ListImageGenerationModels"));
+            req.extensions_mut().insert(GrpcMethod::new(
+                "xai_api.Models",
+                "ListImageGenerationModels",
+            ));
             self.inner.unary(req, path, codec).await
         }
         /// Get details of a specific language model by model name.
@@ -4226,18 +4031,11 @@ pub mod models_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetModelRequest>,
         ) -> std::result::Result<tonic::Response<super::LanguageModel>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Models/GetLanguageModel",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Models/GetLanguageModel");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Models", "GetLanguageModel"));
@@ -4248,18 +4046,11 @@ pub mod models_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetModelRequest>,
         ) -> std::result::Result<tonic::Response<super::EmbeddingModel>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Models/GetEmbeddingModel",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Models/GetEmbeddingModel");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Models", "GetEmbeddingModel"));
@@ -4269,22 +4060,14 @@ pub mod models_client {
         pub async fn get_image_generation_model(
             &mut self,
             request: impl tonic::IntoRequest<super::GetModelRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ImageGenerationModel>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ImageGenerationModel>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Models/GetImageGenerationModel",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/xai_api.Models/GetImageGenerationModel");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Models", "GetImageGenerationModel"));
@@ -4340,10 +4123,10 @@ pub mod tokenize_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service to tokenize input prompts.
     #[derive(Debug, Clone)]
     pub struct TokenizeClient<T> {
@@ -4383,14 +4166,13 @@ pub mod tokenize_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             TokenizeClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -4429,22 +4211,13 @@ pub mod tokenize_client {
         pub async fn tokenize_text(
             &mut self,
             request: impl tonic::IntoRequest<super::TokenizeTextRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::TokenizeTextResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::TokenizeTextResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Tokenize/TokenizeText",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Tokenize/TokenizeText");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Tokenize", "TokenizeText"));
@@ -4681,10 +4454,10 @@ pub mod video_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// An API service for interaction with video generation models.
     #[derive(Debug, Clone)]
     pub struct VideoClient<T> {
@@ -4724,14 +4497,13 @@ pub mod video_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    http::Request<tonic::body::Body>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             VideoClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -4776,22 +4548,13 @@ pub mod video_client {
         pub async fn generate_video(
             &mut self,
             request: impl tonic::IntoRequest<super::GenerateVideoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartDeferredResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::StartDeferredResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Video/GenerateVideo",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Video/GenerateVideo");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Video", "GenerateVideo"));
@@ -4804,24 +4567,16 @@ pub mod video_client {
         pub async fn extend_video(
             &mut self,
             request: impl tonic::IntoRequest<super::ExtendVideoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartDeferredResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::StartDeferredResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Video/ExtendVideo",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Video/ExtendVideo");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("xai_api.Video", "ExtendVideo"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Video", "ExtendVideo"));
             self.inner.unary(req, path, codec).await
         }
         /// Gets the result of a video generation started by calling `GenerateVideo` or
@@ -4829,22 +4584,13 @@ pub mod video_client {
         pub async fn get_deferred_video(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDeferredVideoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetDeferredVideoResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetDeferredVideoResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Video/GetDeferredVideo",
-            );
+            let path = http::uri::PathAndQuery::from_static("/xai_api.Video/GetDeferredVideo");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Video", "GetDeferredVideo"));
