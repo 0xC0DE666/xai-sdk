@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Build script cleanup**: Consolidated proto compilation in `sdk/build.rs` and included `xai/api/v1/files.proto` in the generated API set.
 - **Package metadata**: Bumped crate version to `0.10.0` and refreshed SDK package description.
+- **Chat utils conversions**: Refactored `chat::utils` message construction to use generic conversion helpers instead of trait-object-based conversion entrypoints.
+  - Added `message_from<T: ToContent>(role, parts)` for ergonomic, statically-dispatched message construction
+  - Added `From<&str> for Content` and `ToContent` implementations for `&str` and `String`
+  - Removed `ToContentVec` and renamed `ToMessageVec` to `ToMessages` for clearer trait naming
 
 ### Fixed
 - **Tests**: Fixed missing `cost_in_usd_ticks` field in `SamplingUsage` test initializers.

@@ -1317,8 +1317,11 @@ pub mod utils {
     }
 
     /// Creates a chat message from a role and generic content-convertible parts.
-    pub fn message_from<T: ToContent>(role: MessageRole, parts: &[T]) -> Message {
-        let content = parts.iter().map(ToContent::to_content).collect();
+    pub fn message_from<T>(role: MessageRole, content: &[T]) -> Message
+    where
+        T: ToContent,
+    {
+        let content = content.iter().map(|c| c.to_content()).collect();
 
         Message {
             content,
