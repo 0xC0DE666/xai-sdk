@@ -1212,6 +1212,7 @@ async fn test_process_basic_stream() {
                 prompt_image_tokens: 0,
                 num_sources_used: 0,
                 server_side_tools_used: vec![],
+                cost_in_usd_ticks: None,
             }),
             citations: vec![],
             debug_output: None,
@@ -1352,6 +1353,7 @@ async fn test_process_multi_output() {
                 prompt_image_tokens: 0,
                 num_sources_used: 0,
                 server_side_tools_used: vec![],
+                cost_in_usd_ticks: None,
             }),
             citations: vec![],
             debug_output: None,
@@ -1586,6 +1588,7 @@ async fn test_process_on_usage_invoked() {
         prompt_image_tokens: 0,
         num_sources_used: 0,
         server_side_tools_used: vec![],
+        cost_in_usd_ticks: None,
     };
     let mut last = make_finish_chunk(0);
     last.usage = Some(usage.clone());
@@ -1805,6 +1808,7 @@ async fn test_with_sink_usage_event() {
         prompt_image_tokens: 0,
         num_sources_used: 0,
         server_side_tools_used: vec![],
+        cost_in_usd_ticks: None,
     };
     let mut last = make_finish_chunk(0);
     last.usage = Some(usage);
