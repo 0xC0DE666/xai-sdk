@@ -529,15 +529,23 @@ pub struct SamplingUsage {
     /// Total number of image tokens in the prompt.
     #[prost(int32, tag = "5")]
     pub prompt_image_tokens: i32,
-    /// Number of individual live search sources used.
-    /// Only applicable when live search is enabled.
-    /// e.g. If a live search query returns citations from both X and Web and news sources, this will be 3.
-    /// If it returns citations from only X, this will be 1.
+    /// \[DEPRECATED - live search feature has been deprecated so this field is
+    /// redundant\] Number of individual live search sources used. Only applicable
+    /// when live search is enabled. e.g. If a live search query returns citations
+    /// from both X and Web and news sources, this will be 3. If it returns
+    /// citations from only X, this will be 1.
     #[prost(int32, tag = "8")]
     pub num_sources_used: i32,
     /// List of server side tools called.
     #[prost(enumeration = "ServerSideTool", repeated, tag = "9")]
     pub server_side_tools_used: ::prost::alloc::vec::Vec<i32>,
+    /// Full price paid by the user for this request, in USD ticks.
+    /// For requests with server-side tools, this is the sum of token cost and
+    /// server-side tool cost. Also used for image gen, video gen, etc.
+    /// 1 USD = 10,000,000,000 ticks (i.e. 1 tick = 1e-10 USD).
+    /// To convert to dollars, divide by 10,000,000,000.
+    #[prost(int64, optional, tag = "11")]
+    pub cost_in_usd_ticks: ::core::option::Option<i64>,
 }
 /// Usage of embedding models.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]

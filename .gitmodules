@@ -1,0 +1,4 @@
+[submodule "sdk/xai"]
+	path = sdk/xai
+	url = https://github.com/0xC0DE666/xai-proto.git
+	branch = main
