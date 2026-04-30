@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-04-30
+
+### Added
+- **Files API support**: Added full generated types and gRPC client for file operations (`Files` service), including:
+  - Upload streaming (`UploadFileInit`, `UploadFileChunk`)
+  - File metadata/listing/retrieval/deletion types
+  - File content streaming with download format controls
+- **`files` client module**: New `files::client` module with standard constructors:
+  - `new(api_key)`
+  - `with_channel(channel, api_key)`
+  - `with_interceptor(interceptor)`
+  - `with_channel_and_interceptor(channel, interceptor)`
+
+### Changed
+- **Build script cleanup**: Consolidated proto compilation in `sdk/build.rs` and included `xai/api/v1/files.proto` in the generated API set.
+- **Package metadata**: Bumped crate version to `0.10.0` and refreshed SDK package description.
+
+### Fixed
+- **Tests**: Fixed missing `cost_in_usd_ticks` field in `SamplingUsage` test initializers.
+
 ## [0.9.0] - 2026-04-21
 
 ### Added

@@ -29,7 +29,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.9"
+xai-sdk = "0.10"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -125,6 +125,13 @@ The SDK provides clients for all xAI services:
 - **`get_spending_limits`** - Get spending limits
 - **`set_soft_spending_limit`** - Set soft spending limit
 
+### Files Service
+- **`upload_file`** - Upload files via streaming chunks
+- **`list_files`** - List uploaded files with pagination/sorting
+- **`retrieve_file`** - Retrieve file metadata by ID
+- **`delete_file`** - Delete a file by ID
+- **`retrieve_file_content`** - Stream file content (original bytes or extracted text)
+
 ### Batch Service
 - **`create_batch`** - Create a new batch for asynchronous processing
 - **`get_batch`** - Retrieve information about a specific batch
@@ -145,6 +152,7 @@ The SDK is organized into focused modules, each providing easy client creation:
 - **`chat`** - Chat completions and streaming
 - **`documents`** - Document processing
 - **`embed`** - Text and image embeddings
+- **`files`** - File upload and management
 - **`image`** - Image generation
 - **`models`** - Model listing and information
 - **`sample`** - Text sampling and generation
