@@ -1280,16 +1280,12 @@ pub mod traits {
         fn to_content(&self) -> Content;
     }
 
-    pub trait ToContentVec {
-        fn to_content_vec(&self) -> Vec<Content>;
-    }
-
     pub trait ToMessage {
         fn to_message(&self) -> Message;
     }
 
-    pub trait ToMessageVec {
-        fn to_message_vec(&self) -> Vec<Message>;
+    pub trait ToMessages {
+        fn to_messages(&self) -> Vec<Message>;
     }
 }
 
@@ -1297,17 +1293,37 @@ pub mod traits {
 ///
 /// Provides utilities for converting completion outputs to messages and related chat operations.
 pub mod utils {
+    use super::traits::ToContent;
     use crate::xai_api::{CompletionOutput, Content, Message, MessageRole, content};
 
-    impl From<(MessageRole, &str)> for Message {
-        fn from(value: (MessageRole, &str)) -> Self {
-            todo!()
+    impl From<&str> for Content {
+        fn from(value: &str) -> Self {
+            Content {
+                content: Some(content::Content::Text(value.to_string())),
+            }
         }
     }
 
-    impl From<(MessageRole, String)> for Message {
-        fn from(value: (MessageRole, String)) -> Self {
-            todo!()
+    impl ToContent for &str {
+        fn to_content(&self) -> Content {
+            (*self).into()
+        }
+    }
+
+    impl ToContent for String {
+        fn to_content(&self) -> Content {
+            self.as_str().into()
+        }
+    }
+
+    /// Creates a chat message from a role and generic content-convertible parts.
+    pub fn message_from<T: ToContent>(role: MessageRole, parts: &[T]) -> Message {
+        let content = parts.iter().map(ToContent::to_content).collect();
+
+        Message {
+            content,
+            role: role.into(),
+            ..Default::default()
         }
     }
 
@@ -1319,13 +1335,13 @@ pub mod utils {
     /// between the two structures.
     ///
     /// # Arguments
-    /// * `completion_outputs` - Slice of completion outputs to convert
+    /// * `completions` - Slice of completion outputs to convert
     ///
     /// # Returns
     /// * `Vec<Message>` - Vector of messages with populated common fields
-    pub fn to_messages(completion_outputs: &[CompletionOutput]) -> Vec<Message> {
-        let mut messages = Vec::with_capacity(completion_outputs.len());
-        for output in completion_outputs {
+    pub fn to_messages(completions: &[CompletionOutput]) -> Vec<Message> {
+        let mut messages = Vec::with_capacity(completions.len());
+        for output in completions {
             if let Some(comp_msg) = &output.message {
                 messages.push(Message {
                     content: vec![Content {
