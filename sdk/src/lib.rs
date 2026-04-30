@@ -15,6 +15,7 @@ pub mod common;
 pub mod documents;
 pub mod embed;
 pub mod export;
+pub mod files;
 pub mod image;
 pub mod models;
 pub mod sample;
