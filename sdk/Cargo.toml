@@ -1,6 +1,6 @@
 [package]
 name = "xai-sdk"
-description = "xAI SDK"
+description = "Lightweight SDK for xAI's gRPC APIs"
 authors.workspace = true
 documentation.workspace = true
 repository.workspace = true
