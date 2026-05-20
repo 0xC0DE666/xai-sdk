@@ -92,7 +92,7 @@ pub mod client {
 /// Provides high-performance utilities for processing real-time chat completion streams,
 /// including flexible callback-based consumers and chunk assembly into complete responses.
 pub mod stream {
-    use crate::common::types::{BoxError, BoxFuture};
+    use crate::common::types::BoxFuture;
     use crate::export::Status;
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
@@ -575,7 +575,7 @@ pub mod stream {
         Complete,
 
         /// Stream failed (gRPC status from the underlying stream).
-        Error(BoxError),
+        Error(Status),
     }
 
     /// Callback-based consumer for processing streaming chat completion responses.
@@ -1021,9 +1021,9 @@ pub mod stream {
                     let snk = snk.clone();
                     move |status| {
                         let snk = snk.clone();
-                        let err: BoxError = Box::new(status.clone());
+                        let status = status.clone();
                         async move {
-                            let _ = (*snk).clone().send(Event::Error(err)).await;
+                            let _ = (*snk).clone().send(Event::Error(status)).await;
                         }
                     }
                 });

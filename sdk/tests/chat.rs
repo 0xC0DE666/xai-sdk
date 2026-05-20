@@ -2221,12 +2221,9 @@ async fn test_with_sink_stream_error_returns_err() {
     assert_eq!(events.len(), 2);
     assert!(matches!(events[0], Event::Chunk(_)));
     assert!(matches!(events[1], Event::Error(_)));
-    let Event::Error(err) = &events[1] else {
+    let Event::Error(status) = &events[1] else {
         panic!("expected Event::Error");
     };
-    let status = err
-        .downcast_ref::<Status>()
-        .expect("Event::Error should wrap tonic::Status");
     assert_eq!(status.message(), "simulated error");
     assert!(!events.iter().any(|e| matches!(e, Event::Complete)));
 }
