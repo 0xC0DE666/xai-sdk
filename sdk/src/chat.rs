@@ -97,6 +97,7 @@ pub mod stream {
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
+        tool_call,
     };
     use futures::lock::Mutex;
     use futures::sink::Sink;
@@ -410,12 +411,84 @@ pub mod stream {
         (reasoning_status, content_status)
     }
 
+    /// Merges a streaming [`ToolCall`] fragment into an accumulated call.
+    fn merge_tool_call(into: &mut ToolCall, from: &ToolCall) {
+        if !from.id.is_empty() {
+            into.id.clone_from(&from.id);
+        }
+        if from.r#type != 0 {
+            into.r#type = from.r#type;
+        }
+        if from.status != 0 {
+            into.status = from.status;
+        }
+        if from.error_message.is_some() {
+            into.error_message.clone_from(&from.error_message);
+        }
+
+        match (&mut into.tool, &from.tool) {
+            (
+                Some(tool_call::Tool::Function(into_fn)),
+                Some(tool_call::Tool::Function(from_fn)),
+            ) => {
+                if !from_fn.name.is_empty() {
+                    into_fn.name.clone_from(&from_fn.name);
+                }
+                into_fn.arguments.push_str(&from_fn.arguments);
+            }
+            (None, Some(from_tool)) => {
+                into.tool = Some(from_tool.clone());
+            }
+            _ => {}
+        }
+    }
+
+    /// Appends streaming tool-call deltas, merging by [`ToolCall::id`] or continuing the last call when `id` is empty.
+    fn merge_tool_calls(acc: &mut Vec<ToolCall>, incoming: &[ToolCall]) {
+        for fragment in incoming {
+            let merge_idx = if !fragment.id.is_empty() {
+                acc.iter().position(|t| t.id == fragment.id)
+            } else {
+                (!acc.is_empty()).then_some(acc.len() - 1)
+            };
+
+            match merge_idx {
+                Some(i) => merge_tool_call(&mut acc[i], fragment),
+                None => acc.push(fragment.clone()),
+            }
+        }
+    }
+
+    /// Merges inline citations by [`InlineCitation::id`]; later fragments update the same citation.
+    fn merge_inline_citations(acc: &mut Vec<InlineCitation>, incoming: &[InlineCitation]) {
+        for cite in incoming {
+            if !cite.id.is_empty()
+                && let Some(i) = acc.iter().position(|c| c.id == cite.id)
+            {
+                let existing = &mut acc[i];
+                if cite.start_index != 0 {
+                    existing.start_index = cite.start_index;
+                }
+                if cite.end_index != 0 {
+                    existing.end_index = cite.end_index;
+                }
+                if cite.citation.is_some() {
+                    existing.citation.clone_from(&cite.citation);
+                }
+            } else {
+                acc.push(cite.clone());
+            }
+        }
+    }
+
     /// Assembles streaming chunks into a complete chat completion response.
     ///
     /// Reconstructs a full `GetChatCompletionResponse` from collected chunks by:
     /// - Grouping chunks by output index for multi-output handling
-    /// - Accumulating content, reasoning, and tool calls across deltas
-    /// - Preserving metadata from first chunk and usage stats from last chunk
+    /// - Accumulating content and reasoning across deltas
+    /// - Merging streaming tool-call fragments by id (empty id continues the last call)
+    /// - Merging inline citations by id
+    /// - Preserving metadata from the first chunk and usage/citations/debug from the last relevant chunk
     /// - Maintaining output ordering
     ///
     /// # Arguments
@@ -466,11 +539,8 @@ pub mod stream {
                         output_data.role = delta.role;
                     }
 
-                    // Accumulate tool calls
-                    output_data.tool_calls.extend(delta.tool_calls.clone());
-
-                    // Accumulate citations from delta
-                    output_data.citations.extend(delta.citations.clone());
+                    merge_tool_calls(&mut output_data.tool_calls, &delta.tool_calls);
+                    merge_inline_citations(&mut output_data.citations, &delta.citations);
                 }
 
                 // Update finish reason from the latest chunk
@@ -508,6 +578,11 @@ pub mod stream {
         // Use the last chunk's citations (should be populated in the final chunk)
         let citations = last_chunk.citations.clone();
 
+        let debug_output = chunks
+            .iter()
+            .rev()
+            .find_map(|c| c.debug_output.clone());
+
         Some(GetChatCompletionResponse {
             id: first_chunk.id.clone(),
             outputs,
@@ -516,8 +591,8 @@ pub mod stream {
             system_fingerprint: first_chunk.system_fingerprint.clone(),
             usage,
             citations,
-            settings: None,     // Settings are not available in streaming responses
-            debug_output: None, // Debug output is not available in streaming responses
+            settings: None, // Not present on streaming chunks
+            debug_output,
         })
     }
 
