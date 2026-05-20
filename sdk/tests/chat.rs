@@ -69,6 +69,7 @@ fn test_consumer_new() {
     assert!(consumer.on_usage.is_none());
     assert!(consumer.on_citations.is_none());
     assert!(consumer.on_complete.is_none());
+    assert!(consumer.on_error.is_none());
 }
 
 #[test]
@@ -85,6 +86,7 @@ fn test_consumer_default() {
     assert!(consumer.on_usage.is_none());
     assert!(consumer.on_citations.is_none());
     assert!(consumer.on_complete.is_none());
+    assert!(consumer.on_error.is_none());
 }
 
 #[test]
@@ -149,7 +151,8 @@ fn test_consumer_builder_chain() {
         .on_server_tool_calls(|_ctx, _calls| async move {})
         .on_usage(|_usage| async move {})
         .on_citations(|_citations| async move {})
-        .on_complete(|| async move {});
+        .on_complete(|| async move {})
+        .on_error(|_status| async move {});
 
     assert!(consumer.on_chunk.is_some());
     assert!(consumer.on_reasoning_token.is_some());
@@ -162,6 +165,7 @@ fn test_consumer_builder_chain() {
     assert!(consumer.on_usage.is_some());
     assert!(consumer.on_citations.is_some());
     assert!(consumer.on_complete.is_some());
+    assert!(consumer.on_error.is_some());
 }
 
 #[test]
@@ -468,6 +472,16 @@ fn test_consumer_builder_on_complete() {
     });
 
     assert!(consumer.on_complete.is_some());
+}
+
+#[test]
+fn test_consumer_builder_on_error() {
+    let mut consumer = Consumer::new();
+    consumer.on_error(|_status| async move {
+        // Test callback
+    });
+
+    assert!(consumer.on_error.is_some());
 }
 
 #[test]
@@ -1533,10 +1547,21 @@ async fn test_process_error_in_stream() {
 #[tokio::test]
 async fn test_process_error_as_first_item() {
     let error_first = stream::iter(vec![Err(Status::cancelled("Cancelled"))]);
-    let consumer = Consumer::new();
+    let errored = Arc::new(Mutex::new(false));
+    let flag = errored.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_error = Some(Box::new(move |status: &Status| {
+        let flag = flag.clone();
+        let msg = status.message().to_string();
+        Box::pin(async move {
+            assert_eq!(msg, "Cancelled");
+            *flag.lock().unwrap() = true;
+        })
+    }));
     let result = process(error_first, consumer).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().message(), "Cancelled");
+    assert!(*errored.lock().unwrap());
 }
 
 // Test case 7: on_chunk invoked for every chunk
@@ -2193,7 +2218,17 @@ async fn test_with_sink_stream_error_returns_err() {
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().message(), "simulated error");
     let events = collect_events(rcv).await;
-    assert!(!events.is_empty());
+    assert_eq!(events.len(), 2);
+    assert!(matches!(events[0], Event::Chunk(_)));
+    assert!(matches!(events[1], Event::Error(_)));
+    let Event::Error(err) = &events[1] else {
+        panic!("expected Event::Error");
+    };
+    let status = err
+        .downcast_ref::<Status>()
+        .expect("Event::Error should wrap tonic::Status");
+    assert_eq!(status.message(), "simulated error");
+    assert!(!events.iter().any(|e| matches!(e, Event::Complete)));
 }
 
 #[tokio::test]

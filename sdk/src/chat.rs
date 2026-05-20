@@ -175,7 +175,12 @@ pub mod stream {
         loop {
             match stream.next().await {
                 None => break,
-                Some(Err(status)) => return Err(status),
+                Some(Err(status)) => {
+                    if let Some(ref mut on_error) = consumer.on_error {
+                        on_error(&status).await;
+                    }
+                    return Err(status);
+                }
                 Some(Ok(chunk)) => {
                     if let Some(ref mut on_chunk) = consumer.on_chunk {
                         on_chunk(&chunk).await;
@@ -566,10 +571,10 @@ pub mod stream {
         /// Token usage from the last chunk, if present.
         Usage(Option<SamplingUsage>),
 
-        /// Stream finished successfully (emitted by [`Consumer::with_sink`] after usage/citations).
+        /// Stream finished successfully.
         Complete,
 
-        /// Stream or processing error.
+        /// Stream failed (gRPC status from the underlying stream).
         Error(BoxError),
     }
 
@@ -599,6 +604,7 @@ pub mod stream {
     /// - `on_usage`: `&SamplingUsage`
     /// - `on_citations`: `&[String]`
     /// - `on_complete`: `()` (once after a successful stream, after usage/citations)
+    /// - `on_error`: `&Status` (once when the stream yields an error; before `process` returns `Err`)
     pub struct Consumer<'a> {
         /// Callback invoked once per complete chunk received.
         ///
@@ -694,6 +700,11 @@ pub mod stream {
         /// Called after all chunks are processed and after [`on_usage`](Self::on_usage) and
         /// [`on_citations`](Self::on_citations) when present. Not called if the stream returns an error.
         pub on_complete: Option<Box<dyn FnMut() -> BoxFuture<'a> + Send + Sync + 'a>>,
+
+        /// Callback invoked once when the stream yields an error.
+        ///
+        /// Called before [`process`] returns `Err(status)`. Not called on successful completion.
+        pub on_error: Option<Box<dyn FnMut(&Status) -> BoxFuture<'a> + Send + Sync + 'a>>,
     }
 
     impl<'a> Consumer<'a> {
@@ -716,6 +727,7 @@ pub mod stream {
                 on_usage: None,
                 on_citations: None,
                 on_complete: None,
+                on_error: None,
             }
         }
 
@@ -1004,6 +1016,16 @@ pub mod stream {
                             let _ = (*snk).clone().send(Event::Complete).await;
                         }
                     }
+                })
+                .on_error({
+                    let snd = snk.clone();
+                    move |status| {
+                        let snd = snd.clone();
+                        let err: BoxError = Box::new(status.clone());
+                        async move {
+                            let _ = (*snd).clone().send(Event::Error(err)).await;
+                        }
+                    }
                 });
 
             consumer
@@ -1137,6 +1159,16 @@ pub mod stream {
             Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_complete = Some(Box::new(move || Box::pin(f())));
+            self
+        }
+
+        /// Sets the error callback, invoked once when the stream yields an error.
+        pub fn on_error<F, Fut>(&mut self, mut f: F) -> &mut Self
+        where
+            F: FnMut(&Status) -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
+        {
+            self.on_error = Some(Box::new(move |status| Box::pin(f(status))));
             self
         }
     }
