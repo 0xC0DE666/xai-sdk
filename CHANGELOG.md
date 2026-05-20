@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.0] - 2026-04-30
+## [0.10.0] - 2026-05-20
 
 ### Added
 - **Files API support**: Added full generated types and gRPC client for file operations (`Files` service), including:
@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `with_channel(channel, api_key)`
   - `with_interceptor(interceptor)`
   - `with_channel_and_interceptor(channel, interceptor)`
+- **`Consumer::on_complete()`**: Invoked once after a successful stream (after `on_usage` and `on_citations` when present). Not called on stream errors. `Consumer::with_sink` emits `Event::Complete`.
+- **`Consumer::on_error()`**: Invoked once when the stream yields a gRPC error, before `process()` returns `Err`. `Consumer::with_sink` emits `Event::Error`.
 
 ### Changed
 - **Build script cleanup**: Consolidated proto compilation in `sdk/build.rs` and included `xai/api/v1/files.proto` in the generated API set.
@@ -25,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `message_from<T: ToContent>(role, parts)` for ergonomic, statically-dispatched message construction
   - Added `From<&str> for Content` and `ToContent` implementations for `&str` and `String`
   - Removed `ToContentVec` and renamed `ToMessageVec` to `ToMessages` for clearer trait naming
+- **`Event::Error`**: Carries `Status` instead of `BoxError`, aligned with stream item errors and `on_error`.
+- **`ReasoningEffort::EffortNone`**: `Display` and `FromStr` support (`"none"` / `"NONE"`, plus proto name `EFFORT_NONE`).
+- **Protos**: Updated generated API definitions (includes `EFFORT_NONE` reasoning effort).
 
 ### Fixed
 - **Tests**: Fixed missing `cost_in_usd_ticks` field in `SamplingUsage` test initializers.
