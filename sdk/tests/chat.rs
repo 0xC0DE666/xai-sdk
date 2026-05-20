@@ -68,6 +68,7 @@ fn test_consumer_new() {
     assert!(consumer.on_server_tool_calls.is_none());
     assert!(consumer.on_usage.is_none());
     assert!(consumer.on_citations.is_none());
+    assert!(consumer.on_complete.is_none());
 }
 
 #[test]
@@ -83,6 +84,7 @@ fn test_consumer_default() {
     assert!(consumer.on_server_tool_calls.is_none());
     assert!(consumer.on_usage.is_none());
     assert!(consumer.on_citations.is_none());
+    assert!(consumer.on_complete.is_none());
 }
 
 #[test]
@@ -146,7 +148,8 @@ fn test_consumer_builder_chain() {
         .on_client_tool_calls(|_ctx, _calls| async move {})
         .on_server_tool_calls(|_ctx, _calls| async move {})
         .on_usage(|_usage| async move {})
-        .on_citations(|_citations| async move {});
+        .on_citations(|_citations| async move {})
+        .on_complete(|| async move {});
 
     assert!(consumer.on_chunk.is_some());
     assert!(consumer.on_reasoning_token.is_some());
@@ -158,6 +161,7 @@ fn test_consumer_builder_chain() {
     assert!(consumer.on_server_tool_calls.is_some());
     assert!(consumer.on_usage.is_some());
     assert!(consumer.on_citations.is_some());
+    assert!(consumer.on_complete.is_some());
 }
 
 #[test]
@@ -454,6 +458,16 @@ fn test_consumer_builder_on_citations() {
     });
 
     assert!(consumer.on_citations.is_some());
+}
+
+#[test]
+fn test_consumer_builder_on_complete() {
+    let mut consumer = Consumer::new();
+    consumer.on_complete(|| async move {
+        // Test callback
+    });
+
+    assert!(consumer.on_complete.is_some());
 }
 
 #[test]
@@ -1634,6 +1648,35 @@ async fn test_process_on_citations_invoked() {
     assert_eq!(c[1], "https://b.com");
 }
 
+// Test case 10b: on_complete invoked after successful stream
+#[tokio::test]
+async fn test_process_on_complete_invoked() {
+    let chunks = vec![make_simple_chunk(0, Some("r"), Some("c")), make_finish_chunk(0)];
+    let completed = Arc::new(Mutex::new(false));
+    let done = completed.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_complete = Some(Box::new(move || {
+        let done = done.clone();
+        Box::pin(async move { *done.lock().unwrap() = true })
+    }));
+    process(mock_stream(chunks), consumer).await.unwrap();
+    assert!(*completed.lock().unwrap());
+}
+
+// Test case 10c: on_complete invoked even for empty stream
+#[tokio::test]
+async fn test_process_on_complete_invoked_empty_stream() {
+    let completed = Arc::new(Mutex::new(false));
+    let done = completed.clone();
+    let mut consumer = Consumer::new();
+    consumer.on_complete = Some(Box::new(move || {
+        let done = done.clone();
+        Box::pin(async move { *done.lock().unwrap() = true })
+    }));
+    process(mock_stream(vec![]), consumer).await.unwrap();
+    assert!(*completed.lock().unwrap());
+}
+
 // Test case 11: on_inline_citations invoked when delta has citations
 #[tokio::test]
 async fn test_process_on_inline_citations_invoked() {
@@ -1775,7 +1818,8 @@ async fn test_with_sink_empty_stream() {
     let result = process(mock_stream(chunks), consumer).await.unwrap();
     assert!(result.is_empty());
     let events = collect_events(rcv).await;
-    assert!(events.is_empty());
+    assert_eq!(events.len(), 1);
+    assert!(matches!(events[0], Event::Complete));
 }
 
 #[tokio::test]

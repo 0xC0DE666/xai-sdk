@@ -365,6 +365,10 @@ pub mod stream {
             }
         }
 
+        if let Some(ref mut on_complete) = consumer.on_complete {
+            on_complete().await;
+        }
+
         Ok(chunks)
     }
 
@@ -562,7 +566,7 @@ pub mod stream {
         /// Token usage from the last chunk, if present.
         Usage(Option<SamplingUsage>),
 
-        /// Stream finished (reserved for future use).
+        /// Stream finished successfully (emitted by [`Consumer::with_sink`] after usage/citations).
         Complete,
 
         /// Stream or processing error.
@@ -594,6 +598,7 @@ pub mod stream {
     /// - `on_server_tool_calls`: `(&OutputContext, &[ToolCall])`
     /// - `on_usage`: `&SamplingUsage`
     /// - `on_citations`: `&[String]`
+    /// - `on_complete`: `()` (once after a successful stream, after usage/citations)
     pub struct Consumer<'a> {
         /// Callback invoked once per complete chunk received.
         ///
@@ -683,6 +688,12 @@ pub mod stream {
         /// Called after the stream completes, only if the last chunk has non-empty citations.
         /// Receives `&[String]` with all citation URLs from the last chunk.
         pub on_citations: Option<Box<dyn FnMut(&[String]) -> BoxFuture<'a> + Send + Sync + 'a>>,
+
+        /// Callback invoked once after the stream completes successfully.
+        ///
+        /// Called after all chunks are processed and after [`on_usage`](Self::on_usage) and
+        /// [`on_citations`](Self::on_citations) when present. Not called if the stream returns an error.
+        pub on_complete: Option<Box<dyn FnMut() -> BoxFuture<'a> + Send + Sync + 'a>>,
     }
 
     impl<'a> Consumer<'a> {
@@ -704,6 +715,7 @@ pub mod stream {
                 on_server_tool_calls: None,
                 on_usage: None,
                 on_citations: None,
+                on_complete: None,
             }
         }
 
@@ -848,89 +860,88 @@ pub mod stream {
             S::Error: Send,
         {
             let snk = Arc::new(sink);
-
             let mut consumer = Consumer::new_static();
             consumer
                 .on_chunk({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |chunk| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let chunk = chunk.clone();
                         async move {
-                            let _ = (*snd).clone().send(Event::Chunk(chunk)).await;
+                            let _ = (*snk).clone().send(Event::Chunk(chunk)).await;
                         }
                     }
                 })
                 .on_reasoning_start({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = (*snd).clone().send(Event::ReasoningStart(ctx)).await;
+                            let _ = (*snk).clone().send(Event::ReasoningStart(ctx)).await;
                         }
                     }
                 })
                 .on_reasoning_token({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx, token| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         let token = token.to_string();
                         async move {
-                            let _ = (*snd).clone().send(Event::ReasoningToken(ctx, token)).await;
+                            let _ = (*snk).clone().send(Event::ReasoningToken(ctx, token)).await;
                         }
                     }
                 })
                 .on_reasoning_complete({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = (*snd).clone().send(Event::ReasoningComplete(ctx)).await;
+                            let _ = (*snk).clone().send(Event::ReasoningComplete(ctx)).await;
                         }
                     }
                 })
                 .on_content_start({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = (*snd).clone().send(Event::ContentStart(ctx)).await;
+                            let _ = (*snk).clone().send(Event::ContentStart(ctx)).await;
                         }
                     }
                 })
                 .on_content_token({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx, token| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         let token = token.to_string();
                         async move {
-                            let _ = (*snd).clone().send(Event::ContentToken(ctx, token)).await;
+                            let _ = (*snk).clone().send(Event::ContentToken(ctx, token)).await;
                         }
                     }
                 })
                 .on_content_complete({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         async move {
-                            let _ = (*snd).clone().send(Event::ContentComplete(ctx)).await;
+                            let _ = (*snk).clone().send(Event::ContentComplete(ctx)).await;
                         }
                     }
                 })
                 .on_inline_citations({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx, citations| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         let citations = citations.to_vec();
                         async move {
-                            let _ = (*snd)
+                            let _ = (*snk)
                                 .clone()
                                 .send(Event::InlineCitations(ctx, citations))
                                 .await;
@@ -938,13 +949,13 @@ pub mod stream {
                     }
                 })
                 .on_client_tool_calls({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx, calls| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         let calls = calls.to_vec();
                         async move {
-                            let _ = (*snd)
+                            let _ = (*snk)
                                 .clone()
                                 .send(Event::ClientToolCalls(ctx, calls))
                                 .await;
@@ -952,13 +963,13 @@ pub mod stream {
                     }
                 })
                 .on_server_tool_calls({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |ctx, calls| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let ctx = ctx.clone();
                         let calls = calls.to_vec();
                         async move {
-                            let _ = (*snd)
+                            let _ = (*snk)
                                 .clone()
                                 .send(Event::ServerToolCalls(ctx, calls))
                                 .await;
@@ -966,22 +977,31 @@ pub mod stream {
                     }
                 })
                 .on_citations({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |citations| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let citations = citations.to_vec();
                         async move {
-                            let _ = (*snd).clone().send(Event::Citations(citations)).await;
+                            let _ = (*snk).clone().send(Event::Citations(citations)).await;
                         }
                     }
                 })
                 .on_usage({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |usage| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let usage = usage.clone();
                         async move {
-                            let _ = (*snd).clone().send(Event::Usage(Some(usage))).await;
+                            let _ = (*snk).clone().send(Event::Usage(Some(usage))).await;
+                        }
+                    }
+                })
+                .on_complete({
+                    let snk = snk.clone();
+                    move || {
+                        let snk = snk.clone();
+                        async move {
+                            let _ = (*snk).clone().send(Event::Complete).await;
                         }
                     }
                 });
@@ -1107,6 +1127,16 @@ pub mod stream {
             Fut: Future<Output = ()> + Send + Sync + 'a,
         {
             self.on_citations = Some(Box::new(move |citations| Box::pin(f(citations))));
+            self
+        }
+
+        /// Sets the completion callback, invoked once after a successful stream.
+        pub fn on_complete<F, Fut>(&mut self, mut f: F) -> &mut Self
+        where
+            F: FnMut() -> Fut + Send + Sync + 'a,
+            Fut: Future<Output = ()> + Send + Sync + 'a,
+        {
+            self.on_complete = Some(Box::new(move || Box::pin(f())));
             self
         }
     }
