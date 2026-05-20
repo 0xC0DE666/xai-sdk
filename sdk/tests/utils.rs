@@ -329,6 +329,7 @@ fn test_reasoning_effort_display() {
     assert_eq!(ReasoningEffort::EffortLow.to_string(), "low");
     assert_eq!(ReasoningEffort::EffortMedium.to_string(), "medium");
     assert_eq!(ReasoningEffort::EffortHigh.to_string(), "high");
+    assert_eq!(ReasoningEffort::EffortNone.to_string(), "none");
 }
 
 #[test]
@@ -364,6 +365,18 @@ fn test_reasoning_effort_from_str() {
     assert_eq!(
         ReasoningEffort::from_str("HIGH").unwrap(),
         ReasoningEffort::EffortHigh
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("none").unwrap(),
+        ReasoningEffort::EffortNone
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("NONE").unwrap(),
+        ReasoningEffort::EffortNone
+    );
+    assert_eq!(
+        ReasoningEffort::from_str("EFFORT_NONE").unwrap(),
+        ReasoningEffort::EffortNone
     );
     // Note: from_str_name might parse some variants, so use a definitely invalid string
     assert!(ReasoningEffort::from_str("definitely_not_an_effort_xyz123").is_err());
@@ -589,6 +602,10 @@ fn test_display_from_str_roundtrip() {
     assert_eq!(MessageRole::from_str(&s).unwrap(), role);
 
     let effort = ReasoningEffort::EffortHigh;
+    let s = effort.to_string();
+    assert_eq!(ReasoningEffort::from_str(&s).unwrap(), effort);
+
+    let effort = ReasoningEffort::EffortNone;
     let s = effort.to_string();
     assert_eq!(ReasoningEffort::from_str(&s).unwrap(), effort);
 

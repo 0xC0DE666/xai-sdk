@@ -243,6 +243,7 @@ pub mod enums {
                 ReasoningEffort::EffortLow => "low",
                 ReasoningEffort::EffortMedium => "medium",
                 ReasoningEffort::EffortHigh => "high",
+                ReasoningEffort::EffortNone => "none",
             };
             f.write_str(s)
         }
@@ -257,6 +258,7 @@ pub mod enums {
                 "low" => Ok(ReasoningEffort::EffortLow),
                 "medium" => Ok(ReasoningEffort::EffortMedium),
                 "high" => Ok(ReasoningEffort::EffortHigh),
+                "none" => Ok(ReasoningEffort::EffortNone),
                 _ => ReasoningEffort::from_str_name(s.to_ascii_uppercase().as_str())
                     .ok_or_else(|| format!("Invalid reasoning effort: '{s}'")),
             }

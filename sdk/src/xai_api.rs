@@ -2538,6 +2538,7 @@ pub enum ReasoningEffort {
     EffortLow = 1,
     EffortMedium = 2,
     EffortHigh = 3,
+    EffortNone = 4,
 }
 impl ReasoningEffort {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2550,6 +2551,7 @@ impl ReasoningEffort {
             Self::EffortLow => "EFFORT_LOW",
             Self::EffortMedium => "EFFORT_MEDIUM",
             Self::EffortHigh => "EFFORT_HIGH",
+            Self::EffortNone => "EFFORT_NONE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2559,6 +2561,7 @@ impl ReasoningEffort {
             "EFFORT_LOW" => Some(Self::EffortLow),
             "EFFORT_MEDIUM" => Some(Self::EffortMedium),
             "EFFORT_HIGH" => Some(Self::EffortHigh),
+            "EFFORT_NONE" => Some(Self::EffortNone),
             _ => None,
         }
     }
@@ -3043,6 +3046,406 @@ pub mod chat_client {
         }
     }
 }
+/// Specifies a video by URL for video editing.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct VideoUrlContent {
+    /// Either a URL of the video (e.g., a public URL) or a base64-encoded video
+    /// as a data URL (e.g., "data:video/mp4;base64,...").
+    #[prost(string, tag = "1")]
+    pub url: ::prost::alloc::string::String,
+}
+/// Request message for generating a video.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GenerateVideoRequest {
+    /// Input prompt to generate a video from.
+    #[prost(string, tag = "1")]
+    pub prompt: ::prost::alloc::string::String,
+    /// Optional input image for image-to-video generation.
+    /// If provided, generates video with this image as the first frame.
+    /// If omitted, generates text-to-video.
+    /// Supports the same formats as image generation: URL or base64-encoded image.
+    #[prost(message, optional, tag = "2")]
+    pub image: ::core::option::Option<ImageUrlContent>,
+    /// Name or alias of the video generation model to be used.
+    #[prost(string, tag = "3")]
+    pub model: ::prost::alloc::string::String,
+    /// Duration of the video to be generated in seconds (1-15 seconds).
+    #[prost(int32, optional, tag = "4")]
+    pub duration: ::core::option::Option<i32>,
+    /// Optional input video for video editing.
+    /// If provided, the video will be edited based on the prompt.
+    /// Supports URL or base64-encoded video data.
+    #[prost(message, optional, tag = "6")]
+    pub video: ::core::option::Option<VideoUrlContent>,
+    /// Optional aspect ratio for video generation.
+    /// Defaults to 16:9 if not specified.
+    #[prost(enumeration = "VideoAspectRatio", optional, tag = "7")]
+    pub aspect_ratio: ::core::option::Option<i32>,
+    /// Optional resolution for video generation.
+    /// Defaults to 480p if not specified.
+    #[prost(enumeration = "VideoResolution", optional, tag = "8")]
+    pub resolution: ::core::option::Option<i32>,
+    /// Optional reference images for reference-to-video (R2V) generation.
+    /// When provided (and `image` is not set), generates video using these images
+    /// as style/content references.
+    #[prost(message, repeated, tag = "13")]
+    pub reference_images: ::prost::alloc::vec::Vec<ImageUrlContent>,
+}
+/// Request for retrieving deferred video generation results.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetDeferredVideoRequest {
+    /// The ID of the request to get.
+    #[prost(string, tag = "1")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The response from the video generation models containing the generated video.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct VideoResponse {
+    /// The generated video.
+    #[prost(message, optional, tag = "1")]
+    pub video: ::core::option::Option<GeneratedVideo>,
+    /// The model used to generate the video (ignoring aliases).
+    #[prost(string, tag = "2")]
+    pub model: ::prost::alloc::string::String,
+    /// Billing and cost information for this request.
+    #[prost(message, optional, tag = "3")]
+    pub usage: ::core::option::Option<SamplingUsage>,
+    /// Structured error describing why video generation failed.
+    /// Only present when the background generation encountered a failure
+    /// (either client error 4xx or server error 5xx).
+    #[prost(message, optional, tag = "6")]
+    pub error: ::core::option::Option<VideoError>,
+    /// Approximate completion percentage for the video generation task (0-100).
+    ///
+    /// * When status is `PENDING`: progress is between 0-99, indicating current
+    ///   completion.
+    /// * When status is `DONE`: progress is 100.
+    /// * When status is `FAILED`: progress is 0.
+    #[prost(int32, tag = "7")]
+    pub progress: i32,
+}
+/// Contains all data related to a generated video.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GeneratedVideo {
+    /// A url that points to the generated video.
+    #[prost(string, tag = "1")]
+    pub url: ::prost::alloc::string::String,
+    /// Duration of the generated video in seconds.
+    #[prost(int32, tag = "4")]
+    pub duration: i32,
+    /// Whether the video generated by the model respects moderation rules.
+    /// The field will be true if the video respects moderation rules. Otherwise
+    /// the field will be false and the video url field will be empty.
+    #[prost(bool, tag = "5")]
+    pub respect_moderation: bool,
+}
+/// Response from GetDeferredVideo, including the response if the video
+/// generation request has been processed without error.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetDeferredVideoResponse {
+    /// Current status of the request.
+    #[prost(enumeration = "DeferredStatus", tag = "1")]
+    pub status: i32,
+    /// Response. Only present if `status=DONE` or `status=FAILED`.
+    /// When failed, the `error` field in VideoResponse describes the failure.
+    #[prost(message, optional, tag = "2")]
+    pub response: ::core::option::Option<VideoResponse>,
+}
+/// Structured error returned when video generation fails.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct VideoError {
+    /// Machine-readable error code (e.g. "invalid_argument", "internal_error").
+    #[prost(string, tag = "1")]
+    pub code: ::prost::alloc::string::String,
+    /// Human-readable error message describing the failure.
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Request message for extending an existing video.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ExtendVideoRequest {
+    /// Prompt describing what should happen next in the video.
+    #[prost(string, tag = "1")]
+    pub prompt: ::prost::alloc::string::String,
+    /// Input video to extend. The extension continues from the end of this video.
+    /// Supports URL or base64-encoded video data.
+    /// Input video must be between 2 and 30 seconds long.
+    #[prost(message, optional, tag = "2")]
+    pub video: ::core::option::Option<VideoUrlContent>,
+    /// Name or alias of the video generation model to be used.
+    #[prost(string, tag = "3")]
+    pub model: ::prost::alloc::string::String,
+    /// Duration of the extension segment to generate in seconds (1-10).
+    /// Defaults to 6 seconds if not specified.
+    #[prost(int32, optional, tag = "4")]
+    pub duration: ::core::option::Option<i32>,
+}
+/// Aspect ratio for video generation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum VideoAspectRatio {
+    /// Invalid/unspecified aspect ratio - defaults to 16:9.
+    Unspecified = 0,
+    /// 1:1 aspect ratio (square).
+    VideoAspectRatio11 = 1,
+    /// 16:9 aspect ratio (wide landscape).
+    VideoAspectRatio169 = 2,
+    /// 9:16 aspect ratio (tall portrait).
+    VideoAspectRatio916 = 3,
+    /// 4:3 aspect ratio (standard landscape).
+    VideoAspectRatio43 = 4,
+    /// 3:4 aspect ratio (standard portrait).
+    VideoAspectRatio34 = 5,
+    /// 3:2 aspect ratio (photo landscape).
+    VideoAspectRatio32 = 6,
+    /// 2:3 aspect ratio (photo portrait).
+    VideoAspectRatio23 = 7,
+}
+impl VideoAspectRatio {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "VIDEO_ASPECT_RATIO_UNSPECIFIED",
+            Self::VideoAspectRatio11 => "VIDEO_ASPECT_RATIO_1_1",
+            Self::VideoAspectRatio169 => "VIDEO_ASPECT_RATIO_16_9",
+            Self::VideoAspectRatio916 => "VIDEO_ASPECT_RATIO_9_16",
+            Self::VideoAspectRatio43 => "VIDEO_ASPECT_RATIO_4_3",
+            Self::VideoAspectRatio34 => "VIDEO_ASPECT_RATIO_3_4",
+            Self::VideoAspectRatio32 => "VIDEO_ASPECT_RATIO_3_2",
+            Self::VideoAspectRatio23 => "VIDEO_ASPECT_RATIO_2_3",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "VIDEO_ASPECT_RATIO_UNSPECIFIED" => Some(Self::Unspecified),
+            "VIDEO_ASPECT_RATIO_1_1" => Some(Self::VideoAspectRatio11),
+            "VIDEO_ASPECT_RATIO_16_9" => Some(Self::VideoAspectRatio169),
+            "VIDEO_ASPECT_RATIO_9_16" => Some(Self::VideoAspectRatio916),
+            "VIDEO_ASPECT_RATIO_4_3" => Some(Self::VideoAspectRatio43),
+            "VIDEO_ASPECT_RATIO_3_4" => Some(Self::VideoAspectRatio34),
+            "VIDEO_ASPECT_RATIO_3_2" => Some(Self::VideoAspectRatio32),
+            "VIDEO_ASPECT_RATIO_2_3" => Some(Self::VideoAspectRatio23),
+            _ => None,
+        }
+    }
+}
+/// Resolution for video generation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum VideoResolution {
+    /// Invalid/unspecified resolution - defaults to 480p.
+    Unspecified = 0,
+    /// 480p resolution.
+    /// Dimensions vary by aspect ratio
+    VideoResolution480p = 1,
+    /// 720p resolution.
+    /// Dimensions vary by aspect ratio
+    VideoResolution720p = 2,
+}
+impl VideoResolution {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "VIDEO_RESOLUTION_UNSPECIFIED",
+            Self::VideoResolution480p => "VIDEO_RESOLUTION_480P",
+            Self::VideoResolution720p => "VIDEO_RESOLUTION_720P",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "VIDEO_RESOLUTION_UNSPECIFIED" => Some(Self::Unspecified),
+            "VIDEO_RESOLUTION_480P" => Some(Self::VideoResolution480p),
+            "VIDEO_RESOLUTION_720P" => Some(Self::VideoResolution720p),
+            _ => None,
+        }
+    }
+}
+/// Generated client implementations.
+pub mod video_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    /// An API service for interaction with video generation models.
+    #[derive(Debug, Clone)]
+    pub struct VideoClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl VideoClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> VideoClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::Body>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> VideoClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            VideoClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        /// Create a video based on a text prompt and optionally an image.
+        /// If an image is provided, generates video with the image as the first frame
+        /// (image-to-video). If no image is provided, generates video from text only
+        /// (text-to-video).
+        ///
+        /// This is an asynchronous operation. The method returns immediately with a
+        /// request_id that can be used to poll for the result using GetDeferredVideo.
+        pub async fn generate_video(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GenerateVideoRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::StartDeferredResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Video/GenerateVideo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Video", "GenerateVideo"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Extend an existing video by generating continuation content.
+        ///
+        /// This is an asynchronous operation. The method returns immediately with a
+        /// request_id that can be used to poll for the result using GetDeferredVideo.
+        pub async fn extend_video(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ExtendVideoRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::StartDeferredResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Video/ExtendVideo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("xai_api.Video", "ExtendVideo"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Gets the result of a video generation started by calling `GenerateVideo` or
+        /// `ExtendVideo`.
+        pub async fn get_deferred_video(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetDeferredVideoRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetDeferredVideoResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Video/GetDeferredVideo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Video", "GetDeferredVideo"));
+            self.inner.unary(req, path, codec).await
+        }
+    }
+}
 /// Holds basic information about a batch process.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Batch {
@@ -3073,6 +3476,10 @@ pub struct Batch {
     /// Cost breakdown for processed requests.
     #[prost(message, optional, tag = "9")]
     pub cost_breakdown: ::core::option::Option<BatchCostBreakdown>,
+    /// File ID of the uploaded JSONL input file (from Files API). Only set
+    /// when the batch was created via file upload.
+    #[prost(string, optional, tag = "10")]
+    pub input_file_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 /// Holds aggregate information about the current state of a batch process.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -3128,7 +3535,7 @@ pub struct BatchRequest {
     #[prost(string, optional, tag = "1")]
     pub batch_request_id: ::core::option::Option<::prost::alloc::string::String>,
     /// The request to add for processing in the batch.
-    #[prost(oneof = "batch_request::Request", tags = "2")]
+    #[prost(oneof = "batch_request::Request", tags = "2, 3, 4, 5")]
     pub request: ::core::option::Option<batch_request::Request>,
 }
 /// Nested message and enum types in `BatchRequest`.
@@ -3139,13 +3546,22 @@ pub mod batch_request {
         /// A completion request to send for processing in the batch.
         #[prost(message, tag = "2")]
         CompletionRequest(super::GetCompletionsRequest),
+        /// An image generation or editing request to send for processing in the batch.
+        #[prost(message, tag = "3")]
+        ImageRequest(super::GenerateImageRequest),
+        /// A video generation request to send for processing in the batch.
+        #[prost(message, tag = "4")]
+        VideoRequest(super::GenerateVideoRequest),
+        /// A video extension request to send for processing in the batch.
+        #[prost(message, tag = "5")]
+        VideoExtensionRequest(super::ExtendVideoRequest),
     }
 }
-/// A container for the completion response that is returned in a `BatchResult`.
+/// A container for the response that is returned in a `BatchResult`.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BatchResultData {
     /// The response from the batch request.
-    #[prost(oneof = "batch_result_data::Response", tags = "2")]
+    #[prost(oneof = "batch_result_data::Response", tags = "2, 3, 4")]
     pub response: ::core::option::Option<batch_result_data::Response>,
 }
 /// Nested message and enum types in `BatchResultData`.
@@ -3156,6 +3572,12 @@ pub mod batch_result_data {
         /// A completion response that has finished processing in the batch.
         #[prost(message, tag = "2")]
         CompletionResponse(super::GetChatCompletionResponse),
+        /// An image generation response that has finished processing in the batch.
+        #[prost(message, tag = "3")]
+        ImageResponse(super::ImageResponse),
+        /// A video generation response that has finished processing in the batch.
+        #[prost(message, tag = "4")]
+        VideoResponse(super::VideoResponse),
     }
 }
 /// The result corresponding to a `BatchRequest`. Returns the result if processing is successful, or error if processing
@@ -3258,6 +3680,10 @@ pub struct CreateBatchRequest {
     /// The name of the batch to be created.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
+    /// Optional file ID of a JSONL input file (uploaded via the Files API).
+    /// When provided, the batch will be populated from the file's contents.
+    #[prost(string, tag = "2")]
+    pub input_file_id: ::prost::alloc::string::String,
 }
 /// Request to add `BatchRequest`s to an existing batch for processing.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3315,6 +3741,9 @@ pub struct ListBatchRequestMetadataRequest {
     /// Optional pagination token to retrieve a specific page. Provided by `pagination_token` in `ListBatchRequestMetadataResponse`.
     #[prost(string, optional, tag = "3")]
     pub pagination_token: ::core::option::Option<::prost::alloc::string::String>,
+    /// Optional filter by request state. If empty, all states are returned.
+    #[prost(enumeration = "batch_request_metadata::State", repeated, tag = "4")]
+    pub status: ::prost::alloc::vec::Vec<i32>,
 }
 /// Response with the metadata of batch requests within a batch.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -4899,406 +5328,6 @@ pub mod tokenize_client {
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Tokenize", "TokenizeText"));
-            self.inner.unary(req, path, codec).await
-        }
-    }
-}
-/// Specifies a video by URL for video editing.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct VideoUrlContent {
-    /// Either a URL of the video (e.g., a public URL) or a base64-encoded video
-    /// as a data URL (e.g., "data:video/mp4;base64,...").
-    #[prost(string, tag = "1")]
-    pub url: ::prost::alloc::string::String,
-}
-/// Request message for generating a video.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GenerateVideoRequest {
-    /// Input prompt to generate a video from.
-    #[prost(string, tag = "1")]
-    pub prompt: ::prost::alloc::string::String,
-    /// Optional input image for image-to-video generation.
-    /// If provided, generates video with this image as the first frame.
-    /// If omitted, generates text-to-video.
-    /// Supports the same formats as image generation: URL or base64-encoded image.
-    #[prost(message, optional, tag = "2")]
-    pub image: ::core::option::Option<ImageUrlContent>,
-    /// Name or alias of the video generation model to be used.
-    #[prost(string, tag = "3")]
-    pub model: ::prost::alloc::string::String,
-    /// Duration of the video to be generated in seconds (1-15 seconds).
-    #[prost(int32, optional, tag = "4")]
-    pub duration: ::core::option::Option<i32>,
-    /// Optional input video for video editing.
-    /// If provided, the video will be edited based on the prompt.
-    /// Supports URL or base64-encoded video data.
-    #[prost(message, optional, tag = "6")]
-    pub video: ::core::option::Option<VideoUrlContent>,
-    /// Optional aspect ratio for video generation.
-    /// Defaults to 16:9 if not specified.
-    #[prost(enumeration = "VideoAspectRatio", optional, tag = "7")]
-    pub aspect_ratio: ::core::option::Option<i32>,
-    /// Optional resolution for video generation.
-    /// Defaults to 480p if not specified.
-    #[prost(enumeration = "VideoResolution", optional, tag = "8")]
-    pub resolution: ::core::option::Option<i32>,
-    /// Optional reference images for reference-to-video (R2V) generation.
-    /// When provided (and `image` is not set), generates video using these images
-    /// as style/content references.
-    #[prost(message, repeated, tag = "13")]
-    pub reference_images: ::prost::alloc::vec::Vec<ImageUrlContent>,
-}
-/// Request for retrieving deferred video generation results.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GetDeferredVideoRequest {
-    /// The ID of the request to get.
-    #[prost(string, tag = "1")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// The response from the video generation models containing the generated video.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct VideoResponse {
-    /// The generated video.
-    #[prost(message, optional, tag = "1")]
-    pub video: ::core::option::Option<GeneratedVideo>,
-    /// The model used to generate the video (ignoring aliases).
-    #[prost(string, tag = "2")]
-    pub model: ::prost::alloc::string::String,
-    /// Billing and cost information for this request.
-    #[prost(message, optional, tag = "3")]
-    pub usage: ::core::option::Option<SamplingUsage>,
-    /// Structured error describing why video generation failed.
-    /// Only present when the background generation encountered a failure
-    /// (either client error 4xx or server error 5xx).
-    #[prost(message, optional, tag = "6")]
-    pub error: ::core::option::Option<VideoError>,
-    /// Approximate completion percentage for the video generation task (0-100).
-    ///
-    /// * When status is `PENDING`: progress is between 0-99, indicating current
-    ///   completion.
-    /// * When status is `DONE`: progress is 100.
-    /// * When status is `FAILED`: progress is 0.
-    #[prost(int32, tag = "7")]
-    pub progress: i32,
-}
-/// Contains all data related to a generated video.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GeneratedVideo {
-    /// A url that points to the generated video.
-    #[prost(string, tag = "1")]
-    pub url: ::prost::alloc::string::String,
-    /// Duration of the generated video in seconds.
-    #[prost(int32, tag = "4")]
-    pub duration: i32,
-    /// Whether the video generated by the model respects moderation rules.
-    /// The field will be true if the video respects moderation rules. Otherwise
-    /// the field will be false and the video url field will be empty.
-    #[prost(bool, tag = "5")]
-    pub respect_moderation: bool,
-}
-/// Response from GetDeferredVideo, including the response if the video
-/// generation request has been processed without error.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GetDeferredVideoResponse {
-    /// Current status of the request.
-    #[prost(enumeration = "DeferredStatus", tag = "1")]
-    pub status: i32,
-    /// Response. Only present if `status=DONE` or `status=FAILED`.
-    /// When failed, the `error` field in VideoResponse describes the failure.
-    #[prost(message, optional, tag = "2")]
-    pub response: ::core::option::Option<VideoResponse>,
-}
-/// Structured error returned when video generation fails.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct VideoError {
-    /// Machine-readable error code (e.g. "invalid_argument", "internal_error").
-    #[prost(string, tag = "1")]
-    pub code: ::prost::alloc::string::String,
-    /// Human-readable error message describing the failure.
-    #[prost(string, tag = "2")]
-    pub message: ::prost::alloc::string::String,
-}
-/// Request message for extending an existing video.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ExtendVideoRequest {
-    /// Prompt describing what should happen next in the video.
-    #[prost(string, tag = "1")]
-    pub prompt: ::prost::alloc::string::String,
-    /// Input video to extend. The extension continues from the end of this video.
-    /// Supports URL or base64-encoded video data.
-    /// Input video must be between 2 and 30 seconds long.
-    #[prost(message, optional, tag = "2")]
-    pub video: ::core::option::Option<VideoUrlContent>,
-    /// Name or alias of the video generation model to be used.
-    #[prost(string, tag = "3")]
-    pub model: ::prost::alloc::string::String,
-    /// Duration of the extension segment to generate in seconds (1-10).
-    /// Defaults to 6 seconds if not specified.
-    #[prost(int32, optional, tag = "4")]
-    pub duration: ::core::option::Option<i32>,
-}
-/// Aspect ratio for video generation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum VideoAspectRatio {
-    /// Invalid/unspecified aspect ratio - defaults to 16:9.
-    Unspecified = 0,
-    /// 1:1 aspect ratio (square).
-    VideoAspectRatio11 = 1,
-    /// 16:9 aspect ratio (wide landscape).
-    VideoAspectRatio169 = 2,
-    /// 9:16 aspect ratio (tall portrait).
-    VideoAspectRatio916 = 3,
-    /// 4:3 aspect ratio (standard landscape).
-    VideoAspectRatio43 = 4,
-    /// 3:4 aspect ratio (standard portrait).
-    VideoAspectRatio34 = 5,
-    /// 3:2 aspect ratio (photo landscape).
-    VideoAspectRatio32 = 6,
-    /// 2:3 aspect ratio (photo portrait).
-    VideoAspectRatio23 = 7,
-}
-impl VideoAspectRatio {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "VIDEO_ASPECT_RATIO_UNSPECIFIED",
-            Self::VideoAspectRatio11 => "VIDEO_ASPECT_RATIO_1_1",
-            Self::VideoAspectRatio169 => "VIDEO_ASPECT_RATIO_16_9",
-            Self::VideoAspectRatio916 => "VIDEO_ASPECT_RATIO_9_16",
-            Self::VideoAspectRatio43 => "VIDEO_ASPECT_RATIO_4_3",
-            Self::VideoAspectRatio34 => "VIDEO_ASPECT_RATIO_3_4",
-            Self::VideoAspectRatio32 => "VIDEO_ASPECT_RATIO_3_2",
-            Self::VideoAspectRatio23 => "VIDEO_ASPECT_RATIO_2_3",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "VIDEO_ASPECT_RATIO_UNSPECIFIED" => Some(Self::Unspecified),
-            "VIDEO_ASPECT_RATIO_1_1" => Some(Self::VideoAspectRatio11),
-            "VIDEO_ASPECT_RATIO_16_9" => Some(Self::VideoAspectRatio169),
-            "VIDEO_ASPECT_RATIO_9_16" => Some(Self::VideoAspectRatio916),
-            "VIDEO_ASPECT_RATIO_4_3" => Some(Self::VideoAspectRatio43),
-            "VIDEO_ASPECT_RATIO_3_4" => Some(Self::VideoAspectRatio34),
-            "VIDEO_ASPECT_RATIO_3_2" => Some(Self::VideoAspectRatio32),
-            "VIDEO_ASPECT_RATIO_2_3" => Some(Self::VideoAspectRatio23),
-            _ => None,
-        }
-    }
-}
-/// Resolution for video generation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum VideoResolution {
-    /// Invalid/unspecified resolution - defaults to 480p.
-    Unspecified = 0,
-    /// 480p resolution.
-    /// Dimensions vary by aspect ratio
-    VideoResolution480p = 1,
-    /// 720p resolution.
-    /// Dimensions vary by aspect ratio
-    VideoResolution720p = 2,
-}
-impl VideoResolution {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "VIDEO_RESOLUTION_UNSPECIFIED",
-            Self::VideoResolution480p => "VIDEO_RESOLUTION_480P",
-            Self::VideoResolution720p => "VIDEO_RESOLUTION_720P",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "VIDEO_RESOLUTION_UNSPECIFIED" => Some(Self::Unspecified),
-            "VIDEO_RESOLUTION_480P" => Some(Self::VideoResolution480p),
-            "VIDEO_RESOLUTION_720P" => Some(Self::VideoResolution720p),
-            _ => None,
-        }
-    }
-}
-/// Generated client implementations.
-pub mod video_client {
-    #![allow(
-        unused_variables,
-        dead_code,
-        missing_docs,
-        clippy::wildcard_imports,
-        clippy::let_unit_value,
-    )]
-    use tonic::codegen::*;
-    use tonic::codegen::http::Uri;
-    /// An API service for interaction with video generation models.
-    #[derive(Debug, Clone)]
-    pub struct VideoClient<T> {
-        inner: tonic::client::Grpc<T>,
-    }
-    impl VideoClient<tonic::transport::Channel> {
-        /// Attempt to create a new client by connecting to a given endpoint.
-        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
-        where
-            D: TryInto<tonic::transport::Endpoint>,
-            D::Error: Into<StdError>,
-        {
-            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
-            Ok(Self::new(conn))
-        }
-    }
-    impl<T> VideoClient<T>
-    where
-        T: tonic::client::GrpcService<tonic::body::Body>,
-        T::Error: Into<StdError>,
-        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
-        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
-    {
-        pub fn new(inner: T) -> Self {
-            let inner = tonic::client::Grpc::new(inner);
-            Self { inner }
-        }
-        pub fn with_origin(inner: T, origin: Uri) -> Self {
-            let inner = tonic::client::Grpc::with_origin(inner, origin);
-            Self { inner }
-        }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> VideoClient<InterceptedService<T, F>>
-        where
-            F: tonic::service::Interceptor,
-            T::ResponseBody: Default,
-            T: tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
-                >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
-        {
-            VideoClient::new(InterceptedService::new(inner, interceptor))
-        }
-        /// Compress requests with the given encoding.
-        ///
-        /// This requires the server to support it otherwise it might respond with an
-        /// error.
-        #[must_use]
-        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
-            self.inner = self.inner.send_compressed(encoding);
-            self
-        }
-        /// Enable decompressing responses.
-        #[must_use]
-        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
-            self.inner = self.inner.accept_compressed(encoding);
-            self
-        }
-        /// Limits the maximum size of a decoded message.
-        ///
-        /// Default: `4MB`
-        #[must_use]
-        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-            self.inner = self.inner.max_decoding_message_size(limit);
-            self
-        }
-        /// Limits the maximum size of an encoded message.
-        ///
-        /// Default: `usize::MAX`
-        #[must_use]
-        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-            self.inner = self.inner.max_encoding_message_size(limit);
-            self
-        }
-        /// Create a video based on a text prompt and optionally an image.
-        /// If an image is provided, generates video with the image as the first frame
-        /// (image-to-video). If no image is provided, generates video from text only
-        /// (text-to-video).
-        ///
-        /// This is an asynchronous operation. The method returns immediately with a
-        /// request_id that can be used to poll for the result using GetDeferredVideo.
-        pub async fn generate_video(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GenerateVideoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartDeferredResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Video/GenerateVideo",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("xai_api.Video", "GenerateVideo"));
-            self.inner.unary(req, path, codec).await
-        }
-        /// Extend an existing video by generating continuation content.
-        ///
-        /// This is an asynchronous operation. The method returns immediately with a
-        /// request_id that can be used to poll for the result using GetDeferredVideo.
-        pub async fn extend_video(
-            &mut self,
-            request: impl tonic::IntoRequest<super::ExtendVideoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StartDeferredResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Video/ExtendVideo",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("xai_api.Video", "ExtendVideo"));
-            self.inner.unary(req, path, codec).await
-        }
-        /// Gets the result of a video generation started by calling `GenerateVideo` or
-        /// `ExtendVideo`.
-        pub async fn get_deferred_video(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetDeferredVideoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetDeferredVideoResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/xai_api.Video/GetDeferredVideo",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("xai_api.Video", "GetDeferredVideo"));
             self.inner.unary(req, path, codec).await
         }
     }
