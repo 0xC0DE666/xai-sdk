@@ -1018,12 +1018,12 @@ pub mod stream {
                     }
                 })
                 .on_error({
-                    let snd = snk.clone();
+                    let snk = snk.clone();
                     move |status| {
-                        let snd = snd.clone();
+                        let snk = snk.clone();
                         let err: BoxError = Box::new(status.clone());
                         async move {
-                            let _ = (*snd).clone().send(Event::Error(err)).await;
+                            let _ = (*snk).clone().send(Event::Error(err)).await;
                         }
                     }
                 });
