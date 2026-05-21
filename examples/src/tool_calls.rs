@@ -1,23 +1,23 @@
 use anyhow::{Context, Result};
+use futures::StreamExt;
+use futures::channel::mpsc;
 use serde_json::json;
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use xai_sdk::api::{
-    Content, Function, GetChatCompletionChunk, GetCompletionsRequest, InlineCitation, Message,
+    Content, Function, GetChatCompletionChunk, GetCompletionsRequest, Message,
     MessageRole, Tool, ToolCall, ToolCallStatus, ToolCallType, XSearch, content,
 };
 use xai_sdk::chat;
-use xai_sdk::chat::stream::{Consumer, OutputContext};
+use xai_sdk::chat::stream::{Event, process};
 use xai_sdk::{Request, Streaming};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Load API key from environment variable
     let api_key =
         env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
-    // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
     let prompt = "What where the last two tweets from @elonmusk and @tsoding? Write their tweets with sources to 'musk.txt' and 'tsoding.txt'.";
@@ -30,13 +30,11 @@ async fn main() -> Result<()> {
     msg.content = vec![cntnt];
     let messages = vec![msg];
 
-    // Create XSearch tool for searching X/Twitter
     let xsearch = XSearch::default();
     let xsearch_tool = Tool {
         tool: Some(xai_sdk::api::tool::Tool::XSearch(xsearch)),
     };
 
-    // Create write_file tool
     let write_file_tool = write_file_tool();
 
     let request = Request::new(GetCompletionsRequest {
@@ -52,101 +50,16 @@ async fn main() -> Result<()> {
     println!("🤖 Model: {model}");
     println!();
 
-    // Make the streaming API call
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            let mut consumer = Consumer::new();
-            consumer
-                .on_reasoning_token(|_ctx: &OutputContext, token: &str| {
-                    print!("{token}");
-                    io::stdout().flush().unwrap();
-                    async {}
-                })
-                .on_reasoning_complete(|_ctx: &OutputContext| {
-                    println!();
-                    async {}
-                })
-                .on_content_token(|_ctx: &OutputContext, token: &str| {
-                    print!("{token}");
-                    io::stdout().flush().unwrap();
-                    async {}
-                })
-                .on_content_complete(|_ctx: &OutputContext| {
-                    println!();
-                    async {}
-                })
-                .on_inline_citations(move |_ctx: &OutputContext, citations: &[InlineCitation]| {
-                    let citations = citations.to_vec();
-                    async move {
-                        if !citations.is_empty() {
-                            println!("\n📚 {} inline citation(s)", citations.len());
-                            for c in &citations {
-                                if let Some(ref data) = c.citation {
-                                    println!("  • [{}] {:?}", c.id, data);
-                                } else {
-                                    println!("  • [{}] (no data)", c.id);
-                                }
-                            }
-                        }
-                    }
-                })
-                .on_client_tool_calls(move |_ctx: &OutputContext, tool_calls: &[ToolCall]| {
-                    print_tool_calls(tool_calls);
-                    let writes: Vec<(PathBuf, String)> = tool_calls
-                        .iter()
-                        .filter_map(|tc| {
-                            let Some(xai_sdk::api::tool_call::Tool::Function(f)) = &tc.tool else {
-                                return None;
-                            };
-                            if f.name != WRITE_FILE {
-                                return None;
-                            }
-                            let args: serde_json::Value =
-                                serde_json::from_str(&f.arguments).ok()?;
-                            let name = args.get("name")?.as_str()?.to_string();
-                            let content = args.get("content")?.as_str()?.to_string();
-                            Some((PathBuf::from(name), content))
-                        })
-                        .collect();
-                    async move {
-                        for (path, content) in writes {
-                            if let Err(e) = write_file(path.clone(), content).await {
-                                eprintln!("Failed to write {:?}: {}", path, e);
-                            }
-                        }
-                    }
-                })
-                .on_server_tool_calls(move |_ctx: &OutputContext, tool_calls: &[ToolCall]| {
-                    print_tool_calls(tool_calls);
-                    async {}
-                })
-                .on_usage(move |usage: &xai_sdk::api::SamplingUsage| {
-                    let u = (
-                        usage.prompt_tokens,
-                        usage.completion_tokens,
-                        usage.reasoning_tokens,
-                        usage.total_tokens,
-                    );
-                    println!(
-                        "\n📊 Tokens: prompt={} completion={} reasoning={} total={}",
-                        u.0, u.1, u.2, u.3
-                    );
-                    async {}
-                })
-                .on_citations(move |citations: &[String]| {
-                    let citations = citations.to_vec();
-                    if !citations.is_empty() {
-                        println!("\n🔗 Sources:");
-                        for (i, c) in citations.iter().enumerate() {
-                            println!("  {}. {}", i + 1, c);
-                        }
-                    }
-                    async move {}
-                });
+            let (tx, mut rx) = mpsc::unbounded();
 
-            match chat::stream::process(stream, consumer).await {
+            match process(stream, tx).await {
                 Ok(chunks) => {
+                    while let Some(ev) = rx.next().await {
+                        handle_event(ev).await?;
+                    }
                     println!("\n✅ Done ({} chunks)", chunks.len());
                     let chunks_debug = format!("{:#?}", chunks);
                     write_file(PathBuf::from("debug/chunks.txt"), chunks_debug)
@@ -155,6 +68,11 @@ async fn main() -> Result<()> {
                     println!("📝 Chunks saved to debug/chunks.txt");
                 }
                 Err(e) => {
+                    while let Some(ev) = rx.next().await {
+                        if let Event::Error(status) = ev {
+                            eprintln!("\n❌ Stream error: {}", status);
+                        }
+                    }
                     eprintln!("\n❌ Error processing stream: {}", e);
                     return Err(e.into());
                 }
@@ -169,7 +87,83 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Prints tool call details (type, id, status, function name/args) to stdout.
+async fn handle_event(ev: Event) -> Result<()> {
+    match ev {
+        Event::ReasoningToken(_, token) => {
+            print!("{token}");
+            io::stdout().flush().unwrap();
+        }
+        Event::ReasoningComplete(_) => println!(),
+        Event::ContentToken(_, token) => {
+            print!("{token}");
+            io::stdout().flush().unwrap();
+        }
+        Event::ContentComplete(_) => println!(),
+        Event::InlineCitations(_, citations) => {
+            if !citations.is_empty() {
+                println!("\n📚 {} inline citation(s)", citations.len());
+                for c in &citations {
+                    if let Some(ref data) = c.citation {
+                        println!("  • [{}] {:?}", c.id, data);
+                    } else {
+                        println!("  • [{}] (no data)", c.id);
+                    }
+                }
+            }
+        }
+        Event::ClientToolCalls(_, tool_calls) => {
+            print_tool_calls(&tool_calls);
+            for (path, content) in client_write_paths(&tool_calls) {
+                if let Err(e) = write_file(path.clone(), content).await {
+                    eprintln!("Failed to write {:?}: {}", path, e);
+                }
+            }
+        }
+        Event::ServerToolCalls(_, tool_calls) => print_tool_calls(&tool_calls),
+        Event::Usage(usage) => {
+            if let Some(usage) = usage {
+                println!(
+                    "\n📊 Tokens: prompt={} completion={} reasoning={} total={}",
+                    usage.prompt_tokens,
+                    usage.completion_tokens,
+                    usage.reasoning_tokens,
+                    usage.total_tokens
+                );
+            }
+        }
+        Event::Citations(citations) => {
+            if !citations.is_empty() {
+                println!("\n🔗 Sources:");
+                for (i, c) in citations.iter().enumerate() {
+                    println!("  {}. {}", i + 1, c);
+                }
+            }
+        }
+        Event::Error(status) => eprintln!("\n❌ Stream error: {}", status),
+        Event::Complete => {}
+        _ => {}
+    }
+    Ok(())
+}
+
+fn client_write_paths(tool_calls: &[ToolCall]) -> Vec<(PathBuf, String)> {
+    tool_calls
+        .iter()
+        .filter_map(|tc| {
+            let Some(xai_sdk::api::tool_call::Tool::Function(f)) = &tc.tool else {
+                return None;
+            };
+            if f.name != WRITE_FILE {
+                return None;
+            }
+            let args: serde_json::Value = serde_json::from_str(&f.arguments).ok()?;
+            let name = args.get("name")?.as_str()?.to_string();
+            let content = args.get("content")?.as_str()?.to_string();
+            Some((PathBuf::from(name), content))
+        })
+        .collect()
+}
+
 fn print_tool_calls(tool_calls: &[ToolCall]) {
     if tool_calls.is_empty() {
         return;
@@ -211,7 +205,6 @@ fn print_tool_calls(tool_calls: &[ToolCall]) {
 
 const WRITE_FILE: &str = "write_file";
 
-/// Creates a tool definition for the write_file function.
 fn write_file_tool() -> Tool {
     let def = Function {
         name: WRITE_FILE.into(),
@@ -239,7 +232,6 @@ fn write_file_tool() -> Tool {
     }
 }
 
-/// Writes content to a file at the specified path (creates parent dirs if needed).
 async fn write_file(path: PathBuf, content: String) -> Result<()> {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent)

@@ -17,10 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `with_channel(channel, api_key)`
   - `with_interceptor(interceptor)`
   - `with_channel_and_interceptor(channel, interceptor)`
-- **`Consumer::on_complete()`**: Invoked once after a successful stream (after `on_usage` and `on_citations` when present). Not called on stream errors. `Consumer::with_sink` emits `Event::Complete`.
-- **`Consumer::on_error()`**: Invoked once when the stream yields a gRPC error, before `process()` returns `Err`. `Consumer::with_sink` emits `Event::Error`.
+- **Event-driven `process`**: `process(stream, sink)` emits [`Event`](https://docs.rs/xai-sdk/latest/xai_sdk/chat/stream/enum.Event.html)s (`Chunk`, phase events, tool calls, `Citations`, `Usage`, `Complete`, `Error(Status)`) into any `futures::Sink<Event>`.
+- **`collect(stream)`**: Collect chunks only via `process` with `futures::sink::drain()`.
+- **`process_stdout` / `process_buffered_stdout`**: Built-in `Sink<Event>` implementations for terminal output (replace `Consumer::with_stdout` / `with_buffered_stdout`).
 
 ### Changed
+- **Streaming API**: `process` is purely event-driven; removed `Consumer` and all `on_*` callbacks. Use `process(stream, mpsc::unbounded().0)` (or any `Sink<Event>`) and match on `Event`.
 - **Build script cleanup**: Consolidated proto compilation in `sdk/build.rs` and included `xai/api/v1/files.proto` in the generated API set.
 - **Package metadata**: Bumped crate version to `0.10.0` and refreshed SDK package description.
 - **Chat utils conversions**: Refactored `chat::utils` message construction to use generic conversion helpers instead of trait-object-based conversion entrypoints.

@@ -235,37 +235,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The SDK provides powerful utilities for working with streaming responses:
 
-### Stream Consumer
-A flexible callback system for processing streaming data:
-- **`on_chunk(chunk)`** - Called for each complete chunk received
-- **`on_reasoning_start(&OutputContext)`** - Called once per output when the reasoning phase starts (before the first reasoning token)
-- **`on_reasoning_token(&OutputContext, token: &str)`** - Called for each piece of reasoning content
-- **`on_reasoning_complete(&OutputContext)`** - Called once when the reasoning phase completes for an output
-- **`on_content_start(&OutputContext)`** - Called once per output when the content phase starts (before the first content token)
-- **`on_content_token(&OutputContext, token: &str)`** - Called for each piece of response content
-- **`on_content_complete(&OutputContext)`** - Called once when the content phase completes for an output
-- **`on_inline_citations(&OutputContext, &[InlineCitation])`** - Called when inline citations are present in a delta
-- **`on_client_tool_calls(&OutputContext, &[ToolCall])`** - Called when client-side tool calls are present
-- **`on_server_tool_calls(&OutputContext, &[ToolCall])`** - Called when server-side tool calls are present
-- **`on_usage(&SamplingUsage)`** - Called once on the last chunk with usage statistics
-- **`on_citations(&[String])`** - Called once on the last chunk with citations
-- **`on_complete()`** - Called once after a successful stream (after usage/citations callbacks when present)
-- **`on_error(&Status)`** - Called once when the stream yields an error, before `process()` returns `Err`
+### Event-driven streaming
+`chat::stream::process` drives the stream and emits [`Event`](https://docs.rs/xai-sdk/latest/xai_sdk/chat/stream/enum.Event.html)s into any `futures::Sink<Event>` (e.g. `futures::channel::mpsc::unbounded()`). Match on events in your handler:
 
-The `OutputContext` provides:
-- `total_outputs` - Total number of outputs in the stream
-- `output_index` - Index of the output this context belongs to
-- `reasoning_status` - Current status of the reasoning phase (`Init`, `Start`, `Pending`, or `Complete`)
-- `content_status` - Current status of the content phase (`Init`, `Start`, `Pending`, or `Complete`)
+- **`Chunk`** - Each raw gRPC chunk
+- **`ReasoningStart` / `ReasoningToken` / `ReasoningComplete`** - Reasoning phase per output
+- **`ContentStart` / `ContentToken` / `ContentComplete`** - Content phase per output
+- **`InlineCitations`** - Inline citations in a delta
+- **`ClientToolCalls` / `ServerToolCalls`** - Tool calls in a delta
+- **`Citations`** - Source URLs from the final chunk
+- **`Usage`** - Token usage from the final chunk
+- **`Complete`** - Successful end of stream (not emitted on errors)
+- **`Error(Status)`** - gRPC failure before `process` returns `Err`
 
-### Stream Processing Functions
-- **`chat::stream::process`** - Process streaming responses with custom callbacks
-- **`chat::stream::assemble`** - Convert collected chunks into complete responses
-- **`chat::stream::Consumer::new_static()`** - Empty consumer with `'static` lifetime for one-line chaining: `Consumer::new_static().on_content_token(...).on_usage(...)`
-- **`chat::stream::Consumer::with_sink(snk)`** - Consumer that forwards all stream activity as [`Event`](https://docs.rs/xai-sdk/latest/xai_sdk/chat/stream/enum.Event.html)s into any `Sink<Event>` (e.g. `futures::channel::mpsc::unbounded()`). Create the channel, pass the sender, then drain the receiver for a single event stream. Bounded senders apply backpressure.
-- **`chat::stream::Event`** - Enum of streaming events: `Chunk`, `ReasoningStart`/`ReasoningToken`/`ReasoningComplete`, `ContentStart`/`ContentToken`/`ContentComplete`, `InlineCitations`, `ClientToolCalls`, `ServerToolCalls`, `Citations`, `Usage`, `Complete` (successful end), `Error(Status)` (gRPC failure).
-- **`chat::stream::Consumer::with_stdout()`** - Pre-configured consumer for single-output real-time output
-- **`chat::stream::Consumer::with_buffered_stdout()`** - Pre-configured consumer for multi-output buffered output
+`OutputContext` on phase/token events carries `total_outputs`, `output_index`, and `reasoning_status` / `content_status` (`Init`, `Start`, `Pending`, `Complete`).
+
+```rust
+use futures::channel::mpsc;
+use futures::StreamExt;
+use xai_sdk::chat::stream::{Event, process};
+
+let (tx, mut rx) = mpsc::unbounded();
+let chunks = process(stream, tx).await?;
+while let Some(ev) = rx.next().await {
+    match ev {
+        Event::ContentToken(_, token) => print!("{token}"),
+        Event::Complete => break,
+        _ => {}
+    }
+}
+```
+
+### Stream processing functions
+- **`chat::stream::process(stream, sink)`** - Emit events and collect raw chunks
+- **`chat::stream::collect(stream)`** - Chunks only (`process` with `futures::sink::drain()`)
+- **`chat::stream::process_stdout(stream)`** - Print tokens for single-output streams
+- **`chat::stream::process_buffered_stdout(stream)`** - Buffered multi-output printing
+- **`chat::stream::assemble`** - Convert collected chunks into a complete response
 
 ## Interceptors
 

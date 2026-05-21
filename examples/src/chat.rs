@@ -126,8 +126,7 @@ async fn stream(api_key: &str) -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            let consumer = chat::stream::Consumer::with_stdout();
-            let _ = chat::stream::process(stream, consumer).await;
+            let _ = chat::stream::process_stdout(stream).await?;
         }
         Err(e) => {
             eprintln!("❌ Error calling xAI API: {}", e);
@@ -169,8 +168,7 @@ async fn assemble(api_key: &str) -> Result<()> {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
 
             // Process the stream and collect all chunks
-            let consumer = chat::stream::Consumer::new();
-            let chunks = chat::stream::process(stream, consumer).await?;
+            let chunks = chat::stream::collect(stream).await?;
 
             println!("📦 Collected {} chunks from stream", chunks.len());
 
