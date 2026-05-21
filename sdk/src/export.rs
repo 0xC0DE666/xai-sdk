@@ -33,23 +33,19 @@ pub mod tonic {
 
 /// Futures types for [`crate::chat::stream::process`] and related streaming helpers.
 pub mod futures {
-    pub use futures::sink::Sink;
-    pub use futures::stream::Stream;
     pub use futures::{SinkExt, StreamExt};
 
     pub mod stream {
-        pub use futures::stream::{self, iter};
+        pub use futures::stream::{self, Stream, iter};
     }
 
     pub mod channel {
         pub mod mpsc {
-            pub use futures::channel::mpsc::{
-                UnboundedReceiver, UnboundedSender, unbounded,
-            };
+            pub use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
         }
     }
 
     pub mod sink {
-        pub use futures::sink::drain;
+        pub use futures::sink::{Sink, drain};
     }
 }

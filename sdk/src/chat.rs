@@ -97,8 +97,9 @@ pub mod stream {
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
-    use crate::export::futures::sink::drain;
-    use crate::export::futures::{Sink, SinkExt, Stream, StreamExt};
+    use crate::export::futures::sink::{drain, Sink};
+    use crate::export::futures::stream::Stream;
+    use crate::export::futures::{SinkExt, StreamExt};
     use std::collections::HashMap;
     use std::convert::Infallible;
     use std::io::Write;

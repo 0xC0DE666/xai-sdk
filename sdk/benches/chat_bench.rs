@@ -4,8 +4,7 @@ use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_mai
 use tokio::runtime::Runtime;
 use xai_sdk::export::futures::channel::mpsc;
 use xai_sdk::export::futures::sink::drain;
-use xai_sdk::export::futures::stream::{self, iter};
-use xai_sdk::export::futures::Stream;
+use xai_sdk::export::futures::stream::{self, iter, Stream};
 use xai_sdk::export::futures::StreamExt;
 use xai_sdk::export::tonic::Status;
 use xai_sdk::api::{
