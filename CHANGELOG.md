@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.11.0] - 2026-05-20
 
 ### Added
-- **`export::futures`**: Curated re-exports (`Stream`, `Sink`, `StreamExt`, `SinkExt`, `channel::mpsc`, `sink::drain`) for streaming without a direct `futures` dependency.
+- **`export::futures`**: Re-exports for actor mailboxes (`channel::mpsc` bounded/unbounded, `SendError`, `RecvError`, `TryRecvError`), RPC replies (`channel::oneshot`), streaming (`stream::Stream`, `stream::iter`), and `SinkExt` / `StreamExt` / `FutureExt` — no direct `futures` dependency required.
 - **Event-driven `process`**: `process(stream, sink)` emits `Event`s (`Chunk`, phase events, tool calls, `Citations`, `Usage`, `Complete`, `Error(Status)`) into any `Sink<Event>`.
 - **`collect(stream)`**: Collect chunks only via `process` with `export::futures::sink::drain()`.
 - **`process_stdout` / `process_buffered_stdout`**: Built-in `Sink<Event>` helpers for terminal output.

@@ -1,7 +1,8 @@
 //! Re-exports of commonly used types from dependencies.
 //!
 //! Curated re-exports so callers can depend on `xai-sdk` without adding `tonic` or
-//! `futures` for typical gRPC and streaming use cases. Paths mirror the upstream crates.
+//! `futures` for typical gRPC, actor-mailbox, RPC-reply, and streaming use cases.
+//! Paths mirror the upstream crates.
 
 /// Core gRPC types re-exported from `tonic`.
 pub mod tonic {
@@ -31,17 +32,34 @@ pub mod tonic {
     }
 }
 
-/// Futures types for [`crate::chat::stream::process`] and related streaming helpers.
+/// Futures types for service mailboxes, RPC replies, and chat streaming.
+///
+/// Typical layout:
+/// - [`channel::mpsc`] — bounded actor mailboxes (`channel(100)`), [`SinkExt::send`], [`StreamExt::next`]
+/// - [`channel::oneshot`] — single RPC reply (`reply_to` in request structs)
+/// - [`stream::Stream`] — chunk streams from transports; [`stream::iter`] for test mocks
+/// - [`SinkExt`] / [`StreamExt`] — async `.send().await`, `.next().await`, receiver close
 pub mod futures {
-    pub use futures::{SinkExt, StreamExt};
+    pub use futures::{FutureExt, SinkExt, StreamExt};
 
     pub mod stream {
         pub use futures::stream::{self, Stream, iter};
     }
 
     pub mod channel {
+        /// Multi-producer single-consumer mailboxes (bounded and unbounded).
         pub mod mpsc {
-            pub use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
+            pub use futures::channel::mpsc::{
+                Receiver, RecvError, SendError, Sender, TryRecvError, TrySendError,
+                UnboundedReceiver, UnboundedSender, channel, unbounded,
+            };
+        }
+
+        /// Single-use reply channels for request/response RPC.
+        pub mod oneshot {
+            pub use futures::channel::oneshot::{
+                Canceled, Cancellation, Receiver, Sender, channel,
+            };
         }
     }
 

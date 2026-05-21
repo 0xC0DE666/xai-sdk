@@ -266,6 +266,17 @@ while let Some(ev) = rx.next().await {
 }
 ```
 
+### `export::futures` (mailboxes, RPC, streaming)
+
+Re-exported without adding `futures` to your `Cargo.toml`:
+
+| Path | Use |
+|------|-----|
+| `export::futures::channel::mpsc` | Bounded mailboxes (`channel(100)`), `Sender` / `Receiver`, `SendError`, `RecvError`, `TryRecvError` |
+| `export::futures::channel::oneshot` | RPC reply channels (`channel()`, `Sender`, `Receiver`, `Canceled`) |
+| `export::futures::stream` | `Stream` trait, `iter` for test mocks |
+| `export::futures::{SinkExt, StreamExt}` | `.send().await`, `.next().await`, close receivers |
+
 ### Stream processing functions
 - **`chat::stream::process(stream, sink)`** - Emit events and collect raw chunks
 - **`chat::stream::collect(stream)`** - Chunks only (`process` with `xai_sdk::export::futures::sink::drain()`)
