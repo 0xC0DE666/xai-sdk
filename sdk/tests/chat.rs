@@ -567,56 +567,111 @@ fn test_assemble_with_tool_calls() {
 }
 
 #[test]
-fn test_assemble_merges_streaming_tool_call_fragments() {
+fn test_assemble_appends_whole_tool_calls_across_chunks() {
     use xai_sdk::api::{FunctionCall, tool_call};
 
-    let mut chunk1 = GetChatCompletionChunk::default();
-    chunk1.outputs = vec![CompletionOutputChunk {
-        index: 0,
-        delta: Some(Delta {
-            tool_calls: vec![ToolCall {
-                id: "call-1".to_string(),
-                r#type: ToolCallType::ClientSideTool as i32,
-                tool: Some(tool_call::Tool::Function(FunctionCall {
-                    name: "get_weather".to_string(),
-                    arguments: "{\"city\":".to_string(),
-                })),
+    let chunk1 = GetChatCompletionChunk {
+        outputs: vec![CompletionOutputChunk {
+            index: 0,
+            delta: Some(Delta {
+                tool_calls: vec![ToolCall {
+                    id: "call-1".to_string(),
+                    r#type: ToolCallType::ClientSideTool as i32,
+                    tool: Some(tool_call::Tool::Function(FunctionCall {
+                        name: "get_weather".to_string(),
+                        arguments: r#"{"city":"NYC"}"#.to_string(),
+                    })),
+                    ..Default::default()
+                }],
                 ..Default::default()
-            }],
+            }),
             ..Default::default()
-        }),
-        finish_reason: FinishReason::ReasonInvalid as i32,
+        }],
         ..Default::default()
-    }];
+    };
 
-    let mut chunk2 = GetChatCompletionChunk::default();
-    chunk2.outputs = vec![CompletionOutputChunk {
-        index: 0,
-        delta: Some(Delta {
-            tool_calls: vec![ToolCall {
-                id: String::new(),
-                tool: Some(tool_call::Tool::Function(FunctionCall {
-                    name: String::new(),
-                    arguments: "\"NYC\"}".to_string(),
-                })),
+    let chunk2 = GetChatCompletionChunk {
+        outputs: vec![CompletionOutputChunk {
+            index: 0,
+            delta: Some(Delta {
+                tool_calls: vec![ToolCall {
+                    id: "call-2".to_string(),
+                    r#type: ToolCallType::WebSearchTool as i32,
+                    tool: Some(tool_call::Tool::Function(FunctionCall {
+                        name: "web_search".to_string(),
+                        arguments: "{}".to_string(),
+                    })),
+                    ..Default::default()
+                }],
                 ..Default::default()
-            }],
+            }),
+            finish_reason: FinishReason::ReasonToolCalls as i32,
             ..Default::default()
-        }),
-        finish_reason: FinishReason::ReasonToolCalls as i32,
+        }],
         ..Default::default()
-    }];
+    };
+
+    let response = assemble(vec![chunk1, chunk2]).unwrap();
+    let message = response.outputs[0].message.as_ref().unwrap();
+    assert_eq!(message.tool_calls.len(), 2);
+    assert_eq!(message.tool_calls[0].id, "call-1");
+    assert_eq!(message.tool_calls[1].id, "call-2");
+}
+
+#[test]
+fn test_assemble_replaces_tool_call_with_same_id() {
+    use xai_sdk::api::{FunctionCall, ToolCallStatus, tool_call};
+
+    let chunk1 = GetChatCompletionChunk {
+        outputs: vec![CompletionOutputChunk {
+            index: 0,
+            delta: Some(Delta {
+                tool_calls: vec![ToolCall {
+                    id: "call-1".to_string(),
+                    status: ToolCallStatus::InProgress as i32,
+                    tool: Some(tool_call::Tool::Function(FunctionCall {
+                        name: "run".to_string(),
+                        arguments: "{}".to_string(),
+                    })),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let chunk2 = GetChatCompletionChunk {
+        outputs: vec![CompletionOutputChunk {
+            index: 0,
+            delta: Some(Delta {
+                tool_calls: vec![ToolCall {
+                    id: "call-1".to_string(),
+                    status: ToolCallStatus::Completed as i32,
+                    tool: Some(tool_call::Tool::Function(FunctionCall {
+                        name: "run".to_string(),
+                        arguments: r#"{"ok":true}"#.to_string(),
+                    })),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            finish_reason: FinishReason::ReasonToolCalls as i32,
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
 
     let response = assemble(vec![chunk1, chunk2]).unwrap();
     let message = response.outputs[0].message.as_ref().unwrap();
     assert_eq!(message.tool_calls.len(), 1);
-    assert_eq!(message.tool_calls[0].id, "call-1");
+    assert_eq!(message.tool_calls[0].status, ToolCallStatus::Completed as i32);
     let func = match &message.tool_calls[0].tool {
         Some(tool_call::Tool::Function(f)) => f,
         _ => panic!("expected function tool call"),
     };
-    assert_eq!(func.name, "get_weather");
-    assert_eq!(func.arguments, "{\"city\":\"NYC\"}");
+    assert_eq!(func.arguments, r#"{"ok":true}"#);
 }
 
 #[test]
