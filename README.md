@@ -236,7 +236,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The SDK provides powerful utilities for working with streaming responses:
 
 ### Event-driven streaming
-`chat::stream::process` drives the stream and emits [`Event`](https://docs.rs/xai-sdk/latest/xai_sdk/chat/stream/enum.Event.html)s into any `futures::Sink<Event>` (e.g. `futures::channel::mpsc::unbounded()`). Match on events in your handler:
+`chat::stream::process` drives the stream and emits `Event`s into any `futures::Sink<Event>` (e.g. `futures::channel::mpsc::unbounded()`). Match on events in your handler:
 
 - **`Chunk`** - Each raw gRPC chunk
 - **`ReasoningStart` / `ReasoningToken` / `ReasoningComplete`** - Reasoning phase per output

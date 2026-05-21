@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `with_channel(channel, api_key)`
   - `with_interceptor(interceptor)`
   - `with_channel_and_interceptor(channel, interceptor)`
-- **Event-driven `process`**: `process(stream, sink)` emits [`Event`](https://docs.rs/xai-sdk/latest/xai_sdk/chat/stream/enum.Event.html)s (`Chunk`, phase events, tool calls, `Citations`, `Usage`, `Complete`, `Error(Status)`) into any `futures::Sink<Event>`.
+- **Event-driven `process`**: `process(stream, sink)` emits `Event`s (`Chunk`, phase events, tool calls, `Citations`, `Usage`, `Complete`, `Error(Status)`) into any `futures::Sink<Event>`.
 - **`collect(stream)`**: Collect chunks only via `process` with `futures::sink::drain()`.
 - **`process_stdout` / `process_buffered_stdout`**: Built-in `Sink<Event>` implementations for terminal output (replace `Consumer::with_stdout` / `with_buffered_stdout`).
 

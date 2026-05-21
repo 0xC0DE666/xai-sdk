@@ -202,7 +202,20 @@ pub mod stream {
         let _ = events.send(event).await;
     }
 
-    /// Processes a streaming chat completion, emitting [`Event`]s and collecting raw chunks.
+    /// Processes a streaming chat completion response, emitting [`Event`]s.
+    ///
+    /// Iterates through streaming chunks, sending events for each token,
+    /// completion event, and metadata. Supports multi-output streams with proper
+    /// context tracking.
+    ///
+    /// # Arguments
+    /// * `stream` - Any stream yielding `Result<GetChatCompletionChunk, Status>` (e.g. from
+    ///   `get_completion_chunk` or a mock). Must implement `Stream + Send + Unpin + 'static`.
+    /// * `events` - Sink that receives [`Event`]s (e.g. `futures::channel::mpsc::unbounded()` sender)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<GetChatCompletionChunk>)` - All chunks collected from the stream
+    /// * `Err(Status)` - gRPC error if streaming failed (after emitting [`Event::Error`])
     pub async fn process<S, Si>(
         mut stream: S,
         mut events: Si,
@@ -232,22 +245,32 @@ pub mod stream {
 
                     for output in &chunk.outputs {
                         let cur_output_index = output.index;
+
+                        // Update max early so total_outputs is as accurate as possible
                         max_output_index_seen = max_output_index_seen.max(cur_output_index);
 
+                        // Always start with the latest finish_reason from this chunk
                         let mut cur_output_stats =
                             OutputStats::init(cur_output_index, output.finish_reason());
 
-                        if let Some(delta) = &output.delta {
+                        let delta = output.delta.as_ref();
+
+                        // Increment token counts only if there is a delta
+                        if let Some(delta) = delta {
                             cur_output_stats.inc(&delta.reasoning_content, &delta.content);
                         }
 
+                        // Merge current chunk data into accumulated stats
+                        // Chained to avoid the move error
                         let merged = output_stats
                             .entry(cur_output_index)
                             .and_modify(|e| e.merge(&cur_output_stats))
                             .or_insert(cur_output_stats);
 
                         let (reasoning_status, content_status) = get_output_status(merged);
+
                         let total_outputs = (max_output_index_seen + 1) as usize;
+
                         let output_ctx = OutputContext::new(
                             total_outputs,
                             cur_output_index as usize,
@@ -255,9 +278,11 @@ pub mod stream {
                             content_status.clone(),
                         );
 
-                        if let Some(delta) = &output.delta
+                        // #################### Reasoning ####################
+                        if let Some(delta) = delta
                             && !delta.reasoning_content.is_empty()
                         {
+                            // Reasoning start (once)
                             if !reasoning_start_fired
                                 .get(&cur_output_index)
                                 .copied()
@@ -266,6 +291,7 @@ pub mod stream {
                                 emit(&mut events, Event::ReasoningStart(output_ctx.clone())).await;
                                 reasoning_start_fired.insert(cur_output_index, true);
                             }
+                            // Reasoning tokens (multiple)
                             emit(
                                 &mut events,
                                 Event::ReasoningToken(
@@ -276,6 +302,9 @@ pub mod stream {
                             .await;
                         }
 
+                        // Phase completion callback – fire immediately when we detect Complete
+                        // (runs even on chunks without delta, in case finish_reason updated)
+                        // Reasoning complete (once)
                         if reasoning_status == PhaseStatus::Complete
                             && !reasoning_complete_fired
                                 .get(&cur_output_index)
@@ -287,9 +316,11 @@ pub mod stream {
                             reasoning_complete_fired.insert(cur_output_index, true);
                         }
 
-                        if let Some(delta) = &output.delta
+                        // #################### Content ####################
+                        if let Some(delta) = delta
                             && !delta.content.is_empty()
                         {
+                            // Content start (once)
                             if !content_start_fired
                                 .get(&cur_output_index)
                                 .copied()
@@ -298,6 +329,7 @@ pub mod stream {
                                 emit(&mut events, Event::ContentStart(output_ctx.clone())).await;
                                 content_start_fired.insert(cur_output_index, true);
                             }
+                            // Content tokens (multiple)
                             emit(
                                 &mut events,
                                 Event::ContentToken(output_ctx.clone(), delta.content.clone()),
@@ -305,6 +337,9 @@ pub mod stream {
                             .await;
                         }
 
+                        // Phase completion callback – fire immediately when we detect Complete
+                        // (runs even on chunks without delta, in case finish_reason updated)
+                        // Content complete (once)
                         if content_status == PhaseStatus::Complete
                             && !content_complete_fired
                                 .get(&cur_output_index)
@@ -316,7 +351,9 @@ pub mod stream {
                             content_complete_fired.insert(cur_output_index, true);
                         }
 
-                        if let Some(delta) = &output.delta {
+                        // #################### Citations, Tool Calls ####################
+                        if let Some(delta) = delta {
+                            // Inline citations
                             if !delta.citations.is_empty() {
                                 emit(
                                     &mut events,
@@ -328,6 +365,7 @@ pub mod stream {
                                 .await;
                             }
 
+                            // Tool calls
                             if !delta.tool_calls.is_empty() {
                                 let mut client_tool_calls = Vec::new();
                                 let mut server_tool_calls = Vec::new();
@@ -368,6 +406,7 @@ pub mod stream {
             }
         }
 
+        // Final metadata events (only on last chunk)
         if let Some(ref last_chunk) = last_chunk {
             if let Some(ref usage) = last_chunk.usage {
                 emit(&mut events, Event::Usage(Some(usage.clone()))).await;

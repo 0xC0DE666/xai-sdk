@@ -15,9 +15,11 @@ use xai_sdk::{Request, Streaming};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load API key from environment variable
     let api_key =
         env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
+    // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;
 
     let prompt = "What where the last two tweets from @elonmusk and @tsoding? Write their tweets with sources to 'musk.txt' and 'tsoding.txt'.";
@@ -30,11 +32,13 @@ async fn main() -> Result<()> {
     msg.content = vec![cntnt];
     let messages = vec![msg];
 
+    // Create XSearch tool for searching X/Twitter
     let xsearch = XSearch::default();
     let xsearch_tool = Tool {
         tool: Some(xai_sdk::api::tool::Tool::XSearch(xsearch)),
     };
 
+    // Create write_file tool
     let write_file_tool = write_file_tool();
 
     let request = Request::new(GetCompletionsRequest {
@@ -50,6 +54,7 @@ async fn main() -> Result<()> {
     println!("🤖 Model: {model}");
     println!();
 
+    // Make the streaming API call
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
@@ -57,6 +62,7 @@ async fn main() -> Result<()> {
 
             match process(stream, tx).await {
                 Ok(chunks) => {
+                    // Drain events emitted during processing
                     while let Some(ev) = rx.next().await {
                         handle_event(ev).await?;
                     }
@@ -87,6 +93,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Handles a single stream event (replaces the old Consumer callback hooks).
 async fn handle_event(ev: Event) -> Result<()> {
     match ev {
         Event::ReasoningToken(_, token) => {

@@ -126,6 +126,7 @@ async fn stream(api_key: &str) -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
+            // Print tokens to stdout as they arrive
             let _ = chat::stream::process_stdout(stream).await?;
         }
         Err(e) => {
