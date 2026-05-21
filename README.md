@@ -166,7 +166,7 @@ Here's a complete example showing multiple services using the modular architectu
 ```rust
 use anyhow::{Context, Result};
 use std::env;
-use xai_sdk::Request;
+use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
     Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
     content,
@@ -236,7 +236,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The SDK provides powerful utilities for working with streaming responses:
 
 ### Event-driven streaming
-`chat::stream::process` drives the stream and emits `Event`s into any `futures::Sink<Event>` (e.g. `futures::channel::mpsc::unbounded()`). Match on events in your handler:
+`chat::stream::process` drives the stream and emits `Event`s into any `Sink<Event>` (e.g. `xai_sdk::export::futures::channel::mpsc::unbounded()`). Match on events in your handler:
 
 - **`Chunk`** - Each raw gRPC chunk
 - **`ReasoningStart` / `ReasoningToken` / `ReasoningComplete`** - Reasoning phase per output
@@ -251,8 +251,8 @@ The SDK provides powerful utilities for working with streaming responses:
 `OutputContext` on phase/token events carries `total_outputs`, `output_index`, and `reasoning_status` / `content_status` (`Init`, `Start`, `Pending`, `Complete`).
 
 ```rust
-use futures::channel::mpsc;
-use futures::StreamExt;
+use xai_sdk::export::futures::channel::mpsc;
+use xai_sdk::export::futures::StreamExt;
 use xai_sdk::chat::stream::{Event, process};
 
 let (tx, mut rx) = mpsc::unbounded();
@@ -268,7 +268,7 @@ while let Some(ev) = rx.next().await {
 
 ### Stream processing functions
 - **`chat::stream::process(stream, sink)`** - Emit events and collect raw chunks
-- **`chat::stream::collect(stream)`** - Chunks only (`process` with `futures::sink::drain()`)
+- **`chat::stream::collect(stream)`** - Chunks only (`process` with `xai_sdk::export::futures::sink::drain()`)
 - **`chat::stream::process_stdout(stream)`** - Print tokens for single-output streams
 - **`chat::stream::process_buffered_stdout(stream)`** - Buffered multi-output printing
 - **`chat::stream::assemble`** - Convert collected chunks into a complete response
@@ -293,7 +293,7 @@ Combine multiple interceptors using `compose()`:
 ```rust
 use xai_sdk::common::interceptor::{auth, compose};
 
-let interceptors: Vec<Box<dyn xai_sdk::export::service::Interceptor + Send + Sync>> = vec![
+let interceptors: Vec<Box<dyn xai_sdk::export::tonic::service::Interceptor + Send + Sync>> = vec![
     Box::new(auth("your-api-key")),
     Box::new(|mut req| {
         req.metadata_mut().insert("x-custom-header", "value".parse().unwrap());

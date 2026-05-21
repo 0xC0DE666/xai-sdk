@@ -5,7 +5,7 @@
 
 pub mod channel {
     use crate::XAI_API_URL;
-    use crate::export::transport::{Channel, ClientTlsConfig, Error};
+    use crate::export::tonic::transport::{Channel, ClientTlsConfig, Error};
 
     /// Creates a TLS-enabled gRPC `Channel` to the xAI API endpoint.
     ///
@@ -24,9 +24,9 @@ pub mod channel {
 }
 
 pub mod interceptor {
-    use crate::export::metadata::MetadataValue;
-    use crate::export::service::Interceptor;
-    use crate::export::{Request, Status};
+    use crate::export::tonic::metadata::MetadataValue;
+    use crate::export::tonic::service::Interceptor;
+    use crate::export::tonic::{Request, Status};
 
     /// Concrete interceptor type for client contexts.
     ///
@@ -61,7 +61,7 @@ pub mod interceptor {
     }
 
     impl Interceptor for ClientInterceptor {
-        fn call(&mut self, request: tonic::Request<()>) -> Result<tonic::Request<()>, Status> {
+        fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
             self.inner.call(request)
         }
     }

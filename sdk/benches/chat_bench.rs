@@ -1,12 +1,13 @@
 //! Benchmarks for `chat::stream`: `assemble`, `process` (drain vs event sink).
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
-use futures::StreamExt;
-use futures::channel::mpsc;
-use futures::sink::drain;
-use futures::stream::{self, Stream};
 use tokio::runtime::Runtime;
-use xai_sdk::Status;
+use xai_sdk::export::futures::channel::mpsc;
+use xai_sdk::export::futures::sink::drain;
+use xai_sdk::export::futures::stream::{self, iter};
+use xai_sdk::export::futures::Stream;
+use xai_sdk::export::futures::StreamExt;
+use xai_sdk::export::tonic::Status;
 use xai_sdk::api::{
     CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
 };

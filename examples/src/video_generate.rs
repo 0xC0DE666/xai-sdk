@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use tokio::time::sleep;
 
-use xai_sdk::Request;
+use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
     DeferredStatus, GenerateVideoRequest, GetDeferredVideoRequest, VideoAspectRatio,
     VideoResolution,

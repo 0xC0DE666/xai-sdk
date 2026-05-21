@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use futures::StreamExt;
-use futures::channel::mpsc;
+use xai_sdk::export::futures::channel::mpsc;
+use xai_sdk::export::futures::StreamExt;
 use serde_json::json;
 use std::env;
 use std::io::{self, Write};
@@ -11,7 +11,7 @@ use xai_sdk::api::{
 };
 use xai_sdk::chat;
 use xai_sdk::chat::stream::{Event, process};
-use xai_sdk::{Request, Streaming};
+use xai_sdk::export::tonic::{Request, Streaming};
 
 #[tokio::main]
 async fn main() -> Result<()> {

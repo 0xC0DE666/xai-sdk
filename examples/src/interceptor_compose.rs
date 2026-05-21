@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
-use xai_sdk::Request;
+use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
     Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };

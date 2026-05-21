@@ -7,8 +7,8 @@
 pub mod client {
     use crate::common;
     use crate::common::interceptor::ClientInterceptor;
-    use crate::export::service::{Interceptor, interceptor::InterceptedService};
-    use crate::export::transport::{Channel, Error};
+    use crate::export::tonic::service::{Interceptor, interceptor::InterceptedService};
+    use crate::export::tonic::transport::{Channel, Error};
     use crate::xai_api::chat_client::ChatClient as XChatClient;
 
     pub type ChatClient = XChatClient<InterceptedService<Channel, ClientInterceptor>>;
@@ -92,13 +92,13 @@ pub mod client {
 /// Provides utilities for processing real-time chat completion streams via [`stream::Event`],
 /// and for assembling chunks into complete responses.
 pub mod stream {
-    use crate::export::Status;
+    use crate::export::tonic::Status;
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
-    use futures::sink::Sink;
-    use futures::{SinkExt, Stream, StreamExt};
+    use crate::export::futures::sink::drain;
+    use crate::export::futures::{Sink, SinkExt, Stream, StreamExt};
     use std::collections::HashMap;
     use std::convert::Infallible;
     use std::io::Write;
@@ -211,7 +211,7 @@ pub mod stream {
     /// # Arguments
     /// * `stream` - Any stream yielding `Result<GetChatCompletionChunk, Status>` (e.g. from
     ///   `get_completion_chunk` or a mock). Must implement `Stream + Send + Unpin + 'static`.
-    /// * `events` - Sink that receives [`Event`]s (e.g. `futures::channel::mpsc::unbounded()` sender)
+    /// * `events` - Sink that receives [`Event`]s (e.g. [`export::futures::channel::mpsc::unbounded`] sender)
     ///
     /// # Returns
     /// * `Ok(Vec<GetChatCompletionChunk>)` - All chunks collected from the stream
@@ -425,7 +425,7 @@ pub mod stream {
     where
         S: Stream<Item = Result<GetChatCompletionChunk, Status>> + Send + Unpin + 'static,
     {
-        process(stream, futures::sink::drain()).await
+        process(stream, drain()).await
     }
 
     struct StdoutSink;

@@ -5,7 +5,7 @@ use xai_sdk::api::{
     MessageRole, content,
 };
 use xai_sdk::chat;
-use xai_sdk::{Request, Streaming};
+use xai_sdk::export::tonic::{Request, Streaming};
 
 const COMPLETE: &str = "--complete";
 const STREAM: &str = "--stream";

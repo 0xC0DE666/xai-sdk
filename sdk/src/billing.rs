@@ -6,8 +6,8 @@
 pub mod client {
     use crate::common;
     use crate::common::interceptor::ClientInterceptor;
-    use crate::export::service::{Interceptor, interceptor::InterceptedService};
-    use crate::export::transport::{Channel, Error};
+    use crate::export::tonic::service::{Interceptor, interceptor::InterceptedService};
+    use crate::export::tonic::transport::{Channel, Error};
     use crate::prod_mc_billing::ui_svc_client::UiSvcClient as XUiSvcClient;
 
     pub type BillingClient = XUiSvcClient<InterceptedService<Channel, ClientInterceptor>>;

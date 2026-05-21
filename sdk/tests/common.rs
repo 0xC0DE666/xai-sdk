@@ -1,7 +1,7 @@
 use xai_sdk::common;
 use xai_sdk::common::interceptor::{ClientInterceptor, auth, compose};
-use xai_sdk::export::service::Interceptor;
-use xai_sdk::{Request, Status};
+use xai_sdk::export::tonic::service::Interceptor;
+use xai_sdk::export::tonic::{Request, Status};
 
 #[test]
 fn test_client_interceptor_new() {

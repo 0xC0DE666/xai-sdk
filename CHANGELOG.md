@@ -8,13 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.11.0] - 2026-05-20
 
 ### Added
-- **Event-driven `process`**: `process(stream, sink)` emits `Event`s (`Chunk`, phase events, tool calls, `Citations`, `Usage`, `Complete`, `Error(Status)`) into any `futures::Sink<Event>`.
-- **`collect(stream)`**: Collect chunks only via `process` with `futures::sink::drain()`.
+- **`export::futures`**: Curated re-exports (`Stream`, `Sink`, `StreamExt`, `SinkExt`, `channel::mpsc`, `sink::drain`) for streaming without a direct `futures` dependency.
+- **Event-driven `process`**: `process(stream, sink)` emits `Event`s (`Chunk`, phase events, tool calls, `Citations`, `Usage`, `Complete`, `Error(Status)`) into any `Sink<Event>`.
+- **`collect(stream)`**: Collect chunks only via `process` with `export::futures::sink::drain()`.
 - **`process_stdout` / `process_buffered_stdout`**: Built-in `Sink<Event>` helpers for terminal output.
 
 ### Changed
 - **Package metadata**: Bumped crate version to `0.11.0`.
-- **BREAKING**: Removed `Consumer` and all `on_*` callbacks. Use `process(stream, sink)` (e.g. `futures::channel::mpsc::unbounded()` sender) and match on `Event`.
+- **BREAKING**: Re-exports moved under `xai_sdk::export::tonic` (`Request`, `Response`, `Status`, `Streaming`, `transport`, `service`, `metadata`). Crate-root `pub use export::*` removed.
+- **BREAKING**: Removed `Consumer` and all `on_*` callbacks. Use `process(stream, sink)` (e.g. `export::futures::channel::mpsc::unbounded()` sender) and match on `Event`.
 - **BREAKING**: `process(stream, consumer)` replaced by `process(stream, sink)`; `Consumer::with_sink`, `with_stdout`, `with_buffered_stdout`, and `new_static()` removed.
 - **`assemble`**: Tool calls from each delta are appended whole (xAI sends full calls); same `id` replaces the earlier entry. Inline citations merge by `id`.
 
