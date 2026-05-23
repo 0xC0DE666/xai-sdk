@@ -92,14 +92,14 @@ pub mod client {
 /// Provides utilities for processing real-time chat completion streams via [`stream::Event`],
 /// and for assembling chunks into complete responses.
 pub mod stream {
+    use crate::export::futures::sink::{Sink, drain};
+    use crate::export::futures::stream::Stream;
+    use crate::export::futures::{SinkExt, StreamExt};
     use crate::export::tonic::Status;
     use crate::xai_api::{
         CompletionMessage, CompletionOutput, FinishReason, GetChatCompletionChunk,
         GetChatCompletionResponse, InlineCitation, LogProbs, SamplingUsage, ToolCall, ToolCallType,
     };
-    use crate::export::futures::sink::{drain, Sink};
-    use crate::export::futures::stream::Stream;
-    use crate::export::futures::{SinkExt, StreamExt};
     use std::collections::HashMap;
     use std::convert::Infallible;
     use std::io::Write;
@@ -144,7 +144,7 @@ pub mod stream {
     }
 
     /// Status of reasoning or content generation phases in streaming responses.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Debug, Clone, PartialEq)]
     pub enum PhaseStatus {
         Init,
         Start,
@@ -153,7 +153,7 @@ pub mod stream {
     }
 
     /// Contextual information about an output in a streaming chat completion response.
-    #[derive(Clone, Debug)]
+    #[derive(Debug, Clone)]
     pub struct OutputContext {
         pub total_outputs: usize,
         pub output_index: usize,
@@ -178,7 +178,7 @@ pub mod stream {
     }
 
     /// A single event from a streaming chat completion, as produced by [`process`].
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum Event {
         Chunk(GetChatCompletionChunk),
         ReasoningStart(OutputContext),
