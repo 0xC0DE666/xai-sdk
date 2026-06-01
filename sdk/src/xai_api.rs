@@ -569,6 +569,7 @@ pub enum ServerSideTool {
     CollectionsSearch = 6,
     Mcp = 7,
     AttachmentSearch = 8,
+    ImageSearch = 10,
 }
 impl ServerSideTool {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -586,6 +587,7 @@ impl ServerSideTool {
             Self::CollectionsSearch => "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH",
             Self::Mcp => "SERVER_SIDE_TOOL_MCP",
             Self::AttachmentSearch => "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH",
+            Self::ImageSearch => "SERVER_SIDE_TOOL_IMAGE_SEARCH",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -600,6 +602,7 @@ impl ServerSideTool {
             "SERVER_SIDE_TOOL_COLLECTIONS_SEARCH" => Some(Self::CollectionsSearch),
             "SERVER_SIDE_TOOL_MCP" => Some(Self::Mcp),
             "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH" => Some(Self::AttachmentSearch),
+            "SERVER_SIDE_TOOL_IMAGE_SEARCH" => Some(Self::ImageSearch),
             _ => None,
         }
     }
@@ -1971,6 +1974,9 @@ pub struct WebSearch {
     /// which is useful for geolocation-based search results refinement.
     #[prost(message, optional, tag = "4")]
     pub user_location: ::core::option::Option<WebSearchUserLocation>,
+    /// Enable image search results that can be embedded in responses.
+    #[prost(bool, optional, tag = "5")]
+    pub enable_image_search: ::core::option::Option<bool>,
 }
 /// The user location to use for a preference on the search results.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2409,6 +2415,36 @@ pub struct DebugOutput {
     /// The tag of the sampler that served this request.
     #[prost(string, tag = "11")]
     pub sampler_tag: ::prost::alloc::string::String,
+}
+/// Request for the standalone CompactContext RPC.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CompactContextRequest {
+    /// Model to use for generating the compaction blob.
+    #[prost(string, tag = "1")]
+    pub model: ::prost::alloc::string::String,
+    /// Full current input window as proto messages.
+    /// This is the same set of messages the client would send in
+    /// GetCompletionsRequest.messages.
+    #[prost(message, repeated, tag = "2")]
+    pub input: ::prost::alloc::vec::Vec<Message>,
+}
+/// Response from the standalone CompactContext RPC.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CompactContextResponse {
+    /// Unique compaction ID (e.g. cmp\_<uuid>).
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    /// Opaque blob representing the compacted conversation. Clients must pass
+    /// this back unchanged in subsequent requests.
+    #[prost(string, tag = "2")]
+    pub encrypted_content: ::prost::alloc::string::String,
+    /// Number of input Message entries (role + content pairs) from the
+    /// original input that were dropped or folded into the compacted blob.
+    #[prost(uint32, tag = "3")]
+    pub dropped_message_count: u32,
+    /// Token usage from the compacting model call.
+    #[prost(message, optional, tag = "4")]
+    pub usage: ::core::option::Option<SamplingUsage>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -3042,6 +3078,34 @@ pub mod chat_client {
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Chat", "DeleteStoredCompletion"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Compacts a full input context and returns a compacted context.
+        /// The client sends the current input items and receives back a compacted
+        /// set of items (with an opaque compaction blob) suitable for use as
+        /// the input to the next request.
+        pub async fn compact_context(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CompactContextRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::CompactContextResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Chat/CompactContext",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Chat", "CompactContext"));
             self.inner.unary(req, path, codec).await
         }
     }

@@ -410,6 +410,7 @@ pub mod enums {
                 ServerSideTool::CollectionsSearch => "collections_search",
                 ServerSideTool::Mcp => "mcp",
                 ServerSideTool::AttachmentSearch => "attachment_search",
+                ServerSideTool::ImageSearch => "image_search",
             };
             f.write_str(s)
         }
@@ -429,6 +430,7 @@ pub mod enums {
                 "collections_search" | "collectionssearch" => Ok(ServerSideTool::CollectionsSearch),
                 "mcp" => Ok(ServerSideTool::Mcp),
                 "attachment_search" | "attachmentsearch" => Ok(ServerSideTool::AttachmentSearch),
+                "image_search" | "imagesearch" => Ok(ServerSideTool::AttachmentSearch),
                 _ => ServerSideTool::from_str_name(s)
                     .ok_or_else(|| format!("Invalid server side tool: '{s}'")),
             }
