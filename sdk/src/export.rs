@@ -32,6 +32,31 @@ pub mod tonic {
     }
 }
 
+/// Prost types re-exported from the `prost` crate.
+///
+/// Curated re-export so callers can depend on `xai-sdk` alone (without adding
+/// `prost` to their own `Cargo.toml`) when they need the protobuf binary wire
+/// format for generated API types.
+pub mod prost {
+    pub use ::prost::Message;
+
+    /// Encode a prost-generated message to its binary wire format.
+    pub fn encode<M>(message: &M) -> Vec<u8>
+    where
+        M: Message,
+    {
+        message.encode_to_vec()
+    }
+
+    /// Decode a prost-generated message from its binary wire format.
+    pub fn decode<M>(bytes: &[u8]) -> Result<M, ::prost::DecodeError>
+    where
+        M: Message + Default,
+    {
+        M::decode(bytes)
+    }
+}
+
 /// Futures types for service mailboxes, RPC replies, and chat streaming.
 ///
 /// Typical layout:
