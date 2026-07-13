@@ -1,6 +1,3 @@
-use xai_sdk::export::futures::channel::mpsc;
-use xai_sdk::export::futures::stream::{self, Stream};
-use xai_sdk::export::futures::StreamExt;
 use tonic::Status;
 use xai_sdk::api::tool_call;
 use xai_sdk::api::{
@@ -10,6 +7,9 @@ use xai_sdk::api::{
 };
 use xai_sdk::chat::stream::{Event, OutputContext, PhaseStatus, assemble, process};
 use xai_sdk::chat::utils::to_messages;
+use xai_sdk::export::futures::StreamExt;
+use xai_sdk::export::futures::channel::mpsc;
+use xai_sdk::export::futures::stream::{self, Stream};
 
 /// Collect all events from the receiver after process completes.
 async fn collect_events(mut rcv: mpsc::UnboundedReceiver<Event>) -> Vec<Event> {
@@ -20,9 +20,7 @@ async fn collect_events(mut rcv: mpsc::UnboundedReceiver<Event>) -> Vec<Event> {
     out
 }
 
-async fn run_process<S>(
-    stream: S,
-) -> Result<(Vec<GetChatCompletionChunk>, Vec<Event>), Status>
+async fn run_process<S>(stream: S) -> Result<(Vec<GetChatCompletionChunk>, Vec<Event>), Status>
 where
     S: Stream<Item = Result<GetChatCompletionChunk, Status>> + Send + Unpin + 'static,
 {
@@ -747,8 +745,16 @@ async fn test_process_basic_stream() {
         .collect();
     assert_eq!(content_tokens, ["Content token 1"]);
 
-    assert!(events.iter().any(|e| matches!(e, Event::ReasoningComplete(_))));
-    assert!(events.iter().any(|e| matches!(e, Event::ContentComplete(_))));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ReasoningComplete(_)))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ContentComplete(_)))
+    );
 }
 
 // Test case 2: Multi-output with finish reasons
@@ -792,8 +798,8 @@ async fn test_process_multi_output() {
             usage: None,
             citations: vec![],
             debug_output: None,
-        output_files: vec![],
-        service_tier: 0,
+            output_files: vec![],
+            service_tier: 0,
         },
         // Chunk 2: Finishes
         GetChatCompletionChunk {
@@ -829,8 +835,8 @@ async fn test_process_multi_output() {
             }),
             citations: vec![],
             debug_output: None,
-        output_files: vec![],
-        service_tier: 0,
+            output_files: vec![],
+            service_tier: 0,
         },
     ];
 
@@ -911,7 +917,7 @@ async fn test_process_with_tool_calls() {
         usage: None,
         citations: vec![],
         debug_output: None,
-        output_files: vec![] ,
+        output_files: vec![],
         service_tier: 0,
     }];
 
@@ -990,7 +996,10 @@ async fn test_process_emits_chunk_per_grpc_chunk() {
     let (collected, events) = run_process(mock_stream(chunks)).await.unwrap();
     assert_eq!(collected.len(), 3);
     assert_eq!(
-        events.iter().filter(|e| matches!(e, Event::Chunk(_))).count(),
+        events
+            .iter()
+            .filter(|e| matches!(e, Event::Chunk(_)))
+            .count(),
         3
     );
 }
@@ -1059,13 +1068,19 @@ async fn test_process_emits_citations() {
         Event::Citations(c) => Some(c.as_slice()),
         _ => None,
     });
-    assert_eq!(urls, Some(&["https://a.com".to_string(), "https://b.com".to_string()][..]));
+    assert_eq!(
+        urls,
+        Some(&["https://a.com".to_string(), "https://b.com".to_string()][..])
+    );
 }
 
 // Test case 10b: complete event
 #[tokio::test]
 async fn test_process_emits_complete() {
-    let chunks = vec![make_simple_chunk(0, Some("r"), Some("c")), make_finish_chunk(0)];
+    let chunks = vec![
+        make_simple_chunk(0, Some("r"), Some("c")),
+        make_finish_chunk(0),
+    ];
     let (_chunks, events) = run_process(mock_stream(chunks)).await.unwrap();
     assert!(events.iter().any(|e| matches!(e, Event::Complete)));
 }
@@ -1095,7 +1110,9 @@ async fn test_process_emits_inline_citations() {
     let ids: Vec<_> = events
         .iter()
         .filter_map(|e| match e {
-            Event::InlineCitations(_, c) => Some(c.iter().map(|x| x.id.as_str()).collect::<Vec<_>>()),
+            Event::InlineCitations(_, c) => {
+                Some(c.iter().map(|x| x.id.as_str()).collect::<Vec<_>>())
+            }
             _ => None,
         })
         .flatten()
@@ -1115,7 +1132,7 @@ async fn test_process_chunk_with_empty_outputs_collected() {
         usage: None,
         citations: vec![],
         debug_output: None,
-        output_files: vec![] ,
+        output_files: vec![],
         service_tier: 0,
     }];
     let (result, _events) = run_process(mock_stream(chunks.clone())).await.unwrap();
@@ -1154,9 +1171,7 @@ async fn test_process_emits_events_basic_stream() {
         make_finish_chunk(0),
     ];
     let (tx, rcv) = mpsc::unbounded();
-    let _ = process(mock_stream(chunks.clone()), tx)
-        .await
-        .unwrap();
+    let _ = process(mock_stream(chunks.clone()), tx).await.unwrap();
     let events = collect_events(rcv).await;
 
     let chunk_events = events
@@ -1342,7 +1357,7 @@ async fn test_process_emits_client_and_server_tool_calls() {
         usage: None,
         citations: vec![],
         debug_output: None,
-        output_files: vec![] ,
+        output_files: vec![],
         service_tier: 0,
     }];
     let (tx, rcv) = mpsc::unbounded();
@@ -1474,8 +1489,8 @@ async fn test_process_emits_multi_output_output_context() {
             usage: None,
             citations: vec![],
             debug_output: None,
-        output_files: vec![],
-        service_tier: 0,
+            output_files: vec![],
+            service_tier: 0,
         },
         GetChatCompletionChunk {
             id: "id".to_string(),
@@ -1499,8 +1514,8 @@ async fn test_process_emits_multi_output_output_context() {
             usage: None,
             citations: vec![],
             debug_output: None,
-        output_files: vec![],
-        service_tier: 0,
+            output_files: vec![],
+            service_tier: 0,
         },
     ];
     let (tx, rcv) = mpsc::unbounded();
@@ -1535,13 +1550,11 @@ async fn test_process_emits_chunk_empty_outputs() {
         usage: None,
         citations: vec![],
         debug_output: None,
-        output_files: vec![] ,
+        output_files: vec![],
         service_tier: 0,
     }];
     let (tx, rcv) = mpsc::unbounded();
-    let _ = process(mock_stream(chunks.clone()), tx)
-        .await
-        .unwrap();
+    let _ = process(mock_stream(chunks.clone()), tx).await.unwrap();
     let events = collect_events(rcv).await;
     let chunk_events: Vec<_> = events
         .iter()
@@ -1567,8 +1580,8 @@ async fn test_process_emits_stream_error_returns_err() {
             usage: None,
             citations: vec![],
             debug_output: None,
-        output_files: vec![],
-        service_tier: 0,
+            output_files: vec![],
+            service_tier: 0,
         }),
         Err(Status::internal("simulated error")),
     ]);

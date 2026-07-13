@@ -2,15 +2,15 @@
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 use tokio::runtime::Runtime;
-use xai_sdk::export::futures::channel::mpsc;
-use xai_sdk::export::futures::sink::drain;
-use xai_sdk::export::futures::stream::{self, iter, Stream};
-use xai_sdk::export::futures::StreamExt;
-use xai_sdk::export::tonic::Status;
 use xai_sdk::api::{
     CompletionOutputChunk, Delta, FinishReason, GetChatCompletionChunk, SamplingUsage,
 };
 use xai_sdk::chat::stream::{Event, assemble, collect, process};
+use xai_sdk::export::futures::StreamExt;
+use xai_sdk::export::futures::channel::mpsc;
+use xai_sdk::export::futures::sink::drain;
+use xai_sdk::export::futures::stream::{self, Stream, iter};
+use xai_sdk::export::tonic::Status;
 
 fn make_content_chunk(index: i32, token: &str) -> GetChatCompletionChunk {
     GetChatCompletionChunk {
@@ -177,24 +177,20 @@ fn bench_process_with_events(c: &mut Criterion) {
         let chunks = build_chunks(size);
         let count = chunks.len();
         group.throughput(Throughput::Elements(count as u64));
-        group.bench_with_input(
-            format!("events_{}_chunks", count),
-            &chunks,
-            |b, chunks| {
-                b.iter(|| {
-                    let (tx, mut rcv) = mpsc::unbounded();
-                    let stream = mock_stream(chunks.clone());
-                    let result = rt.block_on(async {
-                        let r = process(stream, tx).await;
-                        let events: Vec<Event> = rcv.by_ref().collect().await;
-                        (r, events)
-                    });
-                    let (r, events) = result;
-                    let _ = r.expect("process should succeed in bench");
-                    black_box(events.len());
+        group.bench_with_input(format!("events_{}_chunks", count), &chunks, |b, chunks| {
+            b.iter(|| {
+                let (tx, mut rcv) = mpsc::unbounded();
+                let stream = mock_stream(chunks.clone());
+                let result = rt.block_on(async {
+                    let r = process(stream, tx).await;
+                    let events: Vec<Event> = rcv.by_ref().collect().await;
+                    (r, events)
                 });
-            },
-        );
+                let (r, events) = result;
+                let _ = r.expect("process should succeed in bench");
+                black_box(events.len());
+            });
+        });
     }
     group.finish();
 }
