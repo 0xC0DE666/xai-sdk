@@ -728,24 +728,18 @@ pub mod stream {
         // Sort outputs by index to maintain order
         outputs.sort_by_key(|o| o.index);
 
-        // Use the last chunk's usage data (should have the final token counts)
-        let usage = last_chunk.usage.clone();
-
-        // Use the last chunk's citations (should be populated in the final chunk)
-        let citations = last_chunk.citations.clone();
-
-        let debug_output = chunks.iter().rev().find_map(|c| c.debug_output.clone());
-
         Some(GetChatCompletionResponse {
             id: first_chunk.id.clone(),
             outputs,
             created: first_chunk.created.clone(),
             model: first_chunk.model.clone(),
             system_fingerprint: first_chunk.system_fingerprint.clone(),
-            usage,
-            citations,
+            usage: last_chunk.usage.clone(),
+            citations: last_chunk.citations.clone(),
             settings: None, // Not present on streaming chunks
-            debug_output,
+            debug_output: chunks.iter().rev().find_map(|c| c.debug_output.clone()),
+            output_files: last_chunk.output_files.clone(),
+            service_tier: last_chunk.service_tier,
         })
     }
 

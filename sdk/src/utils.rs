@@ -549,6 +549,7 @@ pub mod enums {
                 IncludeOption::McpCallOutput => "mcp_call_output",
                 IncludeOption::InlineCitations => "inline_citations",
                 IncludeOption::VerboseStreaming => "verbose_streaming",
+                IncludeOption::CodeExecutionFilesOutput => "code_execution_files_output",
             };
             f.write_str(s)
         }

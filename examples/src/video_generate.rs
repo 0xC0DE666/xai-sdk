@@ -11,11 +11,11 @@ use std::time::Duration;
 
 use tokio::time::sleep;
 
-use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
     DeferredStatus, GenerateVideoRequest, GetDeferredVideoRequest, VideoAspectRatio,
     VideoResolution,
 };
+use xai_sdk::export::tonic::Request;
 use xai_sdk::video;
 
 /// Video model alias (see xAI docs / model list for current names).

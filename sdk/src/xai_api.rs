@@ -557,6 +557,39 @@ pub struct EmbeddingUsage {
     #[prost(int32, tag = "2")]
     pub num_image_embeddings: i32,
 }
+/// Processing tier for a request. Controls scheduling priority and pricing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ServiceTier {
+    /// Unspecified / default behavior.
+    Unspecified = 0,
+    /// Default processing tier.
+    Default = 1,
+    /// Priority processing tier with higher scheduling priority at a higher price.
+    Priority = 2,
+}
+impl ServiceTier {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SERVICE_TIER_UNSPECIFIED",
+            Self::Default => "SERVICE_TIER_DEFAULT",
+            Self::Priority => "SERVICE_TIER_PRIORITY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SERVICE_TIER_UNSPECIFIED" => Some(Self::Unspecified),
+            "SERVICE_TIER_DEFAULT" => Some(Self::Default),
+            "SERVICE_TIER_PRIORITY" => Some(Self::Priority),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ServerSideTool {
@@ -1508,6 +1541,10 @@ pub struct GetCompletionsRequest {
     /// Only valid when model is a `multi-agent` model. Defaults to `AGENT_COUNT_UNSPECIFIED`.
     #[prost(enumeration = "AgentCount", optional, tag = "29")]
     pub agent_count: ::core::option::Option<i32>,
+    /// Processing tier for this request. Set to SERVICE_TIER_PRIORITY for
+    /// higher scheduling priority at a higher price.
+    #[prost(enumeration = "ServiceTier", tag = "31")]
+    pub service_tier: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetChatCompletionResponse {
@@ -1547,6 +1584,13 @@ pub struct GetChatCompletionResponse {
     /// Debug output. Only available to trusted testers.
     #[prost(message, optional, tag = "12")]
     pub debug_output: ::core::option::Option<DebugOutput>,
+    /// Files generated during the response (e.g., by the code execution tool).
+    /// Only populated when `INCLUDE_OPTION_CODE_EXECUTION_FILES_OUTPUT` is set.
+    #[prost(message, repeated, tag = "13")]
+    pub output_files: ::prost::alloc::vec::Vec<OutputFile>,
+    /// The processing tier that was used for this request.
+    #[prost(enumeration = "ServiceTier", tag = "15")]
+    pub service_tier: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetChatCompletionChunk {
@@ -1584,6 +1628,23 @@ pub struct GetChatCompletionChunk {
     /// Only available for teams that have debugging privileges.
     #[prost(message, optional, tag = "10")]
     pub debug_output: ::core::option::Option<DebugOutput>,
+    /// Files generated during the response (e.g., by the code execution tool).
+    /// Only populated for the final chunk when `INCLUDE_OPTION_CODE_EXECUTION_FILES_OUTPUT` is set.
+    #[prost(message, repeated, tag = "11")]
+    pub output_files: ::prost::alloc::vec::Vec<OutputFile>,
+    /// The processing tier that was used for this request.
+    #[prost(enumeration = "ServiceTier", tag = "12")]
+    pub service_tier: i32,
+}
+/// A file generated during a response (e.g., by the code execution tool).
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct OutputFile {
+    /// The file ID from the Files API. Use this to download the file.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
+    /// The display name of the file.
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
 }
 /// Response from GetDeferredCompletion, including the response if the completion
 /// request has been processed without error.
@@ -2472,6 +2533,8 @@ pub enum IncludeOption {
     /// this option is not included by default.
     /// This option is only available for streaming responses.
     VerboseStreaming = 8,
+    /// Generated file output from the code execution environment
+    CodeExecutionFilesOutput = 9,
 }
 impl IncludeOption {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2493,6 +2556,9 @@ impl IncludeOption {
             Self::McpCallOutput => "INCLUDE_OPTION_MCP_CALL_OUTPUT",
             Self::InlineCitations => "INCLUDE_OPTION_INLINE_CITATIONS",
             Self::VerboseStreaming => "INCLUDE_OPTION_VERBOSE_STREAMING",
+            Self::CodeExecutionFilesOutput => {
+                "INCLUDE_OPTION_CODE_EXECUTION_FILES_OUTPUT"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2513,6 +2579,9 @@ impl IncludeOption {
             "INCLUDE_OPTION_MCP_CALL_OUTPUT" => Some(Self::McpCallOutput),
             "INCLUDE_OPTION_INLINE_CITATIONS" => Some(Self::InlineCitations),
             "INCLUDE_OPTION_VERBOSE_STREAMING" => Some(Self::VerboseStreaming),
+            "INCLUDE_OPTION_CODE_EXECUTION_FILES_OUTPUT" => {
+                Some(Self::CodeExecutionFilesOutput)
+            }
             _ => None,
         }
     }

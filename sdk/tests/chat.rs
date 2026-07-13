@@ -92,6 +92,8 @@ fn test_assemble_single_chunk_empty_outputs() {
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
     };
     let result = assemble(vec![chunk]);
     assert!(result.is_some());
@@ -692,6 +694,8 @@ fn make_simple_chunk(
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
     }
 }
 
@@ -710,6 +714,8 @@ fn make_finish_chunk(index: i32) -> GetChatCompletionChunk {
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
     }
 }
 
@@ -786,6 +792,8 @@ async fn test_process_multi_output() {
             usage: None,
             citations: vec![],
             debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
         },
         // Chunk 2: Finishes
         GetChatCompletionChunk {
@@ -821,6 +829,8 @@ async fn test_process_multi_output() {
             }),
             citations: vec![],
             debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
         },
     ];
 
@@ -901,6 +911,8 @@ async fn test_process_with_tool_calls() {
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![] ,
+        service_tier: 0,
     }];
 
     let (_chunks, events) = run_process(mock_stream(chunks)).await.unwrap();
@@ -939,6 +951,8 @@ async fn test_process_error_in_stream() {
             usage: None,
             citations: vec![],
             debug_output: None,
+            output_files: vec![],
+            service_tier: 0,
         }),
         Err(Status::internal("Simulated error")),
     ]);
@@ -1101,6 +1115,8 @@ async fn test_process_chunk_with_empty_outputs_collected() {
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![] ,
+        service_tier: 0,
     }];
     let (result, _events) = run_process(mock_stream(chunks.clone())).await.unwrap();
     assert_eq!(result.len(), 1);
@@ -1326,6 +1342,8 @@ async fn test_process_emits_client_and_server_tool_calls() {
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![] ,
+        service_tier: 0,
     }];
     let (tx, rcv) = mpsc::unbounded();
     let _ = process(mock_stream(chunks), tx).await.unwrap();
@@ -1456,6 +1474,8 @@ async fn test_process_emits_multi_output_output_context() {
             usage: None,
             citations: vec![],
             debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
         },
         GetChatCompletionChunk {
             id: "id".to_string(),
@@ -1479,6 +1499,8 @@ async fn test_process_emits_multi_output_output_context() {
             usage: None,
             citations: vec![],
             debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
         },
     ];
     let (tx, rcv) = mpsc::unbounded();
@@ -1513,6 +1535,8 @@ async fn test_process_emits_chunk_empty_outputs() {
         usage: None,
         citations: vec![],
         debug_output: None,
+        output_files: vec![] ,
+        service_tier: 0,
     }];
     let (tx, rcv) = mpsc::unbounded();
     let _ = process(mock_stream(chunks.clone()), tx)
@@ -1543,6 +1567,8 @@ async fn test_process_emits_stream_error_returns_err() {
             usage: None,
             citations: vec![],
             debug_output: None,
+        output_files: vec![],
+        service_tier: 0,
         }),
         Err(Status::internal("simulated error")),
     ]);
