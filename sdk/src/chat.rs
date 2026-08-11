@@ -408,8 +408,8 @@ pub mod stream {
         }
 
         // Final metadata events (only on last chunk)
-        if let Some(ref last_chunk) = last_chunk {
-            if let Some(ref usage) = last_chunk.usage {
+        if let Some(last_chunk) = &last_chunk {
+            if let Some(usage) = &last_chunk.usage {
                 emit(&mut events, Event::Usage(Some(usage.clone()))).await;
             }
             if !last_chunk.citations.is_empty() {
@@ -440,12 +440,12 @@ pub mod stream {
 
         fn start_send(self: Pin<&mut Self>, item: Event) -> Result<(), Self::Error> {
             match item {
-                Event::ReasoningToken(_, ref t) => {
+                Event::ReasoningToken(_, t) => {
                     print!("{t}");
                     let _ = std::io::stdout().flush();
                 }
                 Event::ReasoningComplete(_) => println!(),
-                Event::ContentToken(_, ref t) => {
+                Event::ContentToken(_, t) => {
                     print!("{t}");
                     let _ = std::io::stdout().flush();
                 }
@@ -523,8 +523,8 @@ pub mod stream {
 
         fn start_send(self: Pin<&mut Self>, item: Event) -> Result<(), Self::Error> {
             match item {
-                Event::Chunk(ref chunk) => self.on_chunk(chunk),
-                Event::ReasoningToken(ref ctx, ref t) => {
+                Event::Chunk(chunk) => self.on_chunk(&chunk),
+                Event::ReasoningToken(ctx, t) => {
                     let idx = ctx.output_index as i32;
                     self.buffers
                         .lock()
@@ -532,9 +532,9 @@ pub mod stream {
                         .entry(idx)
                         .or_default()
                         .reasoning
-                        .push_str(t);
+                        .push_str(&t);
                 }
-                Event::ContentToken(ref ctx, ref t) => {
+                Event::ContentToken(ctx, t) => {
                     let idx = ctx.output_index as i32;
                     self.buffers
                         .lock()
@@ -542,7 +542,7 @@ pub mod stream {
                         .entry(idx)
                         .or_default()
                         .content
-                        .push_str(t);
+                        .push_str(&t);
                 }
                 _ => {}
             }
