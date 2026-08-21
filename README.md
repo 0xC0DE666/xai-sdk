@@ -164,7 +164,7 @@ The SDK is organized into focused modules, each providing easy client creation:
 Here's a complete example showing multiple services using the modular architecture:
 
 ```rust
-use anyhow::{Context, Result};
+use anyhow::Context;
 use std::env;
 use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
@@ -174,7 +174,7 @@ use xai_sdk::api::{
 use xai_sdk::{chat, models, sample};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     // Load API key for authentication
     let api_key = env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
 
