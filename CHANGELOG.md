@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-11
+
+### Added
+- **`export::prost`**: Re-exports `prost::Message` plus `encode` / `decode` helpers for binary wire-format serialization without a direct `prost` dependency.
+- **Protos**: Regenerated API types — includes `ServiceTier`, `OutputFile` / `output_files` on chat completions, compact-context requests, public URL create/revoke, audio URL content, and related storage/image updates.
+
+### Changed
+- **Package metadata**: Bumped crate version to `0.12.0`.
+- **`assemble`**: Forwards `output_files` and `service_tier` from the last streaming chunk into `GetChatCompletionResponse`.
+- **`stream::Event`**: Now derives `Clone`.
+- **Dependencies**: Upgraded workspace crates alongside the proto refresh.
+
 ## [0.11.0] - 2026-05-20
 
 ### Added
