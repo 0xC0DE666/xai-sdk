@@ -603,6 +603,7 @@ pub enum ServerSideTool {
     Mcp = 7,
     AttachmentSearch = 8,
     ImageSearch = 10,
+    ImageGeneration = 11,
 }
 impl ServerSideTool {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -621,6 +622,7 @@ impl ServerSideTool {
             Self::Mcp => "SERVER_SIDE_TOOL_MCP",
             Self::AttachmentSearch => "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH",
             Self::ImageSearch => "SERVER_SIDE_TOOL_IMAGE_SEARCH",
+            Self::ImageGeneration => "SERVER_SIDE_TOOL_IMAGE_GENERATION",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -636,6 +638,7 @@ impl ServerSideTool {
             "SERVER_SIDE_TOOL_MCP" => Some(Self::Mcp),
             "SERVER_SIDE_TOOL_ATTACHMENT_SEARCH" => Some(Self::AttachmentSearch),
             "SERVER_SIDE_TOOL_IMAGE_SEARCH" => Some(Self::ImageSearch),
+            "SERVER_SIDE_TOOL_IMAGE_GENERATION" => Some(Self::ImageGeneration),
             _ => None,
         }
     }
@@ -664,6 +667,12 @@ pub struct GenerateImageRequest {
     /// in. See ImageFormat enum for options.
     #[prost(enumeration = "ImageFormat", tag = "11")]
     pub format: i32,
+    /// Optional quality setting for image generation.
+    /// Only supported by grok-imagine models.
+    /// Defaults to medium. Some models restrict the accepted values (a request
+    /// outside the model's supported set is rejected).
+    #[prost(enumeration = "ImageQuality", optional, tag = "12")]
+    pub quality: ::core::option::Option<i32>,
     /// Optional aspect ratio for image generation/editing.
     /// Only supported by grok-imagine models.
     /// Defaults to 1:1 if not specified. Auto is only supported for image generation
@@ -683,6 +692,71 @@ pub struct GenerateImageRequest {
     /// This field cannot be set together with the `image` field.
     #[prost(message, repeated, tag = "17")]
     pub images: ::prost::alloc::vec::Vec<ImageUrlContent>,
+    /// Optional output storage configuration. When present, the generated
+    /// image(s) are stored in the Files API and a file_id is returned in
+    /// the response alongside the ephemeral URL.
+    #[prost(message, optional, tag = "19")]
+    pub storage_options: ::core::option::Option<StorageOptions>,
+}
+/// Configuration for storing generation output in the Files API.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct StorageOptions {
+    /// Filename for the stored file.
+    #[prost(string, tag = "1")]
+    pub filename: ::prost::alloc::string::String,
+    /// Seconds from now until the file auto-expires. If omitted, the file
+    /// does not expire.
+    #[prost(int64, optional, tag = "2")]
+    pub expires_after: ::core::option::Option<i64>,
+    /// When present, a public URL is created for the stored file after upload.
+    /// The public URL is accessible without authentication.
+    /// Omit entirely to store the file privately (no public URL).
+    #[prost(message, optional, tag = "3")]
+    pub public_url: ::core::option::Option<PublicUrlOptions>,
+}
+/// Configuration for creating a public URL alongside file storage.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct PublicUrlOptions {
+    /// Seconds from now until the public URL expires.
+    ///
+    /// If omitted and the file has a TTL (`StorageOptions.expires_after`),
+    /// the public URL inherits the file's expiry. If omitted and the file
+    /// has no TTL, the public URL remains valid indefinitely until the file
+    /// is deleted or the URL is explicitly revoked via `RevokePublicUrl`.
+    /// The file itself always remains accessible via authenticated endpoints
+    /// after the public URL expires.
+    #[prost(int64, optional, tag = "1")]
+    pub expires_after: ::core::option::Option<i64>,
+}
+/// Information about a generated file stored in the Files API.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct FileOutput {
+    /// Files API file_id of the stored file.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
+    /// Filename of the stored file.
+    #[prost(string, tag = "2")]
+    pub filename: ::prost::alloc::string::String,
+    /// Public URL for the stored file. Only present when the request included
+    /// storage_options.public_url and creation succeeded.
+    #[prost(string, optional, tag = "4")]
+    pub public_url: ::core::option::Option<::prost::alloc::string::String>,
+    /// When the public URL expires. Only present when public_url is set and
+    /// has an independent expiry (i.e. the request specified
+    /// public_url.expires_after, or the file has a TTL). Absent when the
+    /// public URL is valid indefinitely.
+    #[prost(message, optional, tag = "5")]
+    pub public_url_expires_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// When the stored file expires and will be automatically deleted. Only
+    /// present when the file has an expiration (storage_options.expires_after
+    /// was set).
+    #[prost(message, optional, tag = "6")]
+    pub expires_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// Human-readable error when storage_options.public_url was set but
+    /// public URL creation failed. The file itself was stored successfully —
+    /// the public URL can be retried via `CreatePublicUrl`.
+    #[prost(string, optional, tag = "7")]
+    pub public_url_error: ::core::option::Option<::prost::alloc::string::String>,
 }
 /// The response from the image generation models containing the generated image(s).
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -705,6 +779,15 @@ pub struct GeneratedImage {
     /// the field will be false and the image field is replaced by a placeholder.
     #[prost(bool, tag = "4")]
     pub respect_moderation: bool,
+    /// Storage info for the generated image. Only present when the request
+    /// included `storage_options` and the upload succeeded.
+    #[prost(message, optional, tag = "8")]
+    pub file_output: ::core::option::Option<FileOutput>,
+    /// Human-readable error when `storage_options` was set but the upload
+    /// failed. Only present on storage failure; absent on success or when
+    /// storage was not requested.
+    #[prost(string, optional, tag = "9")]
+    pub storage_error: ::core::option::Option<::prost::alloc::string::String>,
     /// The generated image.
     #[prost(oneof = "generated_image::Image", tags = "1, 3")]
     pub image: ::core::option::Option<generated_image::Image>,
@@ -727,18 +810,34 @@ pub mod generated_image {
 /// Contains data relating to an image that is provided to the model.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ImageUrlContent {
-    /// This is either an image URL or a base64-encoded version of the image.
-    /// The following image formats are supported: PNG, JPG, and WebP.
-    /// If an image URL is provided, the image will be downloaded for every API
-    /// request without being cached. Images are fetched using
-    /// "XaiImageApiFetch/1.0" user agent, and will timeout after 5 seconds.
-    /// The image size is limited to 10 MiB. If the image download fails, the API
-    /// request will fail as well.
-    #[prost(string, tag = "1")]
-    pub image_url: ::prost::alloc::string::String,
     /// The level of pre-processing resolution that will be applied to the image.
     #[prost(enumeration = "ImageDetail", tag = "2")]
     pub detail: i32,
+    /// The source of the image — either a direct URL/base64 string or a
+    /// file_id from the xAI Files API. Exactly one must be set.
+    #[prost(oneof = "image_url_content::Source", tags = "1, 3")]
+    pub source: ::core::option::Option<image_url_content::Source>,
+}
+/// Nested message and enum types in `ImageUrlContent`.
+pub mod image_url_content {
+    /// The source of the image — either a direct URL/base64 string or a
+    /// file_id from the xAI Files API. Exactly one must be set.
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Source {
+        /// This is either an image URL or a base64-encoded version of the image.
+        /// The following image formats are supported: PNG, JPG, and WebP.
+        /// If an image URL is provided, the image will be downloaded for every API
+        /// request without being cached. Images are fetched using
+        /// "XaiImageApiFetch/1.0" user agent, and will timeout after 5 seconds.
+        /// The image size is limited to 10 MiB. If the image download fails, the API
+        /// request will fail as well.
+        #[prost(string, tag = "1")]
+        ImageUrl(::prost::alloc::string::String),
+        /// A file ID from the xAI Files API. The file must be an image
+        /// (JPEG, PNG, or WebP).
+        #[prost(string, tag = "3")]
+        FileId(::prost::alloc::string::String),
+    }
 }
 /// Indicates the level of preprocessing to apply to images that will be fed to
 /// the model.
@@ -1508,7 +1607,7 @@ pub struct GetCompletionsRequest {
     /// new topics.
     #[prost(float, optional, tag = "9")]
     pub presence_penalty: ::core::option::Option<f32>,
-    /// Constrains effort on reasoning for reasoning models. Default to `EFFORT_MEDIUM`.
+    /// Constrains effort on reasoning for reasoning models. Defaults vary by model (e.g. `grok-4.5` and `grok-4.6` default to `EFFORT_HIGH`).
     #[prost(enumeration = "ReasoningEffort", optional, tag = "19")]
     pub reasoning_effort: ::core::option::Option<i32>,
     /// Set the parameters to be used for realtime data. If not set, no realtime data will be acquired by the model.
@@ -1957,7 +2056,7 @@ pub mod tool_choice {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Tool {
-    #[prost(oneof = "tool::Tool", tags = "1, 3, 4, 5, 6, 7, 8")]
+    #[prost(oneof = "tool::Tool", tags = "1, 3, 4, 5, 6, 7, 8, 10")]
     pub tool: ::core::option::Option<tool::Tool>,
 }
 /// Nested message and enum types in `Tool`.
@@ -1985,6 +2084,9 @@ pub mod tool {
         /// Built in attachment search.
         #[prost(message, tag = "8")]
         AttachmentSearch(super::AttachmentSearch),
+        /// Built in image generation.
+        #[prost(message, tag = "10")]
+        ImageGeneration(super::ImageGeneration),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2091,6 +2193,14 @@ pub struct XSearch {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CodeExecution {}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ImageGeneration {
+    /// Which image capabilities to expose to the model. One of "auto" (the default;
+    /// both generation and editing), "generate" (text-to-image only), or
+    /// "edit" (image editing only).
+    #[prost(string, optional, tag = "1")]
+    pub action: ::core::option::Option<::prost::alloc::string::String>,
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CollectionsSearch {
     /// The ID(s) of the source collection(s) within which the search should be performed.
@@ -2364,7 +2474,7 @@ pub struct RequestSettings {
     /// The ID of the previous response from the model.
     #[prost(string, optional, tag = "3")]
     pub previous_response_id: ::core::option::Option<::prost::alloc::string::String>,
-    /// Constrains effort on reasoning for reasoning models. Default to `EFFORT_MEDIUM`.
+    /// Constrains effort on reasoning for reasoning models. Defaults vary by model (e.g. `grok-4.5` and `grok-4.6` default to `EFFORT_HIGH`).
     #[prost(enumeration = "ReasoningEffort", optional, tag = "4")]
     pub reasoning_effort: ::core::option::Option<i32>,
     /// A number between 0 and 2 used to control the variance of completions.
@@ -2644,6 +2754,7 @@ pub enum ReasoningEffort {
     EffortMedium = 2,
     EffortHigh = 3,
     EffortNone = 4,
+    EffortXhigh = 5,
 }
 impl ReasoningEffort {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2657,6 +2768,7 @@ impl ReasoningEffort {
             Self::EffortMedium => "EFFORT_MEDIUM",
             Self::EffortHigh => "EFFORT_HIGH",
             Self::EffortNone => "EFFORT_NONE",
+            Self::EffortXhigh => "EFFORT_XHIGH",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2667,6 +2779,7 @@ impl ReasoningEffort {
             "EFFORT_MEDIUM" => Some(Self::EffortMedium),
             "EFFORT_HIGH" => Some(Self::EffortHigh),
             "EFFORT_NONE" => Some(Self::EffortNone),
+            "EFFORT_XHIGH" => Some(Self::EffortXhigh),
             _ => None,
         }
     }
@@ -2801,6 +2914,9 @@ pub enum ToolCallType {
     /// Indicates the tool is a server-side attachment_search tool, and client side won't need to execute.
     /// Maps to `attachment_search_call` type in OAI Responses API.
     AttachmentSearchTool = 7,
+    /// Indicates the tool is a server-side image_generation tool, and client side won't need to execute.
+    /// Maps to `image_generation_call` type in OAI Responses API.
+    ImageGenerationTool = 10,
 }
 impl ToolCallType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2817,6 +2933,7 @@ impl ToolCallType {
             Self::CollectionsSearchTool => "TOOL_CALL_TYPE_COLLECTIONS_SEARCH_TOOL",
             Self::McpTool => "TOOL_CALL_TYPE_MCP_TOOL",
             Self::AttachmentSearchTool => "TOOL_CALL_TYPE_ATTACHMENT_SEARCH_TOOL",
+            Self::ImageGenerationTool => "TOOL_CALL_TYPE_IMAGE_GENERATION_TOOL",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2830,6 +2947,7 @@ impl ToolCallType {
             "TOOL_CALL_TYPE_COLLECTIONS_SEARCH_TOOL" => Some(Self::CollectionsSearchTool),
             "TOOL_CALL_TYPE_MCP_TOOL" => Some(Self::McpTool),
             "TOOL_CALL_TYPE_ATTACHMENT_SEARCH_TOOL" => Some(Self::AttachmentSearchTool),
+            "TOOL_CALL_TYPE_IMAGE_GENERATION_TOOL" => Some(Self::ImageGenerationTool),
             _ => None,
         }
     }
@@ -3179,13 +3297,49 @@ pub mod chat_client {
         }
     }
 }
-/// Specifies a video by URL for video editing.
+/// Specifies a video by URL or file reference for video editing.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct VideoUrlContent {
-    /// Either a URL of the video (e.g., a public URL) or a base64-encoded video
-    /// as a data URL (e.g., "data:video/mp4;base64,...").
-    #[prost(string, tag = "1")]
-    pub url: ::prost::alloc::string::String,
+    /// The source of the video — either a direct URL/base64 string or a
+    /// file_id from the xAI Files API. Exactly one must be set.
+    #[prost(oneof = "video_url_content::Source", tags = "1, 2")]
+    pub source: ::core::option::Option<video_url_content::Source>,
+}
+/// Nested message and enum types in `VideoUrlContent`.
+pub mod video_url_content {
+    /// The source of the video — either a direct URL/base64 string or a
+    /// file_id from the xAI Files API. Exactly one must be set.
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Source {
+        /// Either a URL of the video (e.g., a public URL) or a base64-encoded video
+        /// as a data URL (e.g., "data:video/mp4;base64,...").
+        #[prost(string, tag = "1")]
+        Url(::prost::alloc::string::String),
+        /// A file ID from the xAI Files API. The file must be a video
+        /// (e.g., MP4).
+        #[prost(string, tag = "2")]
+        FileId(::prost::alloc::string::String),
+    }
+}
+/// Reference audio input for video generation.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AudioUrlContent {
+    /// The source of the audio. Must be set.
+    #[prost(oneof = "audio_url_content::Source", tags = "2")]
+    pub source: ::core::option::Option<audio_url_content::Source>,
+}
+/// Nested message and enum types in `AudioUrlContent`.
+pub mod audio_url_content {
+    /// The source of the audio. Must be set.
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Source {
+        /// Identifier of a first-party preset voice (e.g. "ara"), using the same
+        /// voice identifiers as the TTS API. Resolved server-side to a curated
+        /// reference clip from the model's voice-preset catalog. Only supported
+        /// by models that accept reference audio.
+        #[prost(string, tag = "2")]
+        VoiceId(::prost::alloc::string::String),
+    }
 }
 /// Request message for generating a video.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3223,6 +3377,24 @@ pub struct GenerateVideoRequest {
     /// as style/content references.
     #[prost(message, repeated, tag = "13")]
     pub reference_images: ::prost::alloc::vec::Vec<ImageUrlContent>,
+    /// Optional output storage configuration. When present, the generated
+    /// video is stored in the Files API and a file_id is returned in
+    /// the response alongside the ephemeral URL.
+    #[prost(message, optional, tag = "14")]
+    pub storage_options: ::core::option::Option<StorageOptions>,
+    /// Optional reference audio (voice identity) for reference-to-video
+    /// generation. Each entry selects a first-party preset voice via
+    /// `voice_id` (same identifiers as the TTS API). Only supported by select
+    /// video models; at most three entries. May be provided without
+    /// reference_images (audio-only reference-to-video) — at least one
+    /// reference of either kind selects the reference-to-video mode.
+    #[prost(message, repeated, tag = "16")]
+    pub reference_audios: ::prost::alloc::vec::Vec<AudioUrlContent>,
+    /// Whether the generated video includes an audio track. Defaults to true.
+    /// Set to false for a silent video (the audio track is stripped
+    /// server-side after generation).
+    #[prost(bool, optional, tag = "17")]
+    pub generate_audio: ::core::option::Option<bool>,
 }
 /// Request for retrieving deferred video generation results.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -3271,6 +3443,15 @@ pub struct GeneratedVideo {
     /// the field will be false and the video url field will be empty.
     #[prost(bool, tag = "5")]
     pub respect_moderation: bool,
+    /// Storage info for the generated video. Only present when the request
+    /// included `storage_options` and the upload succeeded.
+    #[prost(message, optional, tag = "6")]
+    pub file_output: ::core::option::Option<FileOutput>,
+    /// Human-readable error when `storage_options` was set but the upload
+    /// failed. Only present on storage failure; absent on success or when
+    /// storage was not requested.
+    #[prost(string, optional, tag = "7")]
+    pub storage_error: ::core::option::Option<::prost::alloc::string::String>,
 }
 /// Response from GetDeferredVideo, including the response if the video
 /// generation request has been processed without error.
@@ -3312,6 +3493,11 @@ pub struct ExtendVideoRequest {
     /// Defaults to 6 seconds if not specified.
     #[prost(int32, optional, tag = "4")]
     pub duration: ::core::option::Option<i32>,
+    /// Optional output storage configuration. When present, the generated
+    /// video is stored in the Files API and a file_id is returned in
+    /// the response alongside the ephemeral URL.
+    #[prost(message, optional, tag = "6")]
+    pub storage_options: ::core::option::Option<StorageOptions>,
 }
 /// Aspect ratio for video generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -3378,6 +3564,11 @@ pub enum VideoResolution {
     /// 720p resolution.
     /// Dimensions vary by aspect ratio
     VideoResolution720p = 2,
+    /// 1080p resolution.
+    /// Dimensions vary by aspect ratio.
+    /// Supported on models that advertise 1080p (e.g. grok-imagine-video-1.5 for
+    /// image-to-video); not available on all video models.
+    VideoResolution1080p = 3,
 }
 impl VideoResolution {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -3389,6 +3580,7 @@ impl VideoResolution {
             Self::Unspecified => "VIDEO_RESOLUTION_UNSPECIFIED",
             Self::VideoResolution480p => "VIDEO_RESOLUTION_480P",
             Self::VideoResolution720p => "VIDEO_RESOLUTION_720P",
+            Self::VideoResolution1080p => "VIDEO_RESOLUTION_1080P",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -3397,6 +3589,7 @@ impl VideoResolution {
             "VIDEO_RESOLUTION_UNSPECIFIED" => Some(Self::Unspecified),
             "VIDEO_RESOLUTION_480P" => Some(Self::VideoResolution480p),
             "VIDEO_RESOLUTION_720P" => Some(Self::VideoResolution720p),
+            "VIDEO_RESOLUTION_1080P" => Some(Self::VideoResolution1080p),
             _ => None,
         }
     }
@@ -4499,6 +4692,14 @@ pub struct File {
     /// APIs that accept a file reference.
     #[prost(string, tag = "5")]
     pub id: ::prost::alloc::string::String,
+    /// Public URL for the file. Only present when the file has an active
+    /// public URL (created via CreatePublicUrl or storage_options.public_url).
+    #[prost(string, optional, tag = "7")]
+    pub public_url: ::core::option::Option<::prost::alloc::string::String>,
+    /// When the public URL expires. Only present when public_url is set
+    /// and has an independent expiry.
+    #[prost(message, optional, tag = "8")]
+    pub public_url_expires_at: ::core::option::Option<::prost_types::Timestamp>,
 }
 /// Request message for `Files.ListFiles`.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -4520,6 +4721,17 @@ pub struct ListFilesRequest {
     /// Sort field. Defaults to `FILES_SORT_BY_CREATED_AT`.
     #[prost(enumeration = "FilesSortBy", optional, tag = "4")]
     pub sort_by: ::core::option::Option<i32>,
+    /// AIP-160 filter expression to narrow down results.
+    /// Supported fields: file_id, name (or file_name), size_bytes,
+    /// content_type, created_at, expires_at, upload_status, user_defined_id.
+    /// Operators: =, !=, >, >=, \<, \<=, AND, OR, NOT.
+    /// Examples:
+    ///
+    /// * 'name:"report"'
+    /// * 'content_type = "application/pdf"'
+    /// * 'size_bytes > 1000000 AND created_at > "2024-01-01T00:00:00Z"'
+    #[prost(string, optional, tag = "5")]
+    pub filter: ::core::option::Option<::prost::alloc::string::String>,
 }
 /// Response message for `Files.ListFiles`.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -4573,6 +4785,55 @@ pub struct FileContentChunk {
     /// Up to 5 MB of file bytes. Final/intermediate chunks may be smaller.
     #[prost(bytes = "vec", tag = "1")]
     pub data: ::prost::alloc::vec::Vec<u8>,
+}
+/// Request message for `Files.CreatePublicUrl`.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CreatePublicUrlRequest {
+    /// The ID of the file to create a public URL for.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
+    /// Seconds from now until the public URL expires. Must be between 3600
+    /// (1 hour) and 2592000 (30 days).
+    ///
+    /// If omitted and the file has a TTL, the public URL inherits the file's
+    /// expiry. If omitted and the file has no TTL, the public URL remains
+    /// valid indefinitely until the file is deleted or the URL is explicitly
+    /// revoked via `RevokePublicUrl`.
+    #[prost(int64, optional, tag = "2")]
+    pub expires_after: ::core::option::Option<i64>,
+}
+/// Response message for `Files.CreatePublicUrl`.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CreatePublicUrlResponse {
+    /// The full public URL that can be shared and accessed without an API key.
+    #[prost(string, tag = "1")]
+    pub public_url: ::prost::alloc::string::String,
+    /// When the public URL expires. Present when the public URL has an expiry,
+    /// either from an explicit `expires_after` in the request or inherited from
+    /// the file's TTL. Absent when the public URL is valid indefinitely.
+    #[prost(message, optional, tag = "2")]
+    pub expires_at: ::core::option::Option<::prost_types::Timestamp>,
+}
+/// Request message for `Files.RevokePublicUrl`.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RevokePublicUrlRequest {
+    /// The ID of the file whose public URL should be revoked.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
+}
+/// Response message for `Files.RevokePublicUrl`.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RevokePublicUrlResponse {
+    /// The file ID whose public URL was revoked.
+    #[prost(string, tag = "1")]
+    pub file_id: ::prost::alloc::string::String,
+    /// True if a public URL was actually revoked. False if the file had
+    /// no active public URL (no-op).
+    #[prost(bool, tag = "2")]
+    pub revoked: bool,
+    /// The full public URL that was revoked. Only present when revoked is true.
+    #[prost(string, optional, tag = "3")]
+    pub public_url: ::core::option::Option<::prost::alloc::string::String>,
 }
 /// Sort direction for list-style RPCs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -4884,6 +5145,89 @@ pub mod files_client {
             req.extensions_mut()
                 .insert(GrpcMethod::new("xai_api.Files", "RetrieveFileContent"));
             self.inner.server_streaming(req, path, codec).await
+        }
+        /// Create a public, unauthenticated URL for a file, accessible without an
+        /// API key. Only images, videos, and PDFs can be made public.
+        ///
+        /// A file can have at most one public URL at a time. Calling this on a
+        /// file that already has a public URL returns the existing URL. To update
+        /// the expiry, call again with a new `expires_after` value.
+        ///
+        /// **Public URL expiry behavior:**
+        ///
+        /// * If `expires_after` is set, the public URL expires that many seconds
+        ///  from now, independently of the file's own TTL.
+        /// * If `expires_after` is omitted and the file has a TTL
+        ///  (`UploadFileInit.expires_after` was set at upload), the public URL
+        ///  automatically inherits the file's expiry — it will expire at the
+        ///  same time as the file.
+        /// * If `expires_after` is omitted and the file has no TTL, the public
+        ///  URL remains valid indefinitely (until explicitly revoked or the file
+        ///  is deleted).
+        ///
+        /// **Automatic revocation:**
+        ///
+        /// A public URL is automatically revoked when the file is deleted (by the
+        /// user or by TTL expiry). Revocation may not take effect immediately, so
+        /// the URL can remain accessible for a short period after the file or the
+        /// public URL expires. Call `RevokePublicUrl` to revoke immediately.
+        pub async fn create_public_url(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreatePublicUrlRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::CreatePublicUrlResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Files/CreatePublicUrl",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Files", "CreatePublicUrl"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Revoke the public URL for a file. After revocation the public URL is
+        /// no longer accessible, while the original file remains accessible via
+        /// authenticated endpoints.
+        ///
+        /// Public URLs are also automatically revoked when the file is deleted,
+        /// when the file's TTL elapses, or when the public URL's own expiry
+        /// elapses. Automatic revocation may not take effect immediately; use this
+        /// RPC to revoke a public URL right away.
+        ///
+        /// Returns success if the file has no public URL (nothing to revoke).
+        pub async fn revoke_public_url(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RevokePublicUrlRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RevokePublicUrlResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/xai_api.Files/RevokePublicUrl",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("xai_api.Files", "RevokePublicUrl"));
+            self.inner.unary(req, path, codec).await
         }
     }
 }

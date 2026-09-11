@@ -244,6 +244,7 @@ pub mod enums {
                 ReasoningEffort::EffortMedium => "medium",
                 ReasoningEffort::EffortHigh => "high",
                 ReasoningEffort::EffortNone => "none",
+                ReasoningEffort::EffortXhigh => "xhigh",
             };
             f.write_str(s)
         }
@@ -259,6 +260,7 @@ pub mod enums {
                 "medium" => Ok(ReasoningEffort::EffortMedium),
                 "high" => Ok(ReasoningEffort::EffortHigh),
                 "none" => Ok(ReasoningEffort::EffortNone),
+                "xhigh" => Ok(ReasoningEffort::EffortXhigh),
                 _ => ReasoningEffort::from_str_name(s.to_ascii_uppercase().as_str())
                     .ok_or_else(|| format!("Invalid reasoning effort: '{s}'")),
             }
@@ -411,6 +413,7 @@ pub mod enums {
                 ServerSideTool::Mcp => "mcp",
                 ServerSideTool::AttachmentSearch => "attachment_search",
                 ServerSideTool::ImageSearch => "image_search",
+                ServerSideTool::ImageGeneration => "image_generation",
             };
             f.write_str(s)
         }
@@ -430,7 +433,8 @@ pub mod enums {
                 "collections_search" | "collectionssearch" => Ok(ServerSideTool::CollectionsSearch),
                 "mcp" => Ok(ServerSideTool::Mcp),
                 "attachment_search" | "attachmentsearch" => Ok(ServerSideTool::AttachmentSearch),
-                "image_search" | "imagesearch" => Ok(ServerSideTool::AttachmentSearch),
+                "image_search" | "imagesearch" => Ok(ServerSideTool::ImageSearch),
+                "image_generation" | "imagegeneration" => Ok(ServerSideTool::ImageGeneration),
                 _ => ServerSideTool::from_str_name(s)
                     .ok_or_else(|| format!("Invalid server side tool: '{s}'")),
             }
@@ -592,6 +596,7 @@ pub mod enums {
                 ToolCallType::CollectionsSearchTool => "collections_search_tool",
                 ToolCallType::McpTool => "mcp_tool",
                 ToolCallType::AttachmentSearchTool => "attachment_search_tool",
+                ToolCallType::ImageGenerationTool => "image_generation_tool",
             };
             f.write_str(s)
         }
@@ -614,6 +619,9 @@ pub mod enums {
                     Ok(ToolCallType::AttachmentSearchTool)
                 }
                 "mcp_tool" | "mcp" => Ok(ToolCallType::McpTool),
+                "image_generation_tool" | "imagegeneration" => {
+                    Ok(ToolCallType::ImageGenerationTool)
+                }
                 _ => ToolCallType::from_str_name(s)
                     .ok_or_else(|| format!("Invalid tool call type: '{s}'")),
             }
@@ -688,6 +696,7 @@ pub mod enums {
                 VideoResolution::Unspecified => "unspecified",
                 VideoResolution::VideoResolution480p => "480p",
                 VideoResolution::VideoResolution720p => "720p",
+                VideoResolution::VideoResolution1080p => "1080p",
             };
             f.write_str(s)
         }
@@ -701,6 +710,7 @@ pub mod enums {
                 "unspecified" => Ok(VideoResolution::Unspecified),
                 "480p" => Ok(VideoResolution::VideoResolution480p),
                 "720p" => Ok(VideoResolution::VideoResolution720p),
+                "1080p" => Ok(VideoResolution::VideoResolution1080p),
                 _ => VideoResolution::from_str_name(s)
                     .ok_or_else(|| format!("Invalid video resolution: '{s}'")),
             }
