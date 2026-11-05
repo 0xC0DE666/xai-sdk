@@ -888,6 +888,7 @@ async fn test_process_with_tool_calls() {
                         r#type: ToolCallType::ClientSideTool as i32,
                         status: 0,
                         error_message: None,
+                        index: None,
                         tool: Some(tool_call::Tool::Function(FunctionCall {
                             name: "client_tool".to_string(),
                             arguments: "{}".to_string(),
@@ -898,6 +899,7 @@ async fn test_process_with_tool_calls() {
                         r#type: ToolCallType::WebSearchTool as i32,
                         status: 0,
                         error_message: None,
+                        index: None,
                         tool: Some(tool_call::Tool::Function(FunctionCall {
                             name: "web_search".to_string(),
                             arguments: "{}".to_string(),
@@ -1328,6 +1330,7 @@ async fn test_process_emits_client_and_server_tool_calls() {
                         r#type: ToolCallType::ClientSideTool as i32,
                         status: 0,
                         error_message: None,
+                        index: None,
                         tool: Some(tool_call::Tool::Function(FunctionCall {
                             name: "client_tool".to_string(),
                             arguments: "{}".to_string(),
@@ -1338,6 +1341,7 @@ async fn test_process_emits_client_and_server_tool_calls() {
                         r#type: ToolCallType::WebSearchTool as i32,
                         status: 0,
                         error_message: None,
+                        index: None,
                         tool: Some(tool_call::Tool::Function(FunctionCall {
                             name: "web_search".to_string(),
                             arguments: "{}".to_string(),

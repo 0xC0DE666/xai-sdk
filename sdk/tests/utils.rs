@@ -256,7 +256,10 @@ fn test_message_role_display() {
     assert_eq!(MessageRole::RoleUser.to_string(), "user");
     assert_eq!(MessageRole::RoleAssistant.to_string(), "assistant");
     assert_eq!(MessageRole::RoleSystem.to_string(), "system");
-    assert_eq!(MessageRole::RoleFunction.to_string(), "function");
+    #[allow(deprecated)]
+    {
+        assert_eq!(MessageRole::RoleFunction.to_string(), "function");
+    }
     assert_eq!(MessageRole::RoleTool.to_string(), "tool");
     assert_eq!(MessageRole::RoleDeveloper.to_string(), "developer");
 }
@@ -295,14 +298,17 @@ fn test_message_role_from_str() {
         MessageRole::from_str("SYSTEM").unwrap(),
         MessageRole::RoleSystem
     );
-    assert_eq!(
-        MessageRole::from_str("function").unwrap(),
-        MessageRole::RoleFunction
-    );
-    assert_eq!(
-        MessageRole::from_str("FUNCTION").unwrap(),
-        MessageRole::RoleFunction
-    );
+    #[allow(deprecated)]
+    {
+        assert_eq!(
+            MessageRole::from_str("function").unwrap(),
+            MessageRole::RoleFunction
+        );
+        assert_eq!(
+            MessageRole::from_str("FUNCTION").unwrap(),
+            MessageRole::RoleFunction
+        );
+    }
     assert_eq!(
         MessageRole::from_str("tool").unwrap(),
         MessageRole::RoleTool

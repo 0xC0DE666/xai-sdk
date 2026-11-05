@@ -205,6 +205,7 @@ pub mod enums {
 
     impl fmt::Display for MessageRole {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            #[allow(deprecated)]
             let s = match self {
                 MessageRole::InvalidRole => "invalid",
                 MessageRole::RoleUser => "user",
@@ -222,6 +223,7 @@ pub mod enums {
         type Err = String;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
+            #[allow(deprecated)]
             match s.to_ascii_lowercase().as_str() {
                 "invalid" => Ok(MessageRole::InvalidRole),
                 "user" => Ok(MessageRole::RoleUser),
@@ -554,6 +556,7 @@ pub mod enums {
                 IncludeOption::InlineCitations => "inline_citations",
                 IncludeOption::VerboseStreaming => "verbose_streaming",
                 IncludeOption::CodeExecutionFilesOutput => "code_execution_files_output",
+                IncludeOption::ToolCallStreaming => "tool_call_streaming",
             };
             f.write_str(s)
         }
@@ -579,6 +582,12 @@ pub mod enums {
                 "mcp_call_output" | "mcp" => Ok(IncludeOption::McpCallOutput),
                 "inline_citations" | "citations" => Ok(IncludeOption::InlineCitations),
                 "verbose_streaming" | "verbose" => Ok(IncludeOption::VerboseStreaming),
+                "code_execution_files_output" | "codeexecutionfiles" => {
+                    Ok(IncludeOption::CodeExecutionFilesOutput)
+                }
+                "tool_call_streaming" | "toolcallstreaming" => {
+                    Ok(IncludeOption::ToolCallStreaming)
+                }
                 _ => IncludeOption::from_str_name(s)
                     .ok_or_else(|| format!("Invalid include option: '{s}'")),
             }

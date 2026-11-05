@@ -1504,6 +1504,30 @@ pub mod sample_client {
         }
     }
 }
+/// A policy guideline. nsfw, violence, and profanity accept decline; cyber
+/// accepts allow.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct PolicyGuideline {
+    #[prost(enumeration = "GuidelineCategory", tag = "1")]
+    pub category: i32,
+    #[prost(enumeration = "GuidelineBehavior", tag = "2")]
+    pub behavior: i32,
+}
+/// One output guideline. The set `kind` is the JSON `type`: `policy` is `PolicyGuideline`.
+/// A later kind is another oneof case. A category appears at most once.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct Guideline {
+    #[prost(oneof = "guideline::Kind", tags = "1")]
+    pub kind: ::core::option::Option<guideline::Kind>,
+}
+/// Nested message and enum types in `Guideline`.
+pub mod guideline {
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Kind {
+        #[prost(message, tag = "1")]
+        Policy(super::PolicyGuideline),
+    }
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCompletionsRequest {
     /// A sequence of messages in the conversation. There must be at least a single
@@ -1644,6 +1668,18 @@ pub struct GetCompletionsRequest {
     /// higher scheduling priority at a higher price.
     #[prost(enumeration = "ServiceTier", tag = "31")]
     pub service_tier: i32,
+    /// Supplied by the API client to identify the end user behind this request.
+    /// A stable string that uniquely identifies each of your users; hash your
+    /// internal user id or username rather than sending an email or name. Stored
+    /// with the request metadata so a usage-policy violation can be attributed
+    /// to that user rather than to the API key.
+    #[prost(string, optional, tag = "34")]
+    pub safety_identifier: ::core::option::Option<::prost::alloc::string::String>,
+    /// Output guidelines. Each category may appear once. A request whose
+    /// guidelines cannot be applied, for example on a multi-agent model or with
+    /// `stop`, fails with INVALID_ARGUMENT.
+    #[prost(message, repeated, tag = "39")]
+    pub guidelines: ::prost::alloc::vec::Vec<Guideline>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetChatCompletionResponse {
@@ -2272,6 +2308,15 @@ pub struct ToolCall {
     /// Error message if the tool call is failed.
     #[prost(string, optional, tag = "4")]
     pub error_message: ::core::option::Option<::prost::alloc::string::String>,
+    /// EXPERIMENTAL: This field is experimental and its behavior may change or be
+    /// removed in a future release without a major version bump.
+    ///
+    /// The index of the tool call within the message's `tool_calls` array.
+    /// Only populated on the incremental `TOOL_CALL_STATUS_IN_PROGRESS` entries
+    /// streamed when `INCLUDE_OPTION_TOOL_CALL_STREAMING` is requested, so that
+    /// clients can accumulate fragments belonging to the same tool call.
+    #[prost(int32, optional, tag = "5")]
+    pub index: ::core::option::Option<i32>,
     /// Information regarding invoking the tool call.
     #[prost(oneof = "tool_call::Tool", tags = "10")]
     pub tool: ::core::option::Option<tool_call::Tool>,
@@ -2617,6 +2662,74 @@ pub struct CompactContextResponse {
     #[prost(message, optional, tag = "4")]
     pub usage: ::core::option::Option<SamplingUsage>,
 }
+/// Content category an output guideline applies to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum GuidelineCategory {
+    Invalid = 0,
+    Nsfw = 1,
+    Violence = 2,
+    Profanity = 5,
+    /// Offensive and defensive security content. Accepts only allow, and only
+    /// for API keys enabled for it.
+    Cyber = 6,
+}
+impl GuidelineCategory {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Invalid => "GUIDELINE_CATEGORY_INVALID",
+            Self::Nsfw => "GUIDELINE_CATEGORY_NSFW",
+            Self::Violence => "GUIDELINE_CATEGORY_VIOLENCE",
+            Self::Profanity => "GUIDELINE_CATEGORY_PROFANITY",
+            Self::Cyber => "GUIDELINE_CATEGORY_CYBER",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "GUIDELINE_CATEGORY_INVALID" => Some(Self::Invalid),
+            "GUIDELINE_CATEGORY_NSFW" => Some(Self::Nsfw),
+            "GUIDELINE_CATEGORY_VIOLENCE" => Some(Self::Violence),
+            "GUIDELINE_CATEGORY_PROFANITY" => Some(Self::Profanity),
+            "GUIDELINE_CATEGORY_CYBER" => Some(Self::Cyber),
+            _ => None,
+        }
+    }
+}
+/// How the model should handle a guideline category.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum GuidelineBehavior {
+    Invalid = 0,
+    Decline = 1,
+    Allow = 3,
+}
+impl GuidelineBehavior {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Invalid => "GUIDELINE_BEHAVIOR_INVALID",
+            Self::Decline => "GUIDELINE_BEHAVIOR_DECLINE",
+            Self::Allow => "GUIDELINE_BEHAVIOR_ALLOW",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "GUIDELINE_BEHAVIOR_INVALID" => Some(Self::Invalid),
+            "GUIDELINE_BEHAVIOR_DECLINE" => Some(Self::Decline),
+            "GUIDELINE_BEHAVIOR_ALLOW" => Some(Self::Allow),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum IncludeOption {
@@ -2645,6 +2758,29 @@ pub enum IncludeOption {
     VerboseStreaming = 8,
     /// Generated file output from the code execution environment
     CodeExecutionFilesOutput = 9,
+    /// EXPERIMENTAL: This option is experimental and its behavior may change or be
+    /// removed in a future release without a major version bump.
+    ///
+    /// Stream back client-side tool calls incrementally as the model generates
+    /// them, instead of only emitting each tool call once it is complete.
+    /// When included, the stream contains additional `ToolCall` entries in
+    /// `Delta.tool_calls` with `status` set to `TOOL_CALL_STATUS_IN_PROGRESS`.
+    /// Each such entry carries a fragment of the `FunctionCall.name` and/or
+    /// `FunctionCall.arguments` (either may be empty) that the client should
+    /// append to the tool call identified by the entry's `id` and `index`.
+    /// Once generation finishes, a final `ToolCall` with `status` set to
+    /// `TOOL_CALL_STATUS_COMPLETED` is streamed containing the full name and
+    /// arguments, so clients that do not want to accumulate fragments can rely
+    /// on that entry alone.
+    /// This option is only available for streaming responses and is only
+    /// supported by models that support it; it is ignored otherwise.
+    ///
+    /// KNOWN ISSUE: This option is currently broken when the request also uses
+    /// any server-side tool (for example web search, X search, code execution,
+    /// collections search, or MCP). Do not combine this option with server-side
+    /// tools; only use it with requests whose tools are all client-side
+    /// functions.
+    ToolCallStreaming = 10,
 }
 impl IncludeOption {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -2669,6 +2805,7 @@ impl IncludeOption {
             Self::CodeExecutionFilesOutput => {
                 "INCLUDE_OPTION_CODE_EXECUTION_FILES_OUTPUT"
             }
+            Self::ToolCallStreaming => "INCLUDE_OPTION_TOOL_CALL_STREAMING",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -2692,6 +2829,7 @@ impl IncludeOption {
             "INCLUDE_OPTION_CODE_EXECUTION_FILES_OUTPUT" => {
                 Some(Self::CodeExecutionFilesOutput)
             }
+            "INCLUDE_OPTION_TOOL_CALL_STREAMING" => Some(Self::ToolCallStreaming),
             _ => None,
         }
     }
@@ -3341,15 +3479,32 @@ pub mod audio_url_content {
         VoiceId(::prost::alloc::string::String),
     }
 }
+/// A mid-video keyframe anchor: the image appears literally at `timestamp_s`
+/// seconds, strictly inside the clip (endpoints use `image` / `last_frame`).
+/// Timestamps snap to the engine's keyframe grid (one anchor per 1/3 second),
+/// so anchors closer together than that are rejected.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VideoKeyframe {
+    /// The pinned image. Supports the same formats as image generation: URL or
+    /// base64-encoded image.
+    #[prost(message, optional, tag = "1")]
+    pub image: ::core::option::Option<ImageUrlContent>,
+    /// Anchor time in seconds, strictly inside the clip (0 \< t \< duration).
+    #[prost(float, tag = "2")]
+    pub timestamp_s: f32,
+}
 /// Request message for generating a video.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenerateVideoRequest {
     /// Input prompt to generate a video from.
     #[prost(string, tag = "1")]
     pub prompt: ::prost::alloc::string::String,
-    /// Optional input image for image-to-video generation.
-    /// If provided, generates video with this image as the first frame.
-    /// If omitted, generates text-to-video.
+    /// Optional input image used as the video's exact FIRST frame.
+    /// Alone, selects image-to-video generation. Combined with
+    /// reference_images / reference_audios / last_frame / keyframes (select
+    /// models only), the video generates from those references while starting
+    /// literally on this image. If omitted, generates text-to-video (or
+    /// reference-to-video when references are present).
     /// Supports the same formats as image generation: URL or base64-encoded image.
     #[prost(message, optional, tag = "2")]
     pub image: ::core::option::Option<ImageUrlContent>,
@@ -3373,8 +3528,8 @@ pub struct GenerateVideoRequest {
     #[prost(enumeration = "VideoResolution", optional, tag = "8")]
     pub resolution: ::core::option::Option<i32>,
     /// Optional reference images for reference-to-video (R2V) generation.
-    /// When provided (and `image` is not set), generates video using these images
-    /// as style/content references.
+    /// When provided, generates video using these images as style/content
+    /// references.
     #[prost(message, repeated, tag = "13")]
     pub reference_images: ::prost::alloc::vec::Vec<ImageUrlContent>,
     /// Optional output storage configuration. When present, the generated
@@ -3395,6 +3550,19 @@ pub struct GenerateVideoRequest {
     /// server-side after generation).
     #[prost(bool, optional, tag = "17")]
     pub generate_audio: ::core::option::Option<bool>,
+    /// Optional image pinned as the video's exact LAST frame — the clip ends
+    /// arriving on it (unlike reference_images, which condition the video and
+    /// appear re-rendered). With image, the video interpolates between the two
+    /// frames. Only supported by select video models. Supports URL or
+    /// base64-encoded image.
+    #[prost(message, optional, tag = "18")]
+    pub last_frame: ::core::option::Option<ImageUrlContent>,
+    /// Optional mid-video keyframe anchors, strictly between the endpoint pins
+    /// (`image` as the first frame, `last_frame` as the last). Selects
+    /// reference-to-video like the other reference inputs. Only supported by
+    /// select video models; at most 4 entries.
+    #[prost(message, repeated, tag = "20")]
+    pub keyframes: ::prost::alloc::vec::Vec<VideoKeyframe>,
 }
 /// Request for retrieving deferred video generation results.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
