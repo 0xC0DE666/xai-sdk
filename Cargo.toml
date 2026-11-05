@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-authors = ["0xC0DE666", "D4EM0N"]
+authors = ["0xC0DE666", "D43M0N"]
 documentation = "https://docs.rs/xai-sdk"
 repository = "https://github.com/0xC0DE666/xai-sdk"
 version = "0.13.0"
