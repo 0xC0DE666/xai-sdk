@@ -42,6 +42,8 @@
 //! - [`ToolCallStatus`] - Tool call execution status
 //! - [`ServerSideTool`] - Available server-side tools
 //! - [`IncludeOption`] - Content inclusion options
+//! - [`GuidelineCategory`] - Output guideline categories (nsfw, violence, etc.)
+//! - [`GuidelineBehavior`] - Guideline handling (decline, allow)
 //! - [`VideoAspectRatio`] - Video aspect ratios (1:1, 16:9, etc.)
 //! - [`VideoResolution`] - Video resolution settings (480p, 720p)
 //!
@@ -61,10 +63,11 @@ pub mod enums {
 
     // Re-export all enums
     pub use crate::xai_api::{
-        DeferredStatus, EmbedEncodingFormat, FinishReason, FormatType, ImageAspectRatio,
-        ImageDetail, ImageFormat, ImageQuality, ImageResolution, IncludeOption, MessageRole,
-        Modality, RankingMetric, ReasoningEffort, SearchMode, ServerSideTool, ToolCallStatus,
-        ToolCallType, ToolMode, VideoAspectRatio, VideoResolution,
+        DeferredStatus, EmbedEncodingFormat, FinishReason, FormatType, GuidelineBehavior,
+        GuidelineCategory, ImageAspectRatio, ImageDetail, ImageFormat, ImageQuality,
+        ImageResolution, IncludeOption, MessageRole, Modality, RankingMetric, ReasoningEffort,
+        SearchMode, ServerSideTool, ToolCallStatus, ToolCallType, ToolMode, VideoAspectRatio,
+        VideoResolution,
     };
 
     impl fmt::Display for DeferredStatus {
@@ -660,6 +663,60 @@ pub mod enums {
                 "failed" => Ok(ToolCallStatus::Failed),
                 _ => ToolCallStatus::from_str_name(s)
                     .ok_or_else(|| format!("Invalid tool call status: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for GuidelineCategory {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                GuidelineCategory::Invalid => "invalid",
+                GuidelineCategory::Nsfw => "nsfw",
+                GuidelineCategory::Violence => "violence",
+                GuidelineCategory::Profanity => "profanity",
+                GuidelineCategory::Cyber => "cyber",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for GuidelineCategory {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(GuidelineCategory::Invalid),
+                "nsfw" => Ok(GuidelineCategory::Nsfw),
+                "violence" => Ok(GuidelineCategory::Violence),
+                "profanity" => Ok(GuidelineCategory::Profanity),
+                "cyber" => Ok(GuidelineCategory::Cyber),
+                _ => GuidelineCategory::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid guideline category: '{s}'")),
+            }
+        }
+    }
+
+    impl fmt::Display for GuidelineBehavior {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = match self {
+                GuidelineBehavior::Invalid => "invalid",
+                GuidelineBehavior::Decline => "decline",
+                GuidelineBehavior::Allow => "allow",
+            };
+            f.write_str(s)
+        }
+    }
+
+    impl FromStr for GuidelineBehavior {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_ascii_lowercase().as_str() {
+                "invalid" => Ok(GuidelineBehavior::Invalid),
+                "decline" => Ok(GuidelineBehavior::Decline),
+                "allow" => Ok(GuidelineBehavior::Allow),
+                _ => GuidelineBehavior::from_str_name(s)
+                    .ok_or_else(|| format!("Invalid guideline behavior: '{s}'")),
             }
         }
     }

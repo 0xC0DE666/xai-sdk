@@ -2,11 +2,11 @@ use tonic::Status;
 use xai_sdk::api::tool_call;
 use xai_sdk::api::{
     CompletionMessage, CompletionOutput, CompletionOutputChunk, Delta, FinishReason, FunctionCall,
-    GetChatCompletionChunk, InlineCitation, MessageRole, SamplingUsage, ToolCall, ToolCallType,
-    content::Content as ApiContent,
+    GetChatCompletionChunk, GuidelineBehavior, GuidelineCategory, InlineCitation, MessageRole,
+    SamplingUsage, ToolCall, ToolCallType, content::Content as ApiContent, guideline,
 };
 use xai_sdk::chat::stream::{Event, OutputContext, PhaseStatus, assemble, process};
-use xai_sdk::chat::utils::to_messages;
+use xai_sdk::chat::utils::{policy_guideline, to_messages};
 use xai_sdk::export::futures::StreamExt;
 use xai_sdk::export::futures::channel::mpsc;
 use xai_sdk::export::futures::stream::{self, Stream};
@@ -466,6 +466,18 @@ fn test_assemble_handles_outputs_across_multiple_chunks() {
         response.outputs[1].message.as_ref().unwrap().content,
         "Hi There"
     );
+}
+
+#[test]
+fn test_policy_guideline_helper() {
+    let g = policy_guideline(GuidelineCategory::Nsfw, GuidelineBehavior::Decline);
+    match g.kind {
+        Some(guideline::Kind::Policy(policy)) => {
+            assert_eq!(policy.category, GuidelineCategory::Nsfw as i32);
+            assert_eq!(policy.behavior, GuidelineBehavior::Decline as i32);
+        }
+        other => panic!("expected policy guideline, got {other:?}"),
+    }
 }
 
 #[test]

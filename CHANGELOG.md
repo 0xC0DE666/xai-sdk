@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Protos**: Regenerated from upstream — chat `safety_identifier` / `guidelines` (`GuidelineCategory`, `GuidelineBehavior`, `PolicyGuideline`), video `last_frame` / `VideoKeyframe` / `keyframes`, plus generated coverage for newer include/tool-call fields.
+- **`utils::enums`**: `Display` / `FromStr` for `GuidelineCategory` and `GuidelineBehavior`; `IncludeOption` string conversion for new variants.
+- **`chat::utils::policy_guideline`**: Helper to build policy guidelines for `GetCompletionsRequest::guidelines`.
+- **`video::utils::keyframe`**: Helper to build mid-clip `VideoKeyframe` anchors.
+
+### Changed
+- **`MessageRole::RoleFunction`**: Deprecated-path handling silenced in enum helpers/tests (prefer `RoleTool`).
+
 ## [0.12.0] - 2026-09-11
 
 ### Added

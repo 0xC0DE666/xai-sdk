@@ -62,6 +62,13 @@ async fn complete(api_key: &str) -> Result<()> {
         model: model.to_string(),
         messages,
         n: Some(1),
+        // Optional: attribute usage-policy hits to an end user (hash your user id).
+        // safety_identifier: Some("user-abc123".into()),
+        // Optional: output guidelines, e.g. decline NSFW:
+        // guidelines: vec![chat::utils::policy_guideline(
+        //     xai_sdk::api::GuidelineCategory::Nsfw,
+        //     xai_sdk::api::GuidelineBehavior::Decline,
+        // )],
         ..Default::default()
     });
 

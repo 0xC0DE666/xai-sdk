@@ -39,6 +39,10 @@ async fn main() -> Result<()> {
         // 1:1 at 480p minimizes pixel count vs wider aspect ratios at the same tier.
         aspect_ratio: Some(VideoAspectRatio::VideoAspectRatio11 as i32),
         resolution: Some(VideoResolution::VideoResolution480p as i32),
+        // Optional on select models: pin first/last frames and mid-clip keyframes.
+        // image: Some(...),           // exact first frame
+        // last_frame: Some(...),      // exact last frame
+        // keyframes: vec![video::utils::keyframe(image, 2.0)],
         ..Default::default()
     };
 

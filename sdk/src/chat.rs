@@ -883,7 +883,10 @@ pub mod traits {
 /// Provides utilities for converting completion outputs to messages and related chat operations.
 pub mod utils {
     use super::traits::ToContent;
-    use crate::xai_api::{CompletionOutput, Content, Message, MessageRole, content};
+    use crate::xai_api::{
+        CompletionOutput, Content, Guideline, GuidelineBehavior, GuidelineCategory, Message,
+        MessageRole, PolicyGuideline, content, guideline,
+    };
 
     impl From<&str> for Content {
         fn from(value: &str) -> Self {
@@ -916,6 +919,22 @@ pub mod utils {
             content,
             role: role.into(),
             ..Default::default()
+        }
+    }
+
+    /// Builds a policy [`Guideline`] for `GetCompletionsRequest::guidelines`.
+    ///
+    /// NSFW, violence, and profanity accept [`GuidelineBehavior::Decline`]; cyber
+    /// accepts [`GuidelineBehavior::Allow`] (and only for API keys enabled for it).
+    pub fn policy_guideline(
+        category: GuidelineCategory,
+        behavior: GuidelineBehavior,
+    ) -> Guideline {
+        Guideline {
+            kind: Some(guideline::Kind::Policy(PolicyGuideline {
+                category: category.into(),
+                behavior: behavior.into(),
+            })),
         }
     }
 

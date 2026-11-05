@@ -579,6 +579,56 @@ fn test_modality_from_str() {
     assert!(Modality::from_str("definitely_not_a_modality_xyz123").is_err());
 }
 
+#[test]
+fn test_guideline_category_display() {
+    assert_eq!(GuidelineCategory::Invalid.to_string(), "invalid");
+    assert_eq!(GuidelineCategory::Nsfw.to_string(), "nsfw");
+    assert_eq!(GuidelineCategory::Violence.to_string(), "violence");
+    assert_eq!(GuidelineCategory::Profanity.to_string(), "profanity");
+    assert_eq!(GuidelineCategory::Cyber.to_string(), "cyber");
+}
+
+#[test]
+fn test_guideline_category_from_str() {
+    assert_eq!(
+        GuidelineCategory::from_str("nsfw").unwrap(),
+        GuidelineCategory::Nsfw
+    );
+    assert_eq!(
+        GuidelineCategory::from_str("VIOLENCE").unwrap(),
+        GuidelineCategory::Violence
+    );
+    assert_eq!(
+        GuidelineCategory::from_str("GUIDELINE_CATEGORY_CYBER").unwrap(),
+        GuidelineCategory::Cyber
+    );
+    assert!(GuidelineCategory::from_str("not_a_category").is_err());
+}
+
+#[test]
+fn test_guideline_behavior_display() {
+    assert_eq!(GuidelineBehavior::Invalid.to_string(), "invalid");
+    assert_eq!(GuidelineBehavior::Decline.to_string(), "decline");
+    assert_eq!(GuidelineBehavior::Allow.to_string(), "allow");
+}
+
+#[test]
+fn test_guideline_behavior_from_str() {
+    assert_eq!(
+        GuidelineBehavior::from_str("decline").unwrap(),
+        GuidelineBehavior::Decline
+    );
+    assert_eq!(
+        GuidelineBehavior::from_str("ALLOW").unwrap(),
+        GuidelineBehavior::Allow
+    );
+    assert_eq!(
+        GuidelineBehavior::from_str("GUIDELINE_BEHAVIOR_DECLINE").unwrap(),
+        GuidelineBehavior::Decline
+    );
+    assert!(GuidelineBehavior::from_str("not_a_behavior").is_err());
+}
+
 // Test round-trip: Display -> FromStr
 #[test]
 fn test_display_from_str_roundtrip() {
@@ -634,4 +684,12 @@ fn test_display_from_str_roundtrip() {
     let modality = Modality::Text;
     let s = modality.to_string();
     assert_eq!(Modality::from_str(&s).unwrap(), modality);
+
+    let category = GuidelineCategory::Profanity;
+    let s = category.to_string();
+    assert_eq!(GuidelineCategory::from_str(&s).unwrap(), category);
+
+    let behavior = GuidelineBehavior::Allow;
+    let s = behavior.to_string();
+    assert_eq!(GuidelineBehavior::from_str(&s).unwrap(), behavior);
 }

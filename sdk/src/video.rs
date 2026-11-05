@@ -2,6 +2,10 @@
 //!
 //! Provides gRPC clients for generating high-quality videos using xAI's
 //! advanced video generation models with support for deferred processing.
+//!
+//! `GenerateVideoRequest` supports text-to-video plus optional first/last frames
+//! (`image` / `last_frame`), mid-clip keyframes via [`utils::keyframe`], and
+//! reference images/audio on select models.
 
 pub mod client {
     use crate::common;
@@ -81,5 +85,22 @@ pub mod client {
         interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> VideoClient {
         XVideoClient::with_interceptor(channel, ClientInterceptor::new(interceptor))
+    }
+}
+
+/// Helpers for building video generation requests.
+pub mod utils {
+    use crate::xai_api::{ImageUrlContent, VideoKeyframe};
+
+    /// Builds a mid-clip [`VideoKeyframe`] pinned at `timestamp_s` seconds.
+    ///
+    /// Timestamps must be strictly inside the clip (`0 < t < duration`) and snap
+    /// to the engine's keyframe grid (one anchor per 1/3 second). At most four
+    /// keyframes are supported on select models.
+    pub fn keyframe(image: ImageUrlContent, timestamp_s: f32) -> VideoKeyframe {
+        VideoKeyframe {
+            image: Some(image),
+            timestamp_s,
+        }
     }
 }
