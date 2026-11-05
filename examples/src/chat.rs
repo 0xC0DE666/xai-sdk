@@ -51,7 +51,7 @@ async fn complete(api_key: &str) -> Result<()> {
 
     // Create the request
     let prompt = "Quote Hannibal Lectre.";
-    let model = "grok-3";
+    let model = "grok-4.20-non-reasoning";
     let mut cntnt = Content::default();
     cntnt.content = Some(content::Content::Text(prompt.into()));
     let mut msg = Message::default();
@@ -110,7 +110,7 @@ async fn stream(api_key: &str) -> Result<()> {
 
     // Create the request
     let prompt = "What is 35 + 34?";
-    let model = "grok-3-mini";
+    let model = "grok-4.20-non-reasoning";
     let mut cntnt = Content::default();
     cntnt.content = Some(content::Content::Text(prompt.into()));
     let mut msg = Message::default();
@@ -151,7 +151,7 @@ async fn assemble(api_key: &str) -> Result<()> {
 
     // Create the request
     let prompt = "Quote a King 810 song.";
-    let model = "grok-3-mini";
+    let model = "grok-4.20-non-reasoning";
     let mut cntnt = Content::default();
     cntnt.content = Some(content::Content::Text(prompt.into()));
     let mut msg = Message::default();

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.13.0] - 2026-11-05
 
 ### Added
 - **Protos**: Regenerated from upstream — chat `safety_identifier` / `guidelines` (`GuidelineCategory`, `GuidelineBehavior`, `PolicyGuideline`), video `last_frame` / `VideoKeyframe` / `keyframes`, plus generated coverage for newer include/tool-call fields.
@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`video::utils::keyframe`**: Helper to build mid-clip `VideoKeyframe` anchors.
 
 ### Changed
+- **Package metadata**: Bumped crate version to `0.13.0`.
 - **`MessageRole::RoleFunction`**: Deprecated-path handling silenced in enum helpers/tests (prefer `RoleTool`).
+- **Examples**: Chat example default model set to `grok-4.20-non-reasoning`.
 
 ## [0.12.0] - 2026-09-11
 

@@ -29,7 +29,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.12"
+xai-sdk = "0.13"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
