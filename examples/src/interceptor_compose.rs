@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
     msg.content = vec![cntnt];
     let messages = vec![msg];
     let request = Request::new(GetCompletionsRequest {
-        model: "grok-3-latest".to_string(),
+        model: "grok-4.20".to_string(),
         messages,
         n: Some(1),
         ..Default::default()

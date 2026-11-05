@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Package metadata**: Bumped crate version to `0.13.0`.
 - **`MessageRole::RoleFunction`**: Deprecated-path handling silenced in enum helpers/tests (prefer `RoleTool`).
-- **Examples**: Chat example default model set to `grok-4.20-non-reasoning`.
+- **Examples**: Chat example default model set to `grok-4.20`.
 
 ## [0.12.0] - 2026-09-11
 

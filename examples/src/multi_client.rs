@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✍️  Generating text...");
     let sample_request = Request::new(SampleTextRequest {
         prompt: vec!["Write a haiku about Rust programming".to_string()],
-        model: "grok-2-latest".to_string(),
+        model: "grok-4.20".to_string(),
         max_tokens: Some(50),
         temperature: Some(0.8),
         ..Default::default()
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
     let chat_request = Request::new(GetCompletionsRequest {
-        model: "grok-3-latest".to_string(),
+        model: "grok-4.20".to_string(),
         messages: vec![message],
         ..Default::default()
     });

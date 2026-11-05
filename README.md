@@ -12,7 +12,7 @@ A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services 
 
 - **Complete API Coverage**: Full gRPC client implementation for all xAI services including chat completions, embeddings, image generation, video generation, batch processing, and billing management
 - **Type Safety**: Auto-generated Rust types from Protocol Buffers
-- **Multiple Models**: Support for all xAI language models (Grok-3, Grok-4, etc.)
+- **Multiple Models**: Support for all xAI language models (Grok-4, etc.)
 - **Streaming Support**: Real-time streaming for chat completions and text generation
 - **Response Assembly**: Convert streaming chunks into complete responses
 - **Batch Processing**: Asynchronous batch processing for large-scale requests
@@ -192,7 +192,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Get details for a specific model
     let model_request = Request::new(GetModelRequest {
-        name: "grok-3-latest".to_string(),
+        name: "grok-4.20".to_string(),
     });
     let model_response = models_client.get_language_model(model_request).await?;
     println!("Model details: {:?}", model_response.into_inner());
@@ -200,7 +200,7 @@ async fn main() -> anyhow::Result<()> {
     // Generate text
     let sample_request = Request::new(SampleTextRequest {
         prompt: vec!["Hello, world!".to_string()],
-        model: "grok-3-latest".to_string(),
+        model: "grok-4.20".to_string(),
         ..Default::default()
     });
     let sample_response = sample_client.sample_text(sample_request).await?;
@@ -215,7 +215,7 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
     let chat_request = Request::new(GetCompletionsRequest {
-        model: "grok-3-latest".to_string(),
+        model: "grok-4.20".to_string(),
         messages: vec![message],
         ..Default::default()
     });

@@ -22,7 +22,7 @@ async fn demonstrate_text_sampling() -> Result<()> {
     println!("-------------------------------");
     let request1 = Request::new(SampleTextRequest {
         prompt: vec!["Write a short poem about Rust programming language.".to_string()],
-        model: "grok-2-latest".to_string(),
+        model: "grok-4.20".to_string(),
         max_tokens: Some(200),
         temperature: Some(0.8),
         top_p: Some(0.9),
@@ -76,7 +76,7 @@ async fn demonstrate_text_sampling() -> Result<()> {
             "Explain the concept of ownership in Rust programming language in simple terms."
                 .to_string(),
         ],
-        model: "grok-2-latest".to_string(),
+        model: "grok-4.20".to_string(),
         max_tokens: Some(300),
         temperature: Some(0.3),
         top_p: Some(0.8),
@@ -128,7 +128,7 @@ async fn demonstrate_text_sampling() -> Result<()> {
             "Complete this sentence: 'The best programming language for systems programming is'"
                 .to_string(),
         ],
-        model: "grok-2-latest".to_string(),
+        model: "grok-4.20".to_string(),
         max_tokens: Some(50),
         temperature: Some(0.7),
         top_p: Some(0.9),

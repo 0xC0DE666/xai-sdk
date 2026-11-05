@@ -214,7 +214,7 @@ fn test_assemble_multiple_choices() {
 fn test_assemble_preserves_metadata() {
     let mut chunk = GetChatCompletionChunk::default();
     chunk.id = "unique-id-123".to_string();
-    chunk.model = "grok-3-latest".to_string();
+    chunk.model = "grok-4.20".to_string();
     chunk.system_fingerprint = "fp-123".to_string();
 
     let mut output = CompletionOutputChunk::default();
@@ -231,7 +231,7 @@ fn test_assemble_preserves_metadata() {
     assert!(result.is_some());
     let response = result.unwrap();
     assert_eq!(response.id, "unique-id-123");
-    assert_eq!(response.model, "grok-3-latest");
+    assert_eq!(response.model, "grok-4.20");
     assert_eq!(response.system_fingerprint, "fp-123".to_string());
 }
 
