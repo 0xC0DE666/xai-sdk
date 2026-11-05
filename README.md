@@ -48,12 +48,7 @@ anyhow = "1.0"
    cargo run --example auth_info
    ```
 
-3. Run the raw text sampling example:
-   ```bash
-   cargo run --example raw_text_sample
-   ```
-
-4. Run the chat completion example (supports multiple modes):
+3. Run the chat completion example (supports multiple modes):
    ```bash
    # Blocking completion
    cargo run --example chat -- --complete
@@ -65,17 +60,17 @@ anyhow = "1.0"
    cargo run --example chat -- --assemble
    ```
 
-5. Run the multi-client example (demonstrates using multiple services with shared channel):
+4. Run the multi-client example (demonstrates using multiple services with shared channel):
    ```bash
    cargo run --example multi_client
    ```
 
-6. Run the interceptor composition example:
+5. Run the interceptor composition example:
    ```bash
    cargo run --example interceptor_compose
    ```
 
-7. Run the tool calls example:
+6. Run the tool calls example:
    ```bash
    cargo run --example tool_calls
    ```
@@ -92,9 +87,10 @@ The SDK provides clients for all xAI services:
 - **`get_stored_completion`** - Get stored chat completion
 - **`delete_stored_completion`** - Delete stored chat completion
 
-### Sample Service
-- **`sample_text`** - Raw text generation
-- **`sample_text_streaming`** - Streaming text generation
+### Sample Service (deprecated)
+Raw `SampleText` is rejected for current Grok 4 models (treated as reasoning). Use **Chat** instead. The client remains for legacy / proto completeness only.
+- **`sample_text`** - Raw text generation (legacy)
+- **`sample_text_streaming`** - Streaming text generation (legacy)
 
 ### Models Service
 - **`list_language_models`** - List available language models
@@ -157,7 +153,7 @@ The SDK is organized into focused modules, each providing easy client creation:
 - **`files`** - File upload and management
 - **`image`** - Image generation
 - **`models`** - Model listing and information
-- **`sample`** - Text sampling and generation
+- **`sample`** - Legacy raw text sampling (deprecated; use `chat`)
 - **`tokenize`** - Text tokenization
 - **`video`** - Video generation with deferred processing
 - **`batch`** - Batch processing and management
@@ -170,10 +166,9 @@ use anyhow::Context;
 use std::env;
 use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
-    Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
-    content,
+    Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, content,
 };
-use xai_sdk::{chat, models, sample};
+use xai_sdk::{chat, models};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -182,7 +177,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Create authenticated clients for different services
     let mut models_client = models::client::new(api_key.clone()).await?;
-    let mut sample_client = sample::client::new(api_key.clone()).await?;
     let mut chat_client = chat::client::new(api_key).await?;
 
     // List available models
@@ -196,15 +190,6 @@ async fn main() -> anyhow::Result<()> {
     });
     let model_response = models_client.get_language_model(model_request).await?;
     println!("Model details: {:?}", model_response.into_inner());
-
-    // Generate text
-    let sample_request = Request::new(SampleTextRequest {
-        prompt: vec!["Hello, world!".to_string()],
-        model: "grok-4.20".to_string(),
-        ..Default::default()
-    });
-    let sample_response = sample_client.sample_text(sample_request).await?;
-    println!("Generated: {}", sample_response.into_inner().choices[0].text);
 
     // Chat completion
     let message = Message {

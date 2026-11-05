@@ -15,10 +15,6 @@ name = "auth_info"
 path = "src/auth_info.rs"
 
 [[example]]
-name = "raw_text_sample"
-path = "src/raw_text_sample.rs"
-
-[[example]]
 name = "chat"
 path = "src/chat.rs"
 

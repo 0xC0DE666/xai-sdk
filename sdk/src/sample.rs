@@ -1,7 +1,12 @@
 //! Text sampling service client.
 //!
-//! Provides gRPC clients for raw text generation and sampling operations with
-//! support for both blocking and streaming text generation.
+//! # Deprecated
+//!
+//! Raw `SampleText` / `SampleTextStreaming` is rejected for current Grok 4 models
+//! (the API treats them as reasoning models). Prefer [`crate::chat`] for text
+//! generation. This module remains only for legacy / proto completeness.
+
+#![allow(deprecated)]
 
 pub mod client {
     use crate::common;

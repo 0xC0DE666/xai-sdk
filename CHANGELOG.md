@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Package metadata**: Bumped crate version to `0.13.0`.
 - **`MessageRole::RoleFunction`**: Deprecated-path handling silenced in enum helpers/tests (prefer `RoleTool`).
-- **Examples**: Chat example default model set to `grok-4.20`.
+- **Examples**: Default model set to `grok-4.20`; removed `raw_text_sample`; `multi_client` uses chat only.
+- **`sample`**: Deprecated. Current Grok 4 models reject raw `SampleText` (treated as reasoning); use `chat` instead. Client kept for legacy / proto completeness.
 
 ## [0.12.0] - 2026-09-11
 

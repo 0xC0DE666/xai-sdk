@@ -11,7 +11,7 @@
 //! - **Embeddings**: [`EmbedRequest`], [`EmbedResponse`], embedding types
 //! - **Images**: [`GenerateImageRequest`], [`GenerateImageResponse`], image types
 //! - **Models**: [`ListLanguageModelsRequest`], model information types
-//! - **Sample**: [`SampleTextRequest`], text generation types
+//! - **Sample** (deprecated): [`SampleTextRequest`] — legacy raw sampling; use chat instead
 //! - **Tokenize**: [`TokenizeRequest`], tokenization types
 //! - **Documents**: [`SearchDocumentsRequest`], document search types
 //! - **Auth**: [`GetApiKeyInfoRequest`], authentication types

@@ -18,6 +18,10 @@ pub mod export;
 pub mod files;
 pub mod image;
 pub mod models;
+#[deprecated(
+    since = "0.13.0",
+    note = "Raw SampleText is rejected for current Grok 4 models; use `chat` instead"
+)]
 pub mod sample;
 pub mod tokenize;
 pub mod utils;

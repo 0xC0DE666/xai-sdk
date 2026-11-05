@@ -1,10 +1,9 @@
 use anyhow::{Context, Result};
-use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
-    Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, SampleTextRequest,
-    content,
+    Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, content,
 };
-use xai_sdk::{chat, common, models, sample};
+use xai_sdk::export::tonic::Request;
+use xai_sdk::{chat, common, models};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,8 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create authenticated clients for different services
     let mut models_client = models::client::with_channel(channel.clone(), &api_key);
-    let mut sample_client = sample::client::with_channel(channel.clone(), &api_key);
-    let mut chat_client = chat::client::with_channel(channel.clone(), &api_key);
+    let mut chat_client = chat::client::with_channel(channel, &api_key);
 
     // List available models
     println!("📋 Listing available models...");
@@ -35,24 +33,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get language model detail
     println!("📋 Language model details...");
     let model_request = Request::new(GetModelRequest {
-        name: "grok-code-fast".to_string(),
+        name: "grok-4.20".to_string(),
     });
     let model_response = models_client.get_language_model(model_request).await?;
     println!("Language model: {:#?}\n", model_response.into_inner());
 
-    // Generate text using sample service
-    println!("✍️  Generating text...");
-    let sample_request = Request::new(SampleTextRequest {
-        prompt: vec!["Write a haiku about Rust programming".to_string()],
-        model: "grok-4.20".to_string(),
-        max_tokens: Some(50),
-        temperature: Some(0.8),
-        ..Default::default()
-    });
-    let sample_response = sample_client.sample_text(sample_request).await?;
-    println!("{}", sample_response.into_inner().choices[0].text);
-
-    // Chat completion
+    // Chat completion (prefer chat over legacy SampleText)
     println!("💬 Chat completion...");
     let message = Message {
         role: MessageRole::RoleUser.into(),
