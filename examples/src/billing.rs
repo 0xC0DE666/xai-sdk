@@ -5,6 +5,7 @@ use xai_sdk::api::management::billing::{
     GetAmountToPayReq, GetBillingInfoReq, GetSpendingLimitsReq, ListPaymentMethodsReq,
 };
 use xai_sdk::billing;
+use xai_sdk::{XAI_MANAGEMENT_API_KEY, XAI_TEAM_ID};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -12,11 +13,12 @@ async fn main() -> Result<()> {
     println!("==============================\n");
 
     // Management API key (Console → Settings → Management Keys). Inference keys 401.
-    let management_key = env::var("XAI_MANAGEMENT_KEY")
-        .context("XAI_MANAGEMENT_KEY environment variable must be set")?;
+    let management_key = env::var(XAI_MANAGEMENT_API_KEY).with_context(|| {
+        format!("{XAI_MANAGEMENT_API_KEY} environment variable must be set")
+    })?;
     // Team UUID from Console → Settings (required on every billing RPC).
-    let team_id =
-        env::var("XAI_TEAM_ID").context("XAI_TEAM_ID environment variable must be set")?;
+    let team_id = env::var(XAI_TEAM_ID)
+        .with_context(|| format!("{XAI_TEAM_ID} environment variable must be set"))?;
 
     let mut client = billing::client::new(&management_key).await?;
 

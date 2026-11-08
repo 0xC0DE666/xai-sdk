@@ -11,6 +11,15 @@ pub const XAI_API_URL: &str = "https://api.x.ai:443";
 /// Requires a management key from the xAI console — inference API keys are rejected.
 pub const XAI_MANAGEMENT_API_URL: &str = "https://management-api.x.ai:443";
 
+/// Environment variable for the inference API key (`api.x.ai`).
+pub const XAI_API_KEY: &str = "XAI_API_KEY";
+
+/// Environment variable for the management API key (`management-api.x.ai`).
+pub const XAI_MANAGEMENT_API_KEY: &str = "XAI_MANAGEMENT_API_KEY";
+
+/// Environment variable for the team UUID (required on management billing RPCs).
+pub const XAI_TEAM_ID: &str = "XAI_TEAM_ID";
+
 pub mod api;
 pub mod auth;
 pub mod batch;

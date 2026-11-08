@@ -12,12 +12,12 @@ use xai_sdk::api::{
 use xai_sdk::chat;
 use xai_sdk::chat::stream::{Event, process};
 use xai_sdk::export::tonic::{Request, Streaming};
+use xai_sdk::XAI_API_KEY;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Load API key from environment variable
-    let api_key =
-        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = env::var(XAI_API_KEY)
+        .with_context(|| format!("{XAI_API_KEY} environment variable must be set"))?;
 
     // Create authenticated chat client
     let mut client = chat::client::new(&api_key).await?;

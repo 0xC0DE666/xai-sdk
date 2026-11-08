@@ -6,6 +6,7 @@ use xai_sdk::api::{
 };
 use xai_sdk::chat;
 use xai_sdk::export::tonic::{Request, Streaming};
+use xai_sdk::XAI_API_KEY;
 
 const COMPLETE: &str = "--complete";
 const STREAM: &str = "--stream";
@@ -19,9 +20,8 @@ async fn main() -> Result<()> {
         help();
     }
 
-    // Load API key from environment variable
-    let api_key =
-        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = env::var(XAI_API_KEY)
+        .with_context(|| format!("{XAI_API_KEY} environment variable must be set"))?;
 
     let arg = args[1].as_str();
     let _ = match arg {

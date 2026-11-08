@@ -24,7 +24,9 @@ A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services 
 
 1. Rust 1.88+ installed
 2. xAI **inference** API key (`XAI_API_KEY`) for chat, models, embeddings, etc.
-3. For billing: a **management** API key (`XAI_MANAGEMENT_KEY`) and team UUID (`XAI_TEAM_ID`) from the xAI console — billing uses `https://management-api.x.ai`, not the inference host
+3. For billing: a **management** API key (`XAI_MANAGEMENT_API_KEY`) and team UUID (`XAI_TEAM_ID`) from the xAI console — billing uses `https://management-api.x.ai`, not the inference host
+
+Env var names are also exported as crate constants (`xai_sdk::XAI_API_KEY`, `XAI_MANAGEMENT_API_KEY`, `XAI_TEAM_ID`).
 
 ### Installation
 
@@ -78,7 +80,7 @@ anyhow = "1.0"
 
 7. Run the billing example (management API):
    ```bash
-   export XAI_MANAGEMENT_KEY="your-management-key"
+   export XAI_MANAGEMENT_API_KEY="your-management-key"
    export XAI_TEAM_ID="your-team-uuid"
    cargo run --example billing
    ```
@@ -184,7 +186,8 @@ use xai_sdk::{chat, models};
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load API key for authentication
-    let api_key = env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = env::var(xai_sdk::XAI_API_KEY)
+        .with_context(|| format!("{} environment variable must be set", xai_sdk::XAI_API_KEY))?;
 
     // Create authenticated clients for different services
     let mut models_client = models::client::new(api_key.clone()).await?;

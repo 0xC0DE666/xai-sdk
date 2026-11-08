@@ -3,13 +3,12 @@ use xai_sdk::api::{
     Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, content,
 };
 use xai_sdk::export::tonic::Request;
-use xai_sdk::{chat, shared, models};
+use xai_sdk::{chat, models, shared, XAI_API_KEY};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get API key from environment variable
-    let api_key =
-        std::env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = std::env::var(XAI_API_KEY)
+        .with_context(|| format!("{XAI_API_KEY} environment variable must be set"))?;
 
     println!("🚀 xAI SDK Modular Client Example");
     println!("=================================\n");

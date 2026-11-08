@@ -3,15 +3,15 @@ use std::env;
 use xai_sdk::export::tonic::Request;
 use xai_sdk::api::ApiKey;
 use xai_sdk::auth;
+use xai_sdk::XAI_API_KEY;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("🔐 xAI Auth Info Example");
     println!("========================\n");
 
-    // Load API key for authentication
-    let api_key =
-        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = env::var(XAI_API_KEY)
+        .with_context(|| format!("{XAI_API_KEY} environment variable must be set"))?;
 
     // Create authenticated auth client
     let mut client = auth::client::new(&api_key).await?;

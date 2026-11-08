@@ -4,13 +4,12 @@ use xai_sdk::export::tonic::Request;
 use xai_sdk::api::{
     Content, GetChatCompletionResponse, GetCompletionsRequest, Message, MessageRole, content,
 };
-use xai_sdk::{chat, shared};
+use xai_sdk::{chat, shared, XAI_API_KEY};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Load API key
-    let api_key =
-        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = env::var(XAI_API_KEY)
+        .with_context(|| format!("{XAI_API_KEY} environment variable must be set"))?;
 
     // Build interceptors: auth + some dummy metadata injectors
     let composed = shared::interceptor::compose(vec![

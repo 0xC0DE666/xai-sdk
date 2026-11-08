@@ -1,7 +1,15 @@
-use xai_sdk::shared;
-use xai_sdk::shared::interceptor::{ClientInterceptor, auth, compose};
 use xai_sdk::export::tonic::service::Interceptor;
 use xai_sdk::export::tonic::{Request, Status};
+use xai_sdk::shared;
+use xai_sdk::shared::interceptor::{ClientInterceptor, auth, compose};
+use xai_sdk::{XAI_API_KEY, XAI_MANAGEMENT_API_KEY, XAI_TEAM_ID};
+
+#[test]
+fn test_env_var_name_constants() {
+    assert_eq!(XAI_API_KEY, "XAI_API_KEY");
+    assert_eq!(XAI_MANAGEMENT_API_KEY, "XAI_MANAGEMENT_API_KEY");
+    assert_eq!(XAI_TEAM_ID, "XAI_TEAM_ID");
+}
 
 #[test]
 fn test_client_interceptor_new() {

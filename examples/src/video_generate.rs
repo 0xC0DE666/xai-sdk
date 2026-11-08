@@ -17,6 +17,7 @@ use xai_sdk::api::{
 };
 use xai_sdk::export::tonic::Request;
 use xai_sdk::video;
+use xai_sdk::XAI_API_KEY;
 
 /// Video model alias (see xAI docs / model list for current names).
 const MODEL: &str = "grok-imagine-video";
@@ -27,8 +28,8 @@ const MAX_POLLS: u32 = 120;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let api_key =
-        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    let api_key = env::var(XAI_API_KEY)
+        .with_context(|| format!("{XAI_API_KEY} environment variable must be set"))?;
 
     let mut client = video::client::new(&api_key).await?;
 
