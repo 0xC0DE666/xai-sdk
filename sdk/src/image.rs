@@ -4,8 +4,8 @@
 //! using xAI's advanced image generation models.
 
 pub mod client {
-    use crate::common;
-    use crate::common::interceptor::ClientInterceptor;
+    use crate::shared;
+    use crate::shared::interceptor::ClientInterceptor;
     use crate::export::tonic::service::{Interceptor, interceptor::InterceptedService};
     use crate::export::tonic::transport::{Channel, Error};
     use crate::xai_api::image_client::ImageClient as XImageClient;
@@ -23,8 +23,8 @@ pub mod client {
     /// * `Result<ImageClient, Error>` - Connected client or transport error
     ///
     pub async fn new(api_key: &str) -> Result<ImageClient, Error> {
-        let channel = common::channel::new().await?;
-        let auth_intercept = common::interceptor::auth(api_key);
+        let channel = shared::channel::new().await?;
+        let auth_intercept = shared::interceptor::auth(api_key);
         let client = XImageClient::with_interceptor(channel, auth_intercept);
 
         Ok(client)
@@ -41,7 +41,7 @@ pub mod client {
     /// # Returns
     /// * `ImageClient` - Authenticated client using the provided channel
     pub fn with_channel(channel: Channel, api_key: &str) -> ImageClient {
-        let auth_intercept = common::interceptor::auth(api_key);
+        let auth_intercept = shared::interceptor::auth(api_key);
         let client = XImageClient::with_interceptor(channel, auth_intercept);
 
         client
@@ -61,7 +61,7 @@ pub mod client {
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<ImageClient, Error> {
-        let channel = common::channel::new().await?;
+        let channel = shared::channel::new().await?;
         let client = XImageClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
         Ok(client)
     }

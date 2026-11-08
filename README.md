@@ -23,7 +23,8 @@ A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services 
 ### Prerequisites
 
 1. Rust 1.88+ installed
-2. xAI API key
+2. xAI **inference** API key (`XAI_API_KEY`) for chat, models, embeddings, etc.
+3. For billing: a **management** API key (`XAI_MANAGEMENT_KEY`) and team UUID (`XAI_TEAM_ID`) from the xAI console — billing uses `https://management-api.x.ai`, not the inference host
 
 ### Installation
 
@@ -38,7 +39,7 @@ anyhow = "1.0"
 
 ### Running the Examples
 
-1. Set your API key as an environment variable:
+1. Set your inference API key:
    ```bash
    export XAI_API_KEY="your-api-key-here"
    ```
@@ -73,6 +74,13 @@ anyhow = "1.0"
 6. Run the tool calls example:
    ```bash
    cargo run --example tool_calls
+   ```
+
+7. Run the billing example (management API):
+   ```bash
+   export XAI_MANAGEMENT_KEY="your-management-key"
+   export XAI_TEAM_ID="your-team-uuid"
+   cargo run --example billing
    ```
 
 ## API Services
@@ -110,7 +118,10 @@ Raw `SampleText` is rejected for current Grok 4 models (treated as reasoning). U
 ### Auth Service
 - **`get_api_key_info`** - Get API key information
 
-### Billing Service
+### Billing Service (management API)
+
+Billing uses `https://management-api.x.ai` via `billing::client` / `shared::channel::management()`. Authenticate with a management key; pass `team_id` on each request. Inference keys and the inference channel will not work here.
+
 - **`set_billing_info`** - Set billing information for a team
 - **`get_billing_info`** - Get billing information for a team
 - **`list_payment_methods`** - List payment methods on file
@@ -279,7 +290,7 @@ The SDK provides a flexible interceptor system for customizing request handling:
 The `auth()` function creates an interceptor that adds Bearer token authentication:
 
 ```rust
-use xai_sdk::common::interceptor::auth;
+use xai_sdk::shared::interceptor::auth;
 
 let interceptor = auth("your-api-key");
 let client = chat::client::with_interceptor(interceptor).await?;
@@ -289,7 +300,7 @@ let client = chat::client::with_interceptor(interceptor).await?;
 Combine multiple interceptors using `compose()`:
 
 ```rust
-use xai_sdk::common::interceptor::{auth, compose};
+use xai_sdk::shared::interceptor::{auth, compose};
 
 let interceptors: Vec<Box<dyn xai_sdk::export::tonic::service::Interceptor + Send + Sync>> = vec![
     Box::new(auth("your-api-key")),
@@ -314,7 +325,7 @@ All client functions return `ClientInterceptor`, a concrete type that can be:
 The `ClientInterceptor` can be created from any `impl Interceptor + Send + Sync + 'static`:
 
 ```rust
-use xai_sdk::common::interceptor::ClientInterceptor;
+use xai_sdk::shared::interceptor::ClientInterceptor;
 
 let interceptor = ClientInterceptor::new(|mut req| {
     // Custom logic

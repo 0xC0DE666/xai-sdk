@@ -4,8 +4,8 @@
 //! over text processing and token counting for xAI models.
 
 pub mod client {
-    use crate::common;
-    use crate::common::interceptor::ClientInterceptor;
+    use crate::shared;
+    use crate::shared::interceptor::ClientInterceptor;
     use crate::export::tonic::service::{Interceptor, interceptor::InterceptedService};
     use crate::export::tonic::transport::{Channel, Error};
     use crate::xai_api::tokenize_client::TokenizeClient as XTokenizeClient;
@@ -23,8 +23,8 @@ pub mod client {
     /// * `Result<TokenizeClient, Error>` - Connected client or transport error
     ///
     pub async fn new(api_key: &str) -> Result<TokenizeClient, Error> {
-        let channel = common::channel::new().await?;
-        let auth_intercept = common::interceptor::auth(api_key);
+        let channel = shared::channel::new().await?;
+        let auth_intercept = shared::interceptor::auth(api_key);
         let client = XTokenizeClient::with_interceptor(channel, auth_intercept);
 
         Ok(client)
@@ -41,7 +41,7 @@ pub mod client {
     /// # Returns
     /// * `TokenizeClient` - Authenticated client using the provided channel
     pub fn with_channel(channel: Channel, api_key: &str) -> TokenizeClient {
-        let auth_intercept = common::interceptor::auth(api_key);
+        let auth_intercept = shared::interceptor::auth(api_key);
         let client = XTokenizeClient::with_interceptor(channel, auth_intercept);
 
         client
@@ -61,7 +61,7 @@ pub mod client {
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<TokenizeClient, Error> {
-        let channel = common::channel::new().await?;
+        let channel = shared::channel::new().await?;
         let client =
             XTokenizeClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
         Ok(client)

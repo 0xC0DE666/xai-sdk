@@ -2,29 +2,34 @@
 //!
 //! Provides gRPC clients for managing billing information, payment methods, invoices,
 //! prepaid credits, and spending limits.
+//!
+//! Billing lives on the **management** API (`management-api.x.ai`) and requires a
+//! **management key** from the xAI console — inference API keys are rejected. Each
+//! RPC is also scoped by `team_id`.
 
 pub mod client {
-    use crate::common;
-    use crate::common::interceptor::ClientInterceptor;
+    use crate::shared;
+    use crate::shared::interceptor::ClientInterceptor;
     use crate::export::tonic::service::{Interceptor, interceptor::InterceptedService};
     use crate::export::tonic::transport::{Channel, Error};
     use crate::prod_mc_billing::ui_svc_client::UiSvcClient as XUiSvcClient;
 
     pub type BillingClient = XUiSvcClient<InterceptedService<Channel, ClientInterceptor>>;
 
-    /// Creates a new authenticated `BillingClient` connected to the xAI API.
+    /// Creates a new authenticated `BillingClient` connected to the management API.
     ///
-    /// Establishes a secure TLS connection with Bearer token authentication.
+    /// Establishes a secure TLS connection to [`crate::XAI_MANAGEMENT_API_URL`] with
+    /// Bearer token authentication.
     ///
     /// # Arguments
-    /// * `api_key` - Valid xAI API key for authentication
+    /// * `management_key` - Management API key (not an inference key)
     ///
     /// # Returns
     /// * `Result<BillingClient, Error>` - Connected client or transport error
     ///
-    pub async fn new(api_key: &str) -> Result<BillingClient, Error> {
-        let channel = common::channel::new().await?;
-        let auth_intercept = common::interceptor::auth(api_key);
+    pub async fn new(management_key: &str) -> Result<BillingClient, Error> {
+        let channel = shared::channel::management().await?;
+        let auth_intercept = shared::interceptor::auth(management_key);
         let client = XUiSvcClient::with_interceptor(channel, auth_intercept);
 
         Ok(client)
@@ -32,16 +37,17 @@ pub mod client {
 
     /// Creates a new authenticated `BillingClient` using an existing gRPC channel.
     ///
-    /// Useful for sharing connections across multiple service clients.
+    /// The channel must already target the management host
+    /// ([`crate::XAI_MANAGEMENT_API_URL`] / [`shared::channel::management`]).
     ///
     /// # Arguments
-    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
-    /// * `api_key` - Valid xAI API key for authentication
+    /// * `channel` - Existing TLS-secured gRPC channel to the management API
+    /// * `management_key` - Management API key (not an inference key)
     ///
     /// # Returns
     /// * `BillingClient` - Authenticated client using the provided channel
-    pub fn with_channel(channel: Channel, api_key: &str) -> BillingClient {
-        let auth_intercept = common::interceptor::auth(api_key);
+    pub fn with_channel(channel: Channel, management_key: &str) -> BillingClient {
+        let auth_intercept = shared::interceptor::auth(management_key);
         let client = XUiSvcClient::with_interceptor(channel, auth_intercept);
 
         client
@@ -49,7 +55,7 @@ pub mod client {
 
     /// Creates a new `BillingClient` with a custom interceptor.
     ///
-    /// Creates a new TLS connection but uses the provided interceptor instead of
+    /// Opens a management-API channel and uses the provided interceptor instead of
     /// the default authentication interceptor.
     ///
     /// # Arguments
@@ -61,7 +67,7 @@ pub mod client {
     pub async fn with_interceptor(
         interceptor: impl Interceptor + Send + Sync + 'static,
     ) -> Result<BillingClient, Error> {
-        let channel = common::channel::new().await?;
+        let channel = shared::channel::management().await?;
         let client = XUiSvcClient::with_interceptor(channel, ClientInterceptor::new(interceptor));
 
         Ok(client)
@@ -69,10 +75,10 @@ pub mod client {
 
     /// Creates a new `BillingClient` with an existing channel and custom interceptor.
     ///
-    /// Combines a shared channel with custom request interception.
+    /// The channel must already target the management host.
     ///
     /// # Arguments
-    /// * `channel` - Existing TLS-secured gRPC channel to xAI API
+    /// * `channel` - Existing TLS-secured gRPC channel to the management API
     /// * `interceptor` - Custom request interceptor (must handle authentication)
     ///
     /// # Returns

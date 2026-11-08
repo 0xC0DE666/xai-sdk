@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-11-08
+
+### Added
+- **`XAI_MANAGEMENT_API_URL`**: Default management host (`https://management-api.x.ai:443`).
+- **`shared::channel::management()`**: TLS channel to the management API (separate from inference).
+
+### Changed
+- **BREAKING**: Renamed module `common` → `shared` (`shared::channel`, `shared::interceptor`, `shared::types`).
+- **Billing client**: Connects to the management host and documents a management key (not `XAI_API_KEY`).
+- **Billing example**: Requires `XAI_MANAGEMENT_KEY` and `XAI_TEAM_ID`.
+- **Docs**: README notes the inference vs management credential split.
+
 ## [0.13.0] - 2026-11-05
 
 ### Added

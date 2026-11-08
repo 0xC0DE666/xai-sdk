@@ -3,15 +3,20 @@
 //! A Rust SDK for xAI's API, providing type-safe gRPC clients for all xAI services
 //! including Grok language models, embeddings, image generation, and more.
 
-/// Default xAI API URL
+/// Default xAI inference API URL (chat, models, embeddings, …).
 pub const XAI_API_URL: &str = "https://api.x.ai:443";
+
+/// Default xAI management API URL (billing and team management).
+///
+/// Requires a management key from the xAI console — inference API keys are rejected.
+pub const XAI_MANAGEMENT_API_URL: &str = "https://management-api.x.ai:443";
 
 pub mod api;
 pub mod auth;
 pub mod batch;
 pub mod billing;
 pub mod chat;
-pub mod common;
+pub mod shared;
 pub mod documents;
 pub mod embed;
 pub mod export;

@@ -1,5 +1,5 @@
-use xai_sdk::common;
-use xai_sdk::common::interceptor::{ClientInterceptor, auth, compose};
+use xai_sdk::shared;
+use xai_sdk::shared::interceptor::{ClientInterceptor, auth, compose};
 use xai_sdk::export::tonic::service::Interceptor;
 use xai_sdk::export::tonic::{Request, Status};
 
@@ -325,11 +325,22 @@ fn test_auth_with_compose_realistic() {
 async fn test_channel_new() {
     // Attempt to create a channel using the SDK helper.
     // This validates TLS config and endpoint are well-formed.
-    let result = common::channel::new().await;
+    let result = shared::channel::new().await;
 
     assert!(
         result.is_ok(),
         "Expected successful connection, got: {:?}",
+        result
+    );
+}
+
+#[tokio::test]
+async fn test_channel_management() {
+    let result = shared::channel::management().await;
+
+    assert!(
+        result.is_ok(),
+        "Expected successful management connection, got: {:?}",
         result
     );
 }

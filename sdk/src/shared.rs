@@ -1,22 +1,39 @@
-//! Common utilities for the xAI SDK.
+//! Shared utilities for the xAI SDK.
 //!
-//! Provides shared functionality and utilities used across the xAI SDK,
-//! including channel creation, authentication interceptors, and common types.
+//! Channel creation, authentication interceptors, and shared types used across
+//! client modules.
 
 pub mod channel {
-    use crate::XAI_API_URL;
+    use crate::{XAI_API_URL, XAI_MANAGEMENT_API_URL};
     use crate::export::tonic::transport::{Channel, ClientTlsConfig, Error};
 
-    /// Creates a TLS-enabled gRPC `Channel` to the xAI API endpoint.
+    /// Creates a TLS-enabled gRPC `Channel` to the xAI inference API.
     ///
     /// Configures Tonic with native root certificates and connects to
-    /// the SDK's default endpoint defined by [`XAI_API_URL`].
+    /// [`XAI_API_URL`]. Use for chat, models, embeddings, and other inference services.
     ///
     /// # Returns
     /// * `Result<Channel, Error>` - Connected channel or transport error
     ///
     pub async fn new() -> Result<Channel, Error> {
-        Channel::from_static(XAI_API_URL)
+        connect(XAI_API_URL).await
+    }
+
+    /// Creates a TLS-enabled gRPC `Channel` to the xAI management API.
+    ///
+    /// Connects to [`XAI_MANAGEMENT_API_URL`]. Use for billing and other team-management
+    /// services. Do not share this channel with inference clients — they use a different
+    /// host and a different API key.
+    ///
+    /// # Returns
+    /// * `Result<Channel, Error>` - Connected channel or transport error
+    ///
+    pub async fn management() -> Result<Channel, Error> {
+        connect(XAI_MANAGEMENT_API_URL).await
+    }
+
+    async fn connect(endpoint: &'static str) -> Result<Channel, Error> {
+        Channel::from_static(endpoint)
             .tls_config(ClientTlsConfig::new().with_native_roots())?
             .connect()
             .await

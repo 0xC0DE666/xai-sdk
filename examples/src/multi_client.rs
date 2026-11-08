@@ -3,7 +3,7 @@ use xai_sdk::api::{
     Content, GetCompletionsRequest, GetModelRequest, Message, MessageRole, content,
 };
 use xai_sdk::export::tonic::Request;
-use xai_sdk::{chat, common, models};
+use xai_sdk::{chat, shared, models};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=================================\n");
 
     // Create shared channel
-    let channel = common::channel::new().await?;
+    let channel = shared::channel::new().await?;
 
     // Create authenticated clients for different services
     let mut models_client = models::client::with_channel(channel.clone(), &api_key);

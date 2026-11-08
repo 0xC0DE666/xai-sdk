@@ -11,15 +11,14 @@ async fn main() -> Result<()> {
     println!("💳 xAI Billing Service Example");
     println!("==============================\n");
 
-    // Load API key for authentication
-    let api_key =
-        env::var("XAI_API_KEY").context("XAI_API_KEY environment variable must be set")?;
+    // Management API key (Console → Settings → Management Keys). Inference keys 401.
+    let management_key = env::var("XAI_MANAGEMENT_KEY")
+        .context("XAI_MANAGEMENT_KEY environment variable must be set")?;
+    // Team UUID from Console → Settings (required on every billing RPC).
+    let team_id =
+        env::var("XAI_TEAM_ID").context("XAI_TEAM_ID environment variable must be set")?;
 
-    // Create authenticated billing client
-    let mut client = billing::client::new(&api_key).await?;
-
-    // Get team ID from environment (or use the one from your API key info)
-    let team_id = env::var("XAI_TEAM_ID").unwrap_or_else(|_| "your-team-id".to_string());
+    let mut client = billing::client::new(&management_key).await?;
 
     println!("📋 Getting Billing Information");
     println!("-----------------------------\n");
