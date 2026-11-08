@@ -34,7 +34,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.13"
+xai-sdk = "0.14"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -96,11 +96,6 @@ The SDK provides clients for all xAI services:
 - **`get_deferred_completion`** - Retrieve deferred completion
 - **`get_stored_completion`** - Get stored chat completion
 - **`delete_stored_completion`** - Delete stored chat completion
-
-### Sample Service (deprecated)
-Raw `SampleText` is rejected for current Grok 4 models (treated as reasoning). Use **Chat** instead. The client remains for legacy / proto completeness only.
-- **`sample_text`** - Raw text generation (legacy)
-- **`sample_text_streaming`** - Streaming text generation (legacy)
 
 ### Models Service
 - **`list_language_models`** - List available language models
@@ -166,7 +161,6 @@ The SDK is organized into focused modules, each providing easy client creation:
 - **`files`** - File upload and management
 - **`image`** - Image generation
 - **`models`** - Model listing and information
-- **`sample`** - Legacy raw text sampling (deprecated; use `chat`)
 - **`tokenize`** - Text tokenization
 - **`video`** - Video generation with deferred processing
 - **`batch`** - Batch processing and management

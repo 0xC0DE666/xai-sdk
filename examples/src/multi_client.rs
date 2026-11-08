@@ -37,7 +37,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model_response = models_client.get_language_model(model_request).await?;
     println!("Language model: {:#?}\n", model_response.into_inner());
 
-    // Chat completion (prefer chat over legacy SampleText)
     println!("💬 Chat completion...");
     let message = Message {
         role: MessageRole::RoleUser.into(),
