@@ -355,31 +355,21 @@ async fn test_channel_management() {
 
 #[tokio::test]
 async fn test_client_interceptor_send_sync() {
-    // Verify that ClientInterceptor is Send + Sync, allowing it to be used in tokio::spawn
-    use std::sync::{Arc, Mutex};
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<ClientInterceptor>();
 
-    let interceptor =
+    let mut interceptor =
         ClientInterceptor::new(|mut req: Request<()>| -> Result<Request<()>, Status> {
             req.metadata_mut().insert("test", "value".parse().unwrap());
             Ok(req)
         });
 
-    // Test that it can be moved into a spawned task
-    let interceptor_mutex = Arc::new(Mutex::new(interceptor));
-    let interceptor_clone = Arc::clone(&interceptor_mutex);
-
+    // Move into a task — requires Send; Sync is covered by the assert above.
     let handle = tokio::spawn(async move {
-        let mut interceptor = interceptor_clone.lock().unwrap();
         let request = Request::new(());
         interceptor.call(request)
     });
 
-    let result = handle.await;
-    assert!(result.is_ok());
-    let request_result = result.unwrap();
-    assert!(request_result.is_ok());
-    assert_eq!(
-        request_result.unwrap().metadata().get("test").unwrap(),
-        "value"
-    );
+    let request = handle.await.expect("join").expect("interceptor");
+    assert_eq!(request.metadata().get("test").unwrap(), "value");
 }
