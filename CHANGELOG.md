@@ -7,25 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.14.0] - 2026-11-08
 
-### Removed
-- **BREAKING**: Dropped the `sample` client module. Raw `SampleText` is rejected for current Grok models; use `chat`. `sample.proto` stays in the build only because chat shares `FinishReason` from it.
-
-### Changed
-- **Package metadata**: Bumped crate version to `0.14.0`.
-
-## [0.13.1] - 2026-11-08
-
 ### Added
 - **`XAI_MANAGEMENT_API_URL`**: Default management host (`https://management-api.x.ai:443`).
 - **`shared::channel::management()`**: TLS channel to the management API (separate from inference).
 - **Env var name constants**: `XAI_API_KEY`, `XAI_MANAGEMENT_API_KEY`, `XAI_TEAM_ID`.
 
 ### Changed
+- **Package metadata**: Bumped crate version to `0.14.0`.
 - **BREAKING**: Renamed module `common` → `shared` (`shared::channel`, `shared::interceptor`, `shared::types`).
 - **Billing client**: Connects to the management host and documents a management key (not the inference key).
 - **Billing example**: Requires `XAI_MANAGEMENT_API_KEY` and `XAI_TEAM_ID`.
 - **Examples**: Read credentials via the crate env-name constants.
 - **Docs**: README notes the inference vs management credential split.
+
+### Removed
+- **BREAKING**: Dropped the `sample` client module. Raw `SampleText` is rejected for current Grok models; use `chat`. `sample.proto` stays in the build only because chat shares `FinishReason` from it.
 
 ## [0.13.0] - 2026-11-05
 
