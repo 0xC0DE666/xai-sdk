@@ -34,7 +34,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xai-sdk = "0.14"
+xai-sdk = "0.15"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 ```
@@ -275,8 +275,6 @@ Re-exported without adding `futures` to your `Cargo.toml`:
 ### Stream processing functions
 - **`chat::stream::process(stream, sink)`** - Emit events and collect raw chunks
 - **`chat::stream::collect(stream)`** - Chunks only (`process` with `xai_sdk::export::futures::sink::drain()`)
-- **`chat::stream::process_stdout(stream)`** - Print tokens for single-output streams
-- **`chat::stream::process_buffered_stdout(stream)`** - Buffered multi-output printing
 - **`chat::stream::assemble`** - Convert collected chunks into a complete response
 
 ## Interceptors

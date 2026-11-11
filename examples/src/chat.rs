@@ -1,10 +1,14 @@
 use anyhow::{Context, Result};
 use std::env;
+use std::io::{self, Write};
 use xai_sdk::api::{
     Content, GetChatCompletionChunk, GetChatCompletionResponse, GetCompletionsRequest, Message,
     MessageRole, content,
 };
 use xai_sdk::chat;
+use xai_sdk::chat::stream::{Event, process};
+use xai_sdk::export::futures::channel::mpsc;
+use xai_sdk::export::futures::StreamExt;
 use xai_sdk::export::tonic::{Request, Streaming};
 use xai_sdk::XAI_API_KEY;
 
@@ -133,8 +137,21 @@ async fn stream(api_key: &str) -> Result<()> {
     match client.get_completion_chunk(request).await {
         Ok(response) => {
             let stream: Streaming<GetChatCompletionChunk> = response.into_inner();
-            // Print tokens to stdout as they arrive
-            let _ = chat::stream::process_stdout(stream).await?;
+            let (tx, mut rx) = mpsc::unbounded();
+            let printer = tokio::spawn(async move {
+                while let Some(ev) = rx.next().await {
+                    match ev {
+                        Event::ReasoningToken(_, t) | Event::ContentToken(_, t) => {
+                            print!("{t}");
+                            let _ = io::stdout().flush();
+                        }
+                        Event::ReasoningComplete(_) | Event::ContentComplete(_) => println!(),
+                        _ => {}
+                    }
+                }
+            });
+            let _ = process(stream, tx).await?;
+            let _ = printer.await;
         }
         Err(e) => {
             eprintln!("❌ Error calling xAI API: {}", e);

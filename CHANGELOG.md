@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-11-11
+
+### Changed
+- **Package metadata**: Bumped crate version to `0.15.0`.
+
+### Removed
+- **BREAKING**: Dropped `chat::stream::process_stdout` and `process_buffered_stdout`. Print from your own `Sink<Event>` or match on events from `process`.
+
 ## [0.14.0] - 2026-11-08
 
 ### Added
